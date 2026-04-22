@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConnectifyAI — Dashboard</title>
+  <script>
+    // Apply stored theme BEFORE first paint to avoid a light-mode flash.
+    try {
+      if (localStorage.getItem('cfg.theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --border: #e4e8ee;
+      --border-light: #eef1f6;
+      --sidebar-bg: #ffffff;
+      --sidebar-active-bg: #e7efff;
+      --sidebar-active-text: #2563eb;
+
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff4ff;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+
+      --badge-admin-bg: #7c3aed;
+      --badge-viewonly-bg: #334155;
+      --badge-contrib-bg: #f97316;
+
+      --tag-bg: #f1f5f9;
+      --tag-text: #475569;
+
+      --avatar-1: #8b5cf6;
+      --avatar-2: #f59e0b;
+      --avatar-3: #ec4899;
+      --avatar-4: #10b981;
+      --avatar-5: #3b82f6;
+      --avatar-6: #ef4444;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── TOP HEADER ── */
+    .topbar {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+
+    .brand-logo {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: var(--primary);
+      display: grid;
+      place-items: center;
+      color: #fff;
+    }
+
+    .brand-logo svg { width: 16px; height: 16px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    .avatar-dropdown {
+      display: flex; align-items: center; gap: 6px;
+      cursor: pointer;
+      padding: 4px 8px 4px 4px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: background 0.15s;
+    }
+    .avatar-dropdown:hover { background: var(--bg); }
+
+    .avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .chev {
+      width: 14px; height: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ── LAYOUT ── */
+    body.sidebar-expanded { --nav-w: 208px; }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--nav-w, 56px) 1fr;
+      transition: grid-template-columns 0.18s ease;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: background 0.12s, color 0.12s;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .nav-item:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-item.active {
+      background: var(--sidebar-active-bg);
+      color: var(--sidebar-active-text);
+      font-weight: 600;
+    }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-toggle {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      color: var(--text-muted); border-radius: 8px; cursor: pointer;
+      background: transparent; border: none; margin: 0 0 6px auto;
+      transition: background 0.12s;
+    }
+    .nav-toggle:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-toggle svg { width: 16px; height: 16px; transition: transform 0.18s ease; }
+    body:not(.sidebar-expanded) .nav-toggle svg { transform: rotate(0deg); }
+    body.sidebar-expanded .nav-toggle svg { transform: rotate(180deg); }
+    /* Collapsed state: icons only */
+    body:not(.sidebar-expanded) .sidebar { padding: 16px 10px; }
+    body:not(.sidebar-expanded) .nav-item { justify-content: center; padding: 8px; gap: 0; font-size: 0; }
+    body:not(.sidebar-expanded) .nav-item svg { margin: 0; }
+
+    /* ── MAIN ── */
+    .main {
+      padding: 28px 32px 48px;
+      overflow: hidden;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      gap: 16px;
+    }
+
+    .page-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .page-title .icon-wrap {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: var(--text-primary);
+    }
+
+    .header-actions { display: flex; gap: 10px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline {
+      background: var(--surface);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-outline:hover { background: var(--primary-soft); }
+
+    /* ── SECTIONS ── */
+    .section { margin-bottom: 36px; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .sort-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .sort-btn:hover { color: var(--text-primary); }
+    .sort-btn svg { width: 14px; height: 14px; }
+
+    /* ── GRAPH CARDS (horizontal scroll) ── */
+    .graph-row {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+    }
+    .graph-row::-webkit-scrollbar { height: 6px; }
+    .graph-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .graph-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      width: 304px;
+      flex-shrink: 0;
+      scroll-snap-align: start;
+      transition: box-shadow 0.15s, transform 0.15s;
+      cursor: pointer;
+    }
+    .graph-card:hover {
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .graph-thumb {
+      position: relative;
+      width: 100%;
+      height: 128px;
+      background:
+        radial-gradient(circle at 20% 30%, #dbeafe 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, #e0e7ff 0%, transparent 50%),
+        #f8fafc;
+      background-image:
+        linear-gradient(var(--border-light) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
+      background-size: 16px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .graph-thumb::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 25% 40%, rgba(37, 99, 235, 0.08) 0, transparent 35%),
+        radial-gradient(circle at 75% 65%, rgba(124, 58, 237, 0.06) 0, transparent 40%);
+    }
+
+    /* Decorative "graph" svg positioned inside thumb */
+    .graph-thumb svg.graph-viz {
+      position: absolute;
+      inset: 8px;
+      width: calc(100% - 16px);
+      height: calc(100% - 16px);
+      opacity: 0.85;
+    }
+
+    .role-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.01em;
+    }
+    .role-admin { background: var(--badge-admin-bg); }
+    .role-viewonly { background: var(--badge-viewonly-bg); }
+    .role-contrib { background: var(--badge-contrib-bg); }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      display: inline;
+    }
+    .card-author {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .tag {
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .push-meta {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .push-meta strong { color: var(--text-secondary); font-weight: 500; }
+
+    .avatar-stack {
+      display: flex;
+      align-items: center;
+    }
+    .avatar-stack .mini {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+      margin-left: -6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .avatar-stack .mini:first-child { margin-left: 0; }
+    .avatar-stack .more {
+      background: var(--tag-bg);
+      color: var(--text-secondary);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 0 5px;
+      min-width: 26px;
+      height: 22px;
+      border-radius: 999px;
+      border: 2px solid var(--surface);
+      margin-left: -6px;
+      display: grid;
+      place-items: center;
+    }
+
+    /* ── CATEGORY GRID ── */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    .category-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      cursor: pointer;
+    }
+    .category-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 18px rgba(37, 99, 235, 0.08);
+      transform: translateY(-1px);
+    }
+    .category-icon {
+      width: 44px; height: 44px;
+      display: grid;
+      place-items: center;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .category-icon svg { width: 36px; height: 36px; }
+    .category-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .category-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 1100px) {
+      .category-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .main { padding: 20px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <!-- network nodes logo -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/>
+          <circle cx="18" cy="6" r="2"/>
+          <circle cx="12" cy="18" r="2"/>
+          <path d="M7.5 7.5 L10.8 16.5"/>
+          <path d="M16.5 7.5 L13.2 16.5"/>
+          <path d="M8 6 L16 6"/>
+        </svg>
+      </div>
+      ConnectifyAI
+    </div>
+    <div class="topbar-right">
+      <button class="avatar-dropdown" aria-label="Account">
+        <span class="avatar">JS</span>
+        <svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8l5 5 5-5"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── MAIN LAYOUT ── -->
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9"/>
+          <rect x="14" y="3" width="7" height="5"/>
+          <rect x="14" y="12" width="7" height="9"/>
+          <rect x="3" y="16" width="7" height="5"/>
+        </svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/>
+        </svg>
+        Create
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Discover
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Account
+      </a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div class="page-title">
+          <span class="icon-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="9"/>
+              <rect x="14" y="3" width="7" height="5"/>
+              <rect x="14" y="12" width="7" height="9"/>
+              <rect x="3" y="16" width="7" height="5"/>
+            </svg>
+          </span>
+          Dashboard
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/>
+            </svg>
+            New Graph
+          </button>
+          <button class="btn btn-outline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Browse Community Graphs
+          </button>
+        </div>
+      </div>
+
+      <!-- RECENT GRAPHS -->
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">Recent Graphs</h2>
+          <button class="sort-btn">
+            Sort
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M6 12h12M10 18h4"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="graph-row">
+          <!-- Card 1: Admin -->
+          <article class="graph-card">
+            <div class="graph-thumb">
+              <span class="role-badge role-admin">Admin</span>
+              <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+                <g stroke="#94a3b8" stroke-width="1" fill="none">
+                  <path d="M40 30 L90 30"/>
+                  <path d="M90 30 L150 60"/>
+                  <path d="M150 60 L210 35"/>
+                  <path d="M150 60 L210 85"/>
+                  <path d="M90 30 L40 75"/>
+                </g>
+                <g>
+                  <rect x="20" y="22" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
+                  <rect x="70" y="22" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/>
+                  <rect x="130" y="52" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/>
+                  <rect x="190" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/>
+                  <rect x="190" y="77" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/>
+                  <rect x="20" y="67" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <span class="card-title">Public Health Monitoring</span>
+              <span class="card-author">by UCLA Health Sciences</span>
+            </div>
+            <div class="tag-row">
+              <span class="tag">Public Health</span>
+              <span class="tag">Epidemic Tracking</span>
+            </div>
+            <div class="card-footer">
+              <span class="push-meta">Last push: <strong>2 hours ago</strong> by Jesh B.</span>
+              <div class="avatar-stack">
+                <span class="mini" style="background: var(--avatar-1);">LR</span>
+                <span class="mini" style="background: var(--avatar-2);">MK</span>
+                <span class="mini" style="background: var(--avatar-3);">SP</span>
+                <span class="more">+38</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 2: View Only -->
+          <article class="graph-card">
+            <div class="graph-thumb">
+              <span class="role-badge role-viewonly">View Only</span>
+              <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+                <g stroke="#94a3b8" stroke-width="1" fill="none">
+                  <path d="M40 30 L100 60"/>
+                  <path d="M100 60 L160 30"/>
+                  <path d="M160 30 L220 60"/>
+                  <path d="M100 60 L160 90"/>
+                  <path d="M220 60 L160 90"/>
+                </g>
+                <g>
+                  <rect x="20" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/>
+                  <rect x="80" y="52" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
+                  <rect x="140" y="22" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/>
+                  <rect x="200" y="52" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/>
+                  <rect x="140" y="82" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <span class="card-title">Neurological Disease Analysis</span>
+              <span class="card-author">by RazLab</span>
+            </div>
+            <div class="tag-row">
+              <span class="tag">Neuroscience</span>
+              <span class="tag">Disease Detection</span>
+            </div>
+            <div class="card-footer">
+              <span class="push-meta">Last push: <strong>1 day ago</strong> by RazLab</span>
+              <div class="avatar-stack">
+                <span class="mini" style="background: var(--avatar-4);">TA</span>
+                <span class="mini" style="background: var(--avatar-5);">RZ</span>
+                <span class="mini" style="background: var(--avatar-6);">NK</span>
+                <span class="more">+17</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 3: Contributor -->
+          <article class="graph-card">
+            <div class="graph-thumb">
+              <span class="role-badge role-contrib">Contributor</span>
+              <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+                <g stroke="#94a3b8" stroke-width="1" fill="none">
+                  <path d="M35 40 L95 25"/>
+                  <path d="M95 25 L155 55"/>
+                  <path d="M95 25 L95 80"/>
+                  <path d="M155 55 L215 30"/>
+                  <path d="M155 55 L215 80"/>
+                  <path d="M95 80 L155 55"/>
+                </g>
+                <g>
+                  <rect x="15" y="32" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/>
+                  <rect x="75" y="17" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
+                  <rect x="75" y="72" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/>
+                  <rect x="135" y="47" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/>
+                  <rect x="195" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/>
+                  <rect x="195" y="72" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <span class="card-title">Autonomous Vehicle Navigation</span>
+              <span class="card-author">by Waymo</span>
+            </div>
+            <div class="tag-row">
+              <span class="tag">Autonomous Driving</span>
+              <span class="tag">Perception</span>
+            </div>
+            <div class="card-footer">
+              <span class="push-meta">Last push: <strong>15 minutes ago</strong> by Mansi S.</span>
+              <div class="avatar-stack">
+                <span class="mini" style="background: var(--avatar-3);">BP</span>
+                <span class="mini" style="background: var(--avatar-5);">GA</span>
+                <span class="mini" style="background: var(--avatar-1);">PL</span>
+                <span class="more">+2</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card 4: peeking -->
+          <article class="graph-card">
+            <div class="graph-thumb">
+              <span class="role-badge role-admin">Admin</span>
+              <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+                <g stroke="#94a3b8" stroke-width="1" fill="none">
+                  <path d="M40 35 L100 35"/>
+                  <path d="M100 35 L160 65"/>
+                  <path d="M160 65 L220 35"/>
+                  <path d="M160 65 L220 90"/>
+                </g>
+                <g>
+                  <rect x="20" y="27" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
+                  <rect x="80" y="27" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/>
+                  <rect x="140" y="57" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/>
+                  <rect x="200" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/>
+                  <rect x="200" y="82" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/>
+                </g>
+              </svg>
+            </div>
+            <div>
+              <span class="card-title">Human Genome Analysis</span>
+              <span class="card-author">by Broad Institute</span>
+            </div>
+            <div class="tag-row">
+              <span class="tag">Genomics</span>
+              <span class="tag">Bioinformatics</span>
+            </div>
+            <div class="card-footer">
+              <span class="push-meta">Last push: <strong>3 days ago</strong> by Priya R.</span>
+              <div class="avatar-stack">
+                <span class="mini" style="background: var(--avatar-2);">KS</span>
+                <span class="mini" style="background: var(--avatar-4);">AM</span>
+                <span class="more">+8</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- POPULAR GRAPH CATEGORIES -->
+      <section class="section">
+        <div class="section-head">
+          <h2 class="section-title">Popular Graph Categories</h2>
+        </div>
+
+        <div class="category-grid">
+          <!-- Neuroscience -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 8c-4 0-7 3-7 7 0 2 1 3 2 4-2 1-3 3-3 5s1 4 3 5c-2 1-3 3-3 5s1 4 3 5c-1 1-2 2-2 4 0 4 3 7 7 7 3 0 5-2 6-4 0-12 0-25 0-38-1-2-3-4-6-4zM32 8c4 0 7 3 7 7 0 2-1 3-2 4 2 1 3 3 3 5s-1 4-3 5c2 1 3 3 3 5s-1 4-3 5c1 1 2 2 2 4 0 4-3 7-7 7-3 0-5-2-6-4 0-12 0-25 0-38 1-2 3-4 6-4z"/>
+              </svg>
+            </div>
+            <div class="category-name">Neuroscience</div>
+            <div class="category-count">78 Graphs</div>
+          </div>
+
+          <!-- Autonomous Driving -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 30h28M10 30l3-9c.5-1.5 2-3 4-3h14c2 0 3.5 1.5 4 3l3 9M10 30v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2M38 30v6a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-2"/>
+                <circle cx="16" cy="32" r="2"/>
+                <circle cx="32" cy="32" r="2"/>
+                <path d="M24 10v6M20 13l4-3 4 3"/>
+              </svg>
+            </div>
+            <div class="category-name">Autonomous Driving</div>
+            <div class="category-count">119 Graphs</div>
+          </div>
+
+          <!-- Drug Discovery -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h12l-2 10c3 2 5 5 5 9 0 6-5 11-11 11s-11-5-11-11c0-4 2-7 5-9L18 8z"/>
+                <circle cx="24" cy="28" r="2" fill="currentColor"/>
+                <circle cx="20" cy="23" r="1.5" fill="currentColor"/>
+                <circle cx="28" cy="23" r="1.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="category-name">Drug Discovery</div>
+            <div class="category-count">51 Graphs</div>
+          </div>
+
+          <!-- Bioinformatics -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 8c0 8 20 8 20 16s-20 8-20 16"/>
+                <path d="M34 8c0 8-20 8-20 16s20 8 20 16"/>
+                <path d="M14 8h20M14 40h20M16 14h16M16 34h16M18 20h12M18 28h12"/>
+              </svg>
+            </div>
+            <div class="category-name">Bioinformatics</div>
+            <div class="category-count">80 Graphs</div>
+          </div>
+
+          <!-- Weather Monitoring -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M32 22a6 6 0 0 0-11.7-2 5 5 0 0 0-6.3 5 5 5 0 0 0 5 5h12a5 5 0 0 0 1-9.9z"/>
+                <path d="M18 34l-3 6M24 34l-3 6M30 34l-3 6"/>
+              </svg>
+            </div>
+            <div class="category-name">Weather Monitoring</div>
+            <div class="category-count">45 Graphs</div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="24" cy="24" r="4"/>
+                <g>
+                  <circle cx="24" cy="10" r="3"/>
+                  <circle cx="24" cy="38" r="3"/>
+                  <circle cx="10" cy="24" r="3"/>
+                  <circle cx="38" cy="24" r="3"/>
+                  <circle cx="14" cy="14" r="3"/>
+                  <circle cx="34" cy="14" r="3"/>
+                  <circle cx="14" cy="34" r="3"/>
+                  <circle cx="34" cy="34" r="3"/>
+                </g>
+                <path d="M24 14v6M24 34v-6M14 24h6M34 24h-6M17 17l4 4M31 31l-4-4M17 31l4-4M31 17l-4 4"/>
+              </svg>
+            </div>
+            <div class="category-name">Network Science</div>
+            <div class="category-count">62 Graphs</div>
+          </div>
+
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="24" cy="24" r="14"/>
+                <path d="M24 10v28M10 24h28M14 14c4 4 16 4 20 0M14 34c4-4 16-4 20 0"/>
+              </svg>
+            </div>
+            <div class="category-name">Climate Science</div>
+            <div class="category-count">37 Graphs</div>
+          </div>
+
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M24 8c-3 6-8 8-8 16 0 5 4 9 8 9s8-4 8-9c0-8-5-10-8-16z"/>
+                <path d="M24 38v4"/>
+              </svg>
+            </div>
+            <div class="category-name">Agriculture</div>
+            <div class="category-count">28 Graphs</div>
+          </div>
+
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 36l8-10 6 6 10-14 8 10"/>
+                <path d="M8 40h32"/>
+              </svg>
+            </div>
+            <div class="category-name">Economics</div>
+            <div class="category-count">54 Graphs</div>
+          </div>
+
+          <div class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="24" cy="24" rx="16" ry="6"/>
+                <ellipse cx="24" cy="24" rx="16" ry="6" transform="rotate(60 24 24)"/>
+                <ellipse cx="24" cy="24" rx="16" ry="6" transform="rotate(120 24 24)"/>
+                <circle cx="24" cy="24" r="2" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="category-name">Astrophysics</div>
+            <div class="category-count">41 Graphs</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Sidebar collapse (shared across pages via localStorage)
+    (function() {
+      const KEY = 'cfg.sidebarExpanded';
+      function apply() {
+        const stored = localStorage.getItem(KEY);
+        const on = stored === null ? true : stored === '1';
+        document.body.classList.toggle('sidebar-expanded', on);
+      }
+      apply();
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('navToggle');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const on = !document.body.classList.contains('sidebar-expanded');
+          localStorage.setItem(KEY, on ? '1' : '0');
+          apply();
+        });
+      });
+      window.addEventListener('storage', e => { if (e.key === KEY) apply(); });
+    })();
+  </script>
+  <script>
+    // Each project card opens the shared new view-mode template with a
+    // project slug param. Cards without a registered project are
+    // non-interactive placeholders.
+    const PROJECTS = {
+      'Neurological Disease Analysis': 'view-mode-new.html?project=neurological-disease-analysis',
+      'Autonomous Vehicle Navigation': 'view-mode-new.html?project=autonomous-vehicle-navigation',
+      'Public Health Monitoring':      'view-mode-new.html?project=public-health-monitoring'
+    };
+    document.querySelectorAll('.graph-card').forEach(card => {
+      const title = card.querySelector('.card-title')?.textContent?.trim();
+      const url = PROJECTS[title];
+      if (!url) { card.style.cursor = 'default'; return; }
+      card.addEventListener('click', () => { window.location.href = url; });
+    });
+  </script>
+  <script src="theme.js"></script>
+</body>
+</html>

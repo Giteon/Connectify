@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConnectifyAI (view)</title>
+  <script>
+    // Apply stored theme before first paint (avoids dark-mode flash).
+    try {
+      if (localStorage.getItem('cfg.theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f7fa; --surface: #ffffff; --border: #e4e8ee; --border-light: #eef1f6;
+      --canvas-bg: #fafbfd; --primary: #2563eb; --primary-hover: #1d4ed8; --primary-soft: #eff4ff;
+      --text-primary: #0f172a; --text-secondary: #475569; --text-muted: #94a3b8;
+      --tag-bg: #f1f5f9; --tag-text: #475569; --section-bg: #f4f6f9; --edge: #94a3b8;
+      --dot-red: #ef4444; --dot-yellow: #f59e0b; --dot-purple: #8b5cf6;
+      --dot-green: #10b981; --dot-blue: #3b82f6;
+      --avatar-1: #8b5cf6; --avatar-2: #f59e0b; --avatar-3: #ec4899;
+      --avatar-4: #10b981; --avatar-5: #3b82f6; --avatar-6: #ef4444; --avatar-7: #0ea5e9;
+
+      --topbar-h: 52px;
+      --variant-h: 38px;
+      --info-w: 360px;
+      --drawer-right-w: 320px;
+      --bottom-h: 240px;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text-primary);
+      font-size: 14px; -webkit-font-smoothing: antialiased; overflow: hidden;
+    }
+
+    /* ── App shell ─────────────────────────────────────────
+       View mode mirrors the edit-mode grid so users can switch between
+       the two without the chrome shifting around. Differences:
+       - Column 2 is a *persistent* info panel (project details + CTAs)
+         instead of a collapsible left drawer. In view mode you can't
+         add content, so there's nothing to hide here.
+       - No "add" tools, no run button, no comments button in topbar. */
+    .app {
+      display: grid;
+      grid-template-rows: var(--topbar-h) var(--variant-h) 1fr auto;
+      grid-template-columns: auto auto 1fr auto;
+      height: 100vh;
+      --leftnav-w: 44px;
+    }
+    .app.leftnav-expanded { --leftnav-w: 180px; }
+    .topbar        { grid-column: 1 / -1; grid-row: 1; }
+    .variant-strip { grid-column: 1 / -1; grid-row: 2; }
+    .leftnav       { grid-column: 1; grid-row: 3; width: var(--leftnav-w); transition: width .18s ease; }
+    .info-panel    { grid-column: 2; grid-row: 3; width: var(--info-w); }
+    .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; }
+    .drawer-right  { grid-column: 4; grid-row: 3; }
+    .bottom-panel  { grid-column: 1 / -1; grid-row: 4; }
+
+    /* ── Leftnav (identical to editing-mode-new) ───────────── */
+    .leftnav {
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: stretch;
+      padding: 8px 6px; gap: 2px; overflow: hidden;
+    }
+    .leftnav .nav-toggle {
+      width: 32px; height: 28px; align-self: center;
+      border-radius: 6px; background: transparent; border: none; cursor: pointer;
+      display: grid; place-items: center; color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .leftnav .nav-toggle:hover { background: var(--bg); color: var(--text-primary); }
+    .leftnav .nav-toggle svg { width: 14px; height: 14px; transition: transform .18s ease; }
+    .app.leftnav-expanded .leftnav .nav-toggle { align-self: flex-end; }
+    .app.leftnav-expanded .leftnav .nav-toggle svg { transform: rotate(180deg); }
+    .leftnav a {
+      display: flex; align-items: center; gap: 10px;
+      height: 34px; padding: 0 8px; border-radius: 7px;
+      color: var(--text-muted); text-decoration: none;
+      font-size: 13px; font-weight: 500;
+    }
+    .leftnav a:hover { background: var(--bg); color: var(--text-primary); }
+    .leftnav a.active { background: var(--primary-soft); color: var(--primary); }
+    .leftnav a svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .leftnav .nav-label {
+      white-space: nowrap; opacity: 0; transition: opacity .15s ease .05s;
+      pointer-events: none;
+    }
+    .app.leftnav-expanded .leftnav .nav-label { opacity: 1; pointer-events: auto; }
+    .app:not(.leftnav-expanded) .leftnav .nav-label { display: none; }
+    .app:not(.leftnav-expanded) .leftnav a {
+      justify-content: center; padding: 0; width: 32px; align-self: center; gap: 0;
+    }
+
+    /* ── Info panel (left side, always visible) ───────────
+       Dedicated real-estate for project identity in view mode:
+       title, author, tags, contributors, description, and the two
+       primary CTAs for a visitor — Become a contributor, Fork. */
+    .info-panel {
+      background: var(--surface); border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .ip-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; padding-bottom: 4px; color: var(--text-primary); }
+    .ip-author { font-size: 12.5px; color: var(--text-muted); }
+    .ip-tagrow { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ip-tag {
+      font-size: 11px; padding: 3px 9px; border-radius: 999px;
+      background: var(--tag-bg); color: var(--tag-text); font-weight: 500;
+    }
+    .ip-section h3 {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); margin-bottom: 8px;
+    }
+    .ip-contribs { display: flex; flex-direction: column; gap: 8px; }
+    .ip-contrib {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .ip-contrib .av {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .ip-contrib .body { display: flex; flex-direction: column; line-height: 1.15; flex: 1; min-width: 0; }
+    .ip-contrib .name { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+    .ip-contrib .name .role { color: var(--text-muted); font-weight: 400; }
+    .ip-contrib .meta { font-size: 11.5px; color: var(--text-muted); }
+
+    .ip-desc {
+      font-size: 13px; line-height: 1.55; color: var(--text-secondary);
+      overflow: hidden;
+    }
+    .ip-desc.clamp { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
+    .ip-desc-toggle {
+      margin-top: 6px; display: inline-flex; align-items: center; gap: 4px;
+      background: transparent; border: none; color: var(--primary);
+      font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
+    }
+    .ip-desc-toggle svg { width: 12px; height: 12px; transition: transform .15s; }
+    .ip-desc-toggle.expanded svg { transform: rotate(180deg); }
+
+    .ip-actions { display: flex; flex-direction: column; gap: 8px; }
+    .ip-btn {
+      height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-primary);
+      font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      transition: background .12s, border-color .12s;
+    }
+    .ip-btn:hover { background: var(--bg); }
+    .ip-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .ip-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+    .ip-btn svg { width: 14px; height: 14px; }
+
+    /* ── Topbar (mirrors editing-mode-new, minus run + comments) ── */
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 16px; position: relative; z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; color: var(--text-primary); text-decoration: none; flex-shrink: 0; }
+    .brand-logo { width: 26px; height: 26px; border-radius: 6px; background: var(--primary); display: grid; place-items: center; color: #fff; }
+    .brand-logo svg { width: 15px; height: 15px; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); flex-shrink: 0; }
+    .breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--text-primary); }
+    .breadcrumb .sep { color: var(--text-muted); }
+    .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+    .topbar-spacer { flex: 1; }
+    .tb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+
+    .tb-toggle {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 10px; border-radius: 7px;
+      border: 1px solid transparent; background: transparent;
+      color: var(--text-secondary); font-family: inherit; font-size: 12.5px;
+      font-weight: 500; cursor: pointer; transition: background .12s, color .12s;
+    }
+    .tb-toggle svg { width: 15px; height: 15px; }
+    .tb-toggle:hover { background: var(--bg); color: var(--text-primary); }
+    .tb-toggle.active { background: var(--primary-soft); color: var(--primary); }
+
+    /* Role pill + dropdown (view-mode variant) */
+    .role-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); padding: 6px 12px;
+      border-radius: 999px; background: var(--surface);
+      font-size: 13px; color: var(--text-primary); font-weight: 500;
+      cursor: pointer; font-family: inherit;
+    }
+    .role-pill svg { width: 14px; height: 14px; }
+    .role-pill:hover { background: var(--bg); }
+    .role-dropdown {
+      position: fixed; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 11px;
+      box-shadow: 0 4px 20px rgba(15,23,42,0.13);
+      padding: 4px; min-width: 220px; z-index: 9999; display: none;
+    }
+    .role-dropdown.open { display: block; }
+    .role-opt {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 8px 11px; border-radius: 7px;
+      font-size: 13px; font-weight: 500; color: var(--text-primary);
+      cursor: pointer; transition: background .1s;
+    }
+    .role-opt:hover:not(.disabled) { background: var(--bg); }
+    .role-opt.disabled { color: var(--text-muted); cursor: default; }
+    .role-opt.current { color: var(--primary); }
+    .role-opt .role-check { width: 14px; height: 14px; color: var(--primary); flex-shrink: 0; }
+    .role-opt .role-badge {
+      font-size: 10.5px; font-weight: 600; padding: 2px 7px;
+      border-radius: 20px; background: var(--tag-bg); color: var(--text-muted);
+    }
+    .role-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+    .role-perms-link {
+      display: flex; align-items: center; gap: 7px;
+      padding: 8px 11px; border-radius: 7px;
+      font-size: 12.5px; color: var(--text-muted);
+      cursor: pointer; transition: background .1s;
+    }
+    .role-perms-link:hover { background: var(--bg); color: var(--text-secondary); }
+    .role-perms-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* Presence */
+    .presence {
+      display: flex; align-items: center; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 3px 10px 3px 4px; background: var(--surface);
+      transition: background .15s;
+    }
+    .presence:hover { background: var(--bg); }
+    .presence-avatars { display: flex; }
+    .presence-avatars .pav {
+      width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface);
+      display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700;
+      margin-left: -6px;
+    }
+    .presence-avatars .pav:first-child { margin-left: 0; }
+    .presence-count { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-left: 6px; }
+    .presence-dropdown {
+      position: absolute; top: calc(var(--topbar-h) + 4px);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 8px 24px rgba(15,23,42,0.14);
+      padding: 6px; min-width: 240px; max-height: 360px; overflow-y: auto;
+      z-index: 50; display: none;
+    }
+    .presence-dropdown.open { display: block; }
+    .presence-row { display: flex; align-items: center; gap: 10px;
+      padding: 7px 8px; border-radius: 7px; font-size: 13px; }
+    .presence-row:hover { background: var(--bg); }
+    .presence-row .pav { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700; }
+    .presence-row .name { flex: 1; color: var(--text-primary); font-weight: 500; }
+
+    .avatar-dropdown {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      padding: 3px 8px 3px 3px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .avatar-dropdown:hover { background: var(--bg); }
+    .avatar-dropdown .av { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700; }
+    .avatar-dropdown svg { width: 14px; height: 14px; color: var(--text-muted); }
+
+    /* ── Variant strip (read-only — switch allowed, can't add/edit) ── */
+    .variant-strip {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-end; padding-left: 4px; gap: 2px; overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .variant-tab {
+      height: 100%; padding: 0 14px;
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+      background: transparent; border: none; cursor: pointer; font-family: inherit;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      white-space: nowrap;
+    }
+    .variant-tab:hover { color: var(--text-primary); background: var(--surface); }
+    .variant-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--surface); font-weight: 600; }
+    .variant-tab .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+    .variant-tab.active .tab-dot { background: var(--primary); }
+
+    /* ── Right drawer (Paths, Inspector — no Comments in view mode) ── */
+    .drawer {
+      background: var(--surface);
+      display: flex; flex-direction: column;
+      width: 0; overflow: hidden; transition: width .18s ease;
+    }
+    .drawer-right { border-left: 1px solid var(--border); }
+    .drawer.open { width: var(--drawer-right-w); }
+    .drawer-head {
+      display: flex; align-items: center;
+      border-bottom: 1px solid var(--border); padding: 0 4px 0 0; flex-shrink: 0;
+    }
+    .drawer-tabs { display: flex; flex: 1; padding: 0 4px; }
+    .drawer-tab {
+      flex: 1; padding: 11px 10px;
+      background: transparent; border: none; cursor: pointer; font-family: inherit;
+      font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .drawer-tab:hover { color: var(--text-primary); }
+    .drawer-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .drawer-close {
+      width: 30px; height: 30px; border-radius: 6px; background: transparent;
+      border: none; color: var(--text-muted); cursor: pointer;
+      display: grid; place-items: center; margin-right: 4px;
+    }
+    .drawer-close:hover { background: var(--bg); color: var(--text-primary); }
+    .drawer-close svg { width: 14px; height: 14px; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 12px 14px 16px; }
+    .drawer-panel { display: none; }
+    .drawer-panel.active { display: flex; flex-direction: column; gap: 10px; }
+
+    .empty-state { padding: 26px 8px; text-align: center; color: var(--text-muted); font-size: 12.5px; }
+    .empty-state svg { width: 28px; height: 28px; margin-bottom: 6px; opacity: 0.5; }
+
+    .path-item {
+      border: 1px solid var(--border); border-radius: 9px;
+      padding: 10px 12px; background: var(--surface); cursor: pointer;
+      display: flex; flex-direction: column; gap: 6px;
+      transition: border-color .12s;
+    }
+    .path-item:hover { border-color: var(--primary); }
+    .path-item .t { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .path-item .m { font-size: 11.5px; color: var(--text-muted); }
+
+    /* Inspector */
+    .inspector-hd { display: flex; align-items: center; gap: 8px; padding: 10px 2px; border-bottom: 1px solid var(--border-light); margin-bottom: 10px; }
+    .inspector-hd .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .inspector-hd .name { font-size: 14px; font-weight: 600; color: var(--text-primary); flex: 1; }
+    .inspector-hd .kind { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .insp-section { display: flex; flex-direction: column; gap: 5px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-light); }
+    .insp-section:last-child { border-bottom: none; }
+    .insp-section h4 { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .insp-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+    .insp-row .k { color: var(--text-secondary); }
+    .insp-row .v { color: var(--text-primary); font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .insp-port-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+    .insp-port-row .pname { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-primary); flex: 1; }
+    .type-pill { font-size: 9.5px; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; flex-shrink: 0; }
+
+    /* ── Bottom panel (Results — read-only Runs) ─────────── */
+    .bottom-panel {
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      height: 0; overflow: hidden; transition: height .18s ease;
+    }
+    .bottom-panel.open { height: var(--bottom-h); }
+    .bp-tabs { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); padding: 0 12px; height: 38px; flex-shrink: 0; }
+    .bp-tab { padding: 0 14px; background: transparent; border: none; cursor: pointer;
+      font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+      border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 6px; }
+    .bp-tab:hover { color: var(--text-primary); }
+    .bp-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .bp-tab .bp-count { font-size: 10px; font-weight: 700; background: var(--tag-bg); color: var(--text-secondary); padding: 1px 6px; border-radius: 10px; }
+    .bp-close { margin-left: auto; align-self: center; width: 26px; height: 26px; display: grid; place-items: center; background: transparent; border: none; color: var(--text-muted); cursor: pointer; border-radius: 5px; }
+    .bp-close:hover { background: var(--bg); color: var(--text-primary); }
+    .bp-close svg { width: 14px; height: 14px; }
+    .bp-body { flex: 1; overflow: auto; padding: 12px 16px 16px; }
+    .bp-panel { display: none; }
+    .bp-panel.active { display: block; }
+
+    .runs-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; height: 100%; }
+    .runs-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; }
+    .run-card { border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+    .run-card:hover { border-color: var(--primary); }
+    .run-card.active { border-color: var(--primary); background: var(--primary-soft); }
+    .run-card .t { font-size: 12.5px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+    .run-card .t .status { width: 7px; height: 7px; border-radius: 50%; background: var(--dot-green); }
+    .run-card .t .status.failed { background: var(--dot-red); }
+    .run-card .m { font-size: 11.5px; color: var(--text-muted); }
+    .run-detail { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .metric { border: 1px solid var(--border-light); border-radius: 7px; padding: 8px 10px; background: var(--bg); }
+    .metric .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric .num { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+
+    /* ── Canvas ─────────────────────────────────────────── */
+    .canvas-area { position: relative; background: var(--canvas-bg); }
+    .canvas-wrap {
+      position: absolute; inset: 0; overflow: hidden;
+      background: var(--canvas-bg);
+      background-image: radial-gradient(circle, #d5d9e0 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+    .canvas { position: absolute; inset: 0; overflow: hidden; cursor: default; }
+    .canvas.panning { cursor: grabbing; }
+    .canvas-inner { position: relative; transform-origin: 0 0; isolation: isolate; }
+    .node-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .node-overlay path { fill: none; stroke: var(--edge); stroke-width: 1.4; }
+    .node-overlay path.edge-hit { stroke: transparent; stroke-width: 14; }
+    .node-overlay path.edge-highlight { stroke: var(--primary); stroke-width: 2.2; }
+
+    .node {
+      position: absolute; width: 200px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px; font-size: 12.5px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 2;
+      user-select: none; transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .node.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.18); }
+    .node.path-dim { opacity: 0.25; }
+    .node.path-highlight { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.22); }
+    .node-head { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--border-light); cursor: grab; border-radius: 12px 12px 0 0; }
+    .node-head .type-icon { width: 16px; height: 16px; display: grid; place-items: center; color: var(--text-secondary); flex-shrink: 0; }
+    .node-head .type-icon svg { width: 14px; height: 14px; }
+    .node-head .type-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; flex: 1; }
+    .node-head .user-dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 9px; font-weight: 600; flex-shrink: 0; }
+    .node-head .menu-dots { display: none; }
+    .node-body { padding: 10px 12px 12px; }
+    .node-item { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 500; color: var(--text-primary); padding: 4px 6px; margin: -2px -6px; border-radius: 6px; }
+    .node-item .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.65); }
+    .node-section { display: flex; align-items: center; justify-content: space-between; padding: 6px 11px; background: var(--section-bg); border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+    .node-section .left { display: flex; align-items: center; gap: 7px; }
+    .node-section .dir-icon { width: 13px; height: 13px; }
+    .node-section .caret { width: 11px; height: 11px; color: var(--text-muted); transition: transform .15s; }
+    .node-section.collapsed .caret { transform: rotate(-90deg); }
+    .node-section.bottom-edge-round {
+      border-bottom-left-radius: 11.5px;
+      border-bottom-right-radius: 11.5px;
+    }
+    .node-section.bottom-edge-round.collapsed {
+      border-bottom-color: transparent;
+    }
+    .io-list { display: flex; flex-direction: column; }
+    .io-list.collapsed { display: none; }
+    .io-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; font-size: 11.5px; position: relative; }
+    .io-row + .io-row { border-top: 1px solid var(--border-light); }
+    .io-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--text-primary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .port-anchor { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translateY(-50%); z-index: 4; background: transparent; pointer-events: none; }
+    .io-row[data-dir="in"]  .port-anchor { left:  -7px; }
+    .io-row[data-dir="out"] .port-anchor { right: -7px; }
+    .port-anchor.connected { background: radial-gradient(circle, var(--edge) 4px, transparent 4px); }
+    .node > .io-list:last-child > .io-row:last-child { border-bottom-left-radius: 11px; border-bottom-right-radius: 11px; }
+
+    .type-string  { background: #dcfce7; color: #15803d; }
+    .type-jpg     { background: #ffedd5; color: #c2410c; }
+    .type-png     { background: #fce7f3; color: #be185d; }
+    .type-text    { background: #ede9fe; color: #7c3aed; }
+    .type-image   { background: #fce7f3; color: #be185d; }
+    .type-audio   { background: #dbeafe; color: #1d4ed8; }
+    .type-binary  { background: #e0e7ff; color: #4338ca; }
+    .type-float   { background: #fef3c7; color: #92400e; }
+    .type-lbl     { background: #dcfce7; color: #15803d; }
+    .type-bbox    { background: #fef3c7; color: #b45309; }
+    .type-id      { background: #f0fdf4; color: #166534; }
+    .type-video   { background: #fce7f3; color: #be185d; }
+    .type-inactive { background: var(--tag-bg); color: var(--text-secondary); }
+
+    /* Floating UI */
+    .zoom-ctrls {
+      position: absolute; bottom: 16px; left: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px 5px;
+      display: flex; align-items: center; gap: 2px;
+      box-shadow: 0 2px 8px rgba(15,23,42,0.06); z-index: 5;
+    }
+    .zoom-ctrls button { background: transparent; border: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--text-secondary); cursor: pointer; }
+    .zoom-ctrls button:hover { background: var(--bg); color: var(--text-primary); }
+    .zoom-ctrls svg { width: 13px; height: 13px; }
+    .zoom-ctrls .zv { font-size: 11.5px; color: var(--text-primary); font-weight: 500; padding: 0 4px; min-width: 40px; text-align: center; }
+    .zoom-ctrls .zoom-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+
+    .find-bar {
+      position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px; box-shadow: 0 6px 18px rgba(15,23,42,0.12);
+      padding: 6px 7px 6px 11px; display: flex; align-items: center; gap: 7px;
+      z-index: 18; min-width: 320px;
+    }
+    .find-bar[hidden] { display: none; }
+    .find-bar svg.find-icon { width: 14px; height: 14px; color: var(--text-muted); }
+    .find-bar input { flex: 1; border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: var(--text-primary); }
+    .find-bar input::placeholder { color: var(--text-muted); }
+    .find-bar .fc { font-size: 11px; color: var(--text-muted); }
+    .find-bar button { background: transparent; border: none; width: 24px; height: 24px; border-radius: 5px; color: var(--text-muted); cursor: pointer; display: grid; place-items: center; }
+    .find-bar button svg { width: 12px; height: 12px; }
+
+    /* Path drop-in flash used by Find for dance animation. */
+    @keyframes node-flash {
+      0%   { box-shadow: 0 0 0 0    rgba(37,99,235,0.55); }
+      50%  { box-shadow: 0 0 0 8px  rgba(37,99,235,0.25); }
+      100% { box-shadow: 0 0 0 0    rgba(37,99,235,0);    }
+    }
+    .node.find-flash { animation: node-flash .7s ease-out 2; }
+
+    html[data-theme="dark"] .canvas-wrap {
+      background: var(--canvas-bg);
+      background-image: radial-gradient(circle, #1f2a45 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+
+    /* Modal backdrop (Become-a-Contributor modal) */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1200;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal-backdrop .modal-card {
+      background: var(--surface); border-radius: 14px;
+      padding: 22px 24px; box-shadow: 0 20px 50px rgba(15,23,42,0.18);
+      max-width: 92vw; width: 460px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .modal-backdrop .modal-close {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--text-muted); padding: 4px; border-radius: 6px;
+      display: grid; place-items: center;
+    }
+    .modal-backdrop .modal-close:hover { background: var(--bg); color: var(--text-primary); }
+    .modal-backdrop .modal-close svg { width: 16px; height: 16px; }
+    .confirm-cancel {
+      padding: 7px 16px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--text-primary); transition: background .1s;
+    }
+    .confirm-cancel:hover { background: var(--bg); }
+    .confirm-ok {
+      padding: 7px 16px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      background: var(--primary); color: #fff;
+    }
+    .confirm-ok:hover { background: var(--primary-hover); }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══ TOPBAR ═══════════════════════════════════════════════════════
+       Matches editing-mode-new structure so users moving between the two
+       see identical chrome. View-mode drops: Run button, Comments button
+       (per spec). Role pill has view-mode options (Switch to Edit Mode /
+       Request Contributor / Request Admin). -->
+  <header class="topbar">
+    <a href="dashboard.html" class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/>
+          <path d="M7.5 7.5L10.8 16.5"/><path d="M16.5 7.5L13.2 16.5"/><path d="M8 6L16 6"/>
+        </svg>
+      </div>
+    </a>
+    <nav class="breadcrumb">
+      <a id="bcOrg" href="#">—</a><span class="sep">/</span>
+      <a id="bcProject" href="#">—</a><span class="sep">/</span>
+      <span class="current" id="bcVariant">v1 Master</span>
+    </nav>
+
+    <div class="topbar-spacer"></div>
+
+    <button class="tb-toggle" id="tglPaths" data-side="right" data-tab="paths">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
+      Paths
+    </button>
+
+    <span class="tb-sep"></span>
+
+    <!-- Results (Runs) — opens the bottom panel. Kept in view mode because
+         visitors should be able to see experiment outcomes even if they
+         can't kick off new ones. -->
+    <button class="tb-toggle" id="tglResults" data-bottom="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+      Results
+    </button>
+
+    <span class="tb-sep"></span>
+
+    <button class="role-pill" id="rolePillBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span id="rolePillText">View Only</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+    </button>
+
+    <!-- Presence stack — collaborators. No "Comments" button in view mode. -->
+    <div class="presence" id="presenceBtn" title="Active collaborators">
+      <div class="presence-avatars" id="presenceAvatars"></div>
+      <span class="presence-count" id="presenceCount">0</span>
+    </div>
+
+    <!-- theme.js injects the dark-mode toggle here (before avatar-dropdown) -->
+    <button class="avatar-dropdown" aria-label="Account">
+      <span class="av">JS</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+    </button>
+  </header>
+
+  <!-- Presence popover -->
+  <div class="presence-dropdown" id="presenceDropdown" style="right: 16px;"></div>
+
+  <!-- ══ VARIANT TAB STRIP (read-only) ══ -->
+  <nav class="variant-strip" id="variantStrip"></nav>
+
+  <!-- ══ LEFT NAV RAIL (same as editing-mode-new) ══ -->
+  <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
+    <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <a href="dashboard.html" title="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      <span class="nav-label">Dashboard</span>
+    </a>
+    <a href="#" title="Create new">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="nav-label">Create</span>
+    </a>
+    <a href="#" class="active" title="View">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="nav-label">View</span>
+    </a>
+    <a href="#" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="nav-label">Settings</span>
+    </a>
+  </aside>
+
+  <!-- ══ INFO PANEL (persistent, view-mode only) ══ -->
+  <aside class="info-panel" id="infoPanel" aria-label="Project info">
+    <div>
+      <div class="ip-title" id="ipTitle">—</div>
+      <div class="ip-author" id="ipAuthor">—</div>
+    </div>
+    <div class="ip-tagrow" id="ipTagRow"></div>
+    <div class="ip-section">
+      <h3 id="ipContribCount">Contributors</h3>
+      <div class="ip-contribs" id="ipContribs"></div>
+    </div>
+    <div class="ip-section">
+      <h3>Description</h3>
+      <p class="ip-desc clamp" id="ipDesc">—</p>
+      <button class="ip-desc-toggle" id="ipDescToggle" type="button" hidden>
+        <span class="ip-desc-toggle-label">Read more</span>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+    </div>
+    <div class="ip-actions">
+      <button class="ip-btn primary" id="contributeBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+        Become a contributor
+      </button>
+      <!-- Fork — visual only for now. Standard git branch/fork icon. -->
+      <button class="ip-btn" id="forkBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="3" r="3"/><circle cx="6" cy="21" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 6v9a6 6 0 0 0 6 6h0"/><path d="M6 6v1a6 6 0 0 0 6 6h3"/></svg>
+        Fork this graph
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ CANVAS AREA ══ -->
+  <div class="canvas-area" id="canvasArea">
+    <div class="canvas-wrap">
+      <div class="canvas" id="canvas">
+        <div class="canvas-inner" id="canvasInner"></div>
+      </div>
+    </div>
+
+    <div class="find-bar" id="findBar" hidden>
+      <svg class="find-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="findInput" placeholder="Find a node by name…" />
+      <span class="fc" id="findCount"></span>
+      <button id="findClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <div class="zoom-ctrls">
+      <button id="zoomOut" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <span class="zv" id="zoomValue">100%</span>
+      <button id="zoomIn" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      <span class="zoom-sep"></span>
+      <button id="zoomFit" title="Zoom to fit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/><path d="M4 16v3a1 1 0 0 0 1 1h3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT DRAWER (Paths + Inspector) ══ -->
+  <aside class="drawer drawer-right" id="drawerRight" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="drawer-tabs">
+        <button class="drawer-tab" data-tab="paths">Paths</button>
+        <button class="drawer-tab" data-tab="inspector">Inspector</button>
+      </div>
+      <button class="drawer-close" id="drawerRightClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-panel" id="panelPaths"></div>
+      <div class="drawer-panel" id="panelInspector">
+        <div class="empty-state" id="inspectorEmpty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          <div>Click a node to inspect its config, ports, and metadata.</div>
+        </div>
+        <div id="inspectorContent" style="display:none;"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ BOTTOM PANEL (Results) ══ -->
+  <section class="bottom-panel" id="bottomPanel" aria-hidden="true">
+    <div class="bp-tabs">
+      <button class="bp-tab" data-tab="runs"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Runs <span class="bp-count" id="runsCount">0</span></button>
+      <button class="bp-tab" data-tab="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg> Logs</button>
+      <button class="bp-close" id="bpClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="bp-body">
+      <div class="bp-panel" id="bpRuns"></div>
+      <div class="bp-panel" id="bpLogs"></div>
+    </div>
+  </section>
+</div>
+
+<!-- Role dropdown (view-mode variant) -->
+<div id="roleDropdown" class="role-dropdown">
+  <div class="role-opt current" id="roleOptViewOnly" data-role="view-only">
+    <span>View Only</span>
+    <svg class="role-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="role-opt" id="roleOptEditMode" data-role="edit-mode">
+    <span>Switch to Edit Mode</span>
+  </div>
+  <div class="role-opt disabled" id="roleOptAdmin" data-role="admin">
+    <span>Request Admin status</span>
+    <span class="role-badge">Admin</span>
+  </div>
+  <div class="role-divider"></div>
+  <div class="role-perms-link" id="rolePermsLink">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+    What can I do at my current role?
+  </div>
+</div>
+
+<!-- Become-a-Contributor modal (matches old-build copy) -->
+<div class="modal-backdrop" id="contribModal">
+  <div class="modal-card" style="text-align:center;position:relative;">
+    <button class="modal-close" id="contribClose" style="position:absolute;top:14px;right:14px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding-bottom:4px;">
+      <span style="display:grid;place-items:center;width:22px;height:22px;color:var(--primary);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+      </span>
+      <span style="font-size:16px;font-weight:600;letter-spacing:-0.01em;">Become a Contributor</span>
+    </div>
+    <p id="contribModalText" style="font-size:13px;line-height:1.55;color:var(--text-secondary);text-align:center;padding:0 8px;">—</p>
+    <div style="display:flex;justify-content:center;gap:10px;padding-top:2px;">
+      <button class="confirm-cancel" id="contribCancel">Cancel</button>
+      <button class="confirm-ok" id="contribConfirm" style="min-width:120px;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="canvas-new.js"></script>
+<script>
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug = new URLSearchParams(location.search).get('project');
+
+if (!slug) {
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="dashboard.html">Go to dashboard</a></p>';
+} else {
+  const s = document.createElement('script');
+  s.src = slug + '/data.js';
+  s.onload = initApp;
+  s.onerror = () => {
+    document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}".</p>`;
+  };
+  document.head.appendChild(s);
+}
+
+function initApp() {
+  const P = window.PROJECT;
+  document.title = 'ConnectifyAI — ' + P.title;
+  document.getElementById('bcOrg').textContent = P.org;
+  document.getElementById('bcProject').textContent = P.title;
+
+  Canvas.init({ offset: 0, editable: false, initialZoom: (P.viewZoom || 1.0) });
+  Canvas.build(P);
+  Canvas.onNodeClick(openInspector);
+
+  initInfoPanel(P);
+  initVariants();
+  initPresence(P);
+  initDrawerToggles();
+  initPaths();
+  initBottomPanel();
+  initZoomControls();
+  initFindBar();
+  initLeftNav();
+  initRolePill();
+  initContribModal(P);
+}
+
+/* ── Info panel ───────────────────────────────────────────
+   Always-visible project identity block. Mirrors the old view-mode
+   sidebar (title, author, tags, contributors, description) but lives
+   inside the new grid layout instead of being a separate aside. */
+function initInfoPanel(P) {
+  document.getElementById('ipTitle').textContent = P.title || 'Untitled project';
+  const author = (P.contributors || []).find(c => c.role === 'Owner') || (P.contributors || [])[0];
+  document.getElementById('ipAuthor').textContent = author ? ('By ' + author.name) : '—';
+  const tagRow = document.getElementById('ipTagRow');
+  tagRow.innerHTML = (P.tags || []).map(t => `<span class="ip-tag">${esc(t)}</span>`).join('');
+
+  const contribs = P.contributors || [];
+  document.getElementById('ipContribCount').textContent =
+    (typeof P.contributorCount === 'number' ? P.contributorCount : contribs.length) + ' Contributors';
+  document.getElementById('ipContribs').innerHTML = contribs.map(c => `
+    <div class="ip-contrib">
+      <span class="av" style="background:${c.bg || 'var(--avatar-5)'}">${esc(c.letter || '?')}</span>
+      <div class="body">
+        <span class="name">${esc(c.name)}${c.role ? ` <span class="role">(${esc(c.role)})</span>` : ''}</span>
+        ${typeof c.pushes === 'number' ? `<span class="meta">${c.pushes} pushes</span>` : ''}
+      </div>
+    </div>`).join('');
+
+  const desc = P.description || 'No description provided.';
+  const descEl = document.getElementById('ipDesc');
+  const toggleEl = document.getElementById('ipDescToggle');
+  descEl.textContent = desc;
+  // Only show the Read-more affordance if the content actually overflows the
+  // clamp. Defer the check one frame so layout has settled.
+  requestAnimationFrame(() => {
+    const overflowing = descEl.scrollHeight > descEl.clientHeight + 2;
+    toggleEl.hidden = !overflowing;
+  });
+  toggleEl.addEventListener('click', () => {
+    const expanded = toggleEl.classList.toggle('expanded');
+    descEl.classList.toggle('clamp', !expanded);
+    toggleEl.querySelector('.ip-desc-toggle-label').textContent = expanded ? 'Read less' : 'Read more';
+  });
+}
+
+/* ── Variants (read-only — switch but no add/rename/delete) ── */
+const MOCK_VARIANTS = [
+  { id: 'v1', name: 'Master',        active: true  },
+  { id: 'v2', name: 'ResNet swap',   active: false },
+  { id: 'v3', name: 'Smaller LIDAR', active: false },
+];
+function initVariants() {
+  const strip = document.getElementById('variantStrip');
+  function render() {
+    strip.innerHTML = MOCK_VARIANTS.map((v, i) => `
+      <button class="variant-tab ${v.active ? 'active' : ''}" data-vid="${v.id}">
+        <span class="tab-dot"></span><span>v${i+1} · ${esc(v.name)}</span>
+      </button>`).join('');
+    strip.querySelectorAll('.variant-tab').forEach(t => t.addEventListener('click', () => {
+      MOCK_VARIANTS.forEach(v => v.active = (v.id === t.dataset.vid));
+      const active = MOCK_VARIANTS.find(v => v.active);
+      document.getElementById('bcVariant').textContent =
+        'v' + (MOCK_VARIANTS.indexOf(active)+1) + ' ' + active.name;
+      render();
+    }));
+  }
+  render();
+}
+
+/* ── Presence ─────────────────────────────────────────────── */
+function initPresence(P) {
+  const btn = document.getElementById('presenceBtn');
+  const avatarsEl = document.getElementById('presenceAvatars');
+  const countEl = document.getElementById('presenceCount');
+  const dropdown = document.getElementById('presenceDropdown');
+  const all = (P.contributors || []).slice(0, 8);
+  const stack = Math.min(3, all.length);
+  avatarsEl.innerHTML = all.slice(0, stack).map(c =>
+    `<span class="pav" style="background:${c.bg || 'var(--avatar-5)'}">${esc(c.letter || '?')}</span>`).join('');
+  countEl.textContent = all.length;
+  // No "Viewing now" header — the row list is self-explanatory and the
+  // label felt redundant when the dropdown only has one section.
+  dropdown.innerHTML = all.map(c => `
+    <div class="presence-row">
+      <span class="pav" style="background:${c.bg || 'var(--avatar-5)'}">${esc(c.letter || '?')}</span>
+      <span class="name">${esc(c.name || 'Unknown')}</span>
+    </div>`).join('');
+  btn.addEventListener('click', () => dropdown.classList.toggle('open'));
+  document.addEventListener('mousedown', e => {
+    if (!dropdown.classList.contains('open')) return;
+    if (btn.contains(e.target) || dropdown.contains(e.target)) return;
+    dropdown.classList.remove('open');
+  });
+}
+
+/* ── Drawer toggles ───────────────────────────────────────── */
+function initDrawerToggles() {
+  const rightEl = document.getElementById('drawerRight');
+  function activate(tab) {
+    rightEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    rightEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id.toLowerCase().endsWith(tab)));
+    document.querySelectorAll('.tb-toggle[data-tab]').forEach(t =>
+      t.classList.toggle('active', t.dataset.tab === tab && rightEl.classList.contains('open')));
+  }
+  document.querySelectorAll('.tb-toggle[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (btn.classList.contains('active')) {
+        rightEl.classList.remove('open');
+        btn.classList.remove('active');
+      } else {
+        rightEl.classList.add('open');
+        activate(tab);
+      }
+    });
+  });
+  rightEl.querySelectorAll('.drawer-tab').forEach(t =>
+    t.addEventListener('click', () => activate(t.dataset.tab)));
+  document.getElementById('drawerRightClose').addEventListener('click', () => {
+    rightEl.classList.remove('open');
+    document.querySelectorAll('.tb-toggle[data-tab]').forEach(t => t.classList.remove('active'));
+  });
+
+  // Results button opens the bottom panel on the "runs" tab.
+  const resBtn = document.getElementById('tglResults');
+  resBtn.addEventListener('click', () => {
+    const panel = document.getElementById('bottomPanel');
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open');
+    resBtn.classList.toggle('active', !isOpen);
+    if (panel.classList.contains('open')) {
+      panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
+      panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
+    }
+  });
+}
+
+/* ── Paths (read-only). Reuses localStorage from editing-mode-new. ── */
+function initPaths() {
+  const panel = document.getElementById('panelPaths');
+  const storedRaw = (() => { try { return localStorage.getItem('cfg.paths.' + slug); } catch (_) { return null; } })();
+  let paths = [];
+  try { paths = storedRaw ? JSON.parse(storedRaw) : []; } catch (_) { paths = []; }
+  if (!paths.length) {
+    panel.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
+      <div>No saved paths for this graph yet.</div>
+    </div>`;
+    return;
+  }
+  panel.innerHTML = paths.map((p, i) => `
+    <div class="path-item" data-idx="${i}">
+      <div class="t">${esc(p.name || 'Untitled path')}</div>
+      <div class="m">${(p.nodes||[]).length} nodes · ${esc(p.author || 'Unknown')}</div>
+    </div>`).join('');
+  panel.querySelectorAll('.path-item').forEach(el => el.addEventListener('click', () => {
+    const idx = parseInt(el.dataset.idx, 10);
+    focusPath(paths[idx]);
+  }));
+}
+
+function focusPath(p) {
+  const ids = p.nodes || [];
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('path-highlight', 'path-dim'));
+  if (!ids.length) return;
+  const set = new Set(ids);
+  document.querySelectorAll('.node').forEach(n => {
+    n.classList.add(set.has(n.dataset.nodeId) ? 'path-highlight' : 'path-dim');
+  });
+  Canvas.fitToNodes(ids, { padding: 80, maxZoom: 1.6 });
+}
+
+/* ── Inspector ────────────────────────────────────────────── */
+function openInspector(n) {
+  const rightEl = document.getElementById('drawerRight');
+  rightEl.classList.add('open');
+  rightEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'inspector'));
+  rightEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelInspector'));
+  document.querySelectorAll('.tb-toggle[data-tab]').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.node.selected').forEach(e => e.classList.remove('selected'));
+  document.querySelector(`.node[data-node-id="${n.id}"]`)?.classList.add('selected');
+
+  const empty = document.getElementById('inspectorEmpty');
+  const content = document.getElementById('inspectorContent');
+  empty.style.display = 'none';
+  content.style.display = 'block';
+  const color = n.color || 'blue';
+  const portRows = (label, list) => `
+    <div class="insp-section">
+      <h4>${label} (${(list||[]).length})</h4>
+      ${(list||[]).map(p => `
+        <div class="insp-port-row"><span class="pname">${esc(p.name)}</span>${Canvas.typePill(p.type)}</div>
+      `).join('') || `<div style="font-size:12px;color:var(--text-muted)">No ${label.toLowerCase()}</div>`}
+    </div>`;
+  content.innerHTML = `
+    <div class="inspector-hd">
+      <span class="dot" style="background: var(--dot-${color})"></span>
+      <span class="name">${esc(n.name || n.label || 'Untitled')}</span>
+      <span class="kind">${esc(n.type || '')}</span>
+    </div>
+    <div class="insp-section">
+      <h4>Metadata</h4>
+      <div class="insp-row"><span class="k">ID</span><span class="v">${esc(n.id)}</span></div>
+      <div class="insp-row"><span class="k">Owner</span><span class="v">${esc(n.user?.letter || '—')}</span></div>
+    </div>
+    ${portRows('Inputs',  n.inputs)}
+    ${portRows('Outputs', n.outputs)}`;
+}
+
+/* ── Bottom panel (Results) ──────────────────────────────── */
+function initBottomPanel() {
+  const panel = document.getElementById('bottomPanel');
+  const tabs = panel.querySelectorAll('.bp-tab');
+  const bodies = panel.querySelectorAll('.bp-panel');
+  function activate(tab) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    bodies.forEach(b => b.classList.toggle('active', b.id.toLowerCase().endsWith(tab)));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+  document.getElementById('bpClose').addEventListener('click', () => {
+    panel.classList.remove('open');
+    document.getElementById('tglResults')?.classList.remove('active');
+  });
+  renderRuns();
+  renderLogs();
+  activate('runs');
+}
+
+const MOCK_RUNS = [
+  { id: 'r3', name: 'v3 · Smaller LIDAR', when: '2 min ago',  status: 'ok', acc: 87.3, f1: 0.82, loss: 0.31, iter: '12k' },
+  { id: 'r2', name: 'v2 · ResNet swap',   when: '18 min ago', status: 'ok', acc: 89.1, f1: 0.85, loss: 0.28, iter: '12k' },
+  { id: 'r1', name: 'v1 · Master',        when: 'yesterday',  status: 'ok', acc: 88.4, f1: 0.83, loss: 0.30, iter: '10k' },
+];
+function renderRuns() {
+  const panel = document.getElementById('bpRuns');
+  document.getElementById('runsCount').textContent = MOCK_RUNS.length;
+  const activeId = MOCK_RUNS[0].id;
+  panel.innerHTML = `
+    <div class="runs-grid">
+      <div class="runs-list">
+        ${MOCK_RUNS.map(r => `
+          <div class="run-card ${r.id === activeId ? 'active' : ''}" data-id="${r.id}">
+            <div class="t"><span class="status"></span> ${esc(r.name)}</div>
+            <div class="m">${esc(r.when)} · ${r.acc}% acc</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="run-detail" id="runDetail"></div>
+    </div>`;
+  panel.querySelectorAll('.run-card').forEach(c => c.addEventListener('click', () => {
+    panel.querySelectorAll('.run-card').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    showRunDetail(c.dataset.id);
+  }));
+  showRunDetail(activeId);
+}
+function showRunDetail(id) {
+  const r = MOCK_RUNS.find(x => x.id === id);
+  const host = document.getElementById('runDetail');
+  if (!r || !host) return;
+  host.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:14px;font-weight:600;">${esc(r.name)}</div>
+      <div style="font-size:12px;color:var(--text-muted);">${esc(r.when)} · ${esc(r.iter)} iters</div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><div class="lbl">Accuracy</div><div class="num">${r.acc}%</div></div>
+      <div class="metric"><div class="lbl">F1</div><div class="num">${r.f1}</div></div>
+      <div class="metric"><div class="lbl">Loss</div><div class="num">${r.loss}</div></div>
+      <div class="metric"><div class="lbl">Iters</div><div class="num">${esc(r.iter)}</div></div>
+    </div>`;
+}
+function renderLogs() {
+  document.getElementById('bpLogs').innerHTML = `
+    <pre style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.65;color:var(--text-secondary);white-space:pre-wrap;padding:8px;background:var(--bg);border:1px solid var(--border-light);border-radius:7px;">[13:42:01] Graph compiled — 42 nodes, 67 edges
+[13:43:49] epoch 3/3 · loss 0.31 · acc 87.3%
+[13:43:49] Run complete — results saved</pre>`;
+}
+
+/* ── Zoom ─────────────────────────────────────────────────── */
+function initZoomControls() {
+  document.getElementById('zoomIn').addEventListener('click', () => Canvas.zoomIn());
+  document.getElementById('zoomOut').addEventListener('click', () => Canvas.zoomOut());
+  document.getElementById('zoomFit').addEventListener('click', () => {
+    const ids = Canvas.getAllNodes().map(n => n.id);
+    if (ids.length) Canvas.fitToNodes(ids, { padding: 80 });
+  });
+  // Keep the zoom percentage live.
+  setInterval(() => {
+    const t = Canvas.getTransform();
+    document.getElementById('zoomValue').textContent = Math.round(t.zoom * 100) + '%';
+  }, 500);
+}
+
+/* ── Find bar ─────────────────────────────────────────────── */
+function initFindBar() {
+  const bar = document.getElementById('findBar');
+  const input = document.getElementById('findInput');
+  const count = document.getElementById('findCount');
+  const close = document.getElementById('findClose');
+
+  const matchesFor = (q) => {
+    if (!q) return [];
+    const lower = q.toLowerCase();
+    return Canvas.getAllNodes().filter(n => {
+      const hay = ((n.name || '') + ' ' + (n.label || '')).toLowerCase();
+      return hay.includes(lower);
+    });
+  };
+  const updateCount = () => {
+    const ms = matchesFor(input.value.trim());
+    count.textContent = ms.length ? ms.length + ' match' + (ms.length === 1 ? '' : 'es') : (input.value.trim() ? 'no matches' : '');
+  };
+  const flashNode = (id) => {
+    const el = document.querySelector(`.node[data-node-id="${id}"]`);
+    if (!el) return;
+    el.classList.remove('find-flash');
+    void el.offsetWidth;
+    el.classList.add('find-flash');
+  };
+  const jump = () => {
+    const ms = matchesFor(input.value.trim());
+    if (!ms.length) return;
+    Canvas.fitToNodes(ms.map(m => m.id), { padding: 80, maxZoom: 1.8 });
+    setTimeout(() => ms.forEach(m => flashNode(m.id)), 220);
+  };
+
+  function open()  { bar.hidden = false; input.value = ''; count.textContent = ''; input.focus(); }
+  function closeBar() { bar.hidden = true; }
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); open(); return; }
+    if (e.key === 'Escape' && !bar.hidden) closeBar();
+  });
+  close.addEventListener('click', closeBar);
+  input.addEventListener('input', updateCount);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); jump(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeBar(); }
+  });
+}
+
+/* ── Leftnav ──────────────────────────────────────────────── */
+function initLeftNav() {
+  const app = document.querySelector('.app');
+  try { if (localStorage.getItem('cfg.leftnav.expanded') === '1') app.classList.add('leftnav-expanded'); } catch (_) {}
+  document.getElementById('navToggle')?.addEventListener('click', () => {
+    const expanded = app.classList.toggle('leftnav-expanded');
+    try { localStorage.setItem('cfg.leftnav.expanded', expanded ? '1' : '0'); } catch (_) {}
+  });
+}
+
+/* ── Role pill ────────────────────────────────────────────── */
+function initRolePill() {
+  const btn  = document.getElementById('rolePillBtn');
+  const menu = document.getElementById('roleDropdown');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const r = btn.getBoundingClientRect();
+    const open = menu.classList.contains('open');
+    menu.classList.toggle('open', !open);
+    if (!open) {
+      const menuW = 220;
+      let left = r.right - menuW;
+      left = Math.max(8, Math.min(left, window.innerWidth - menuW - 8));
+      menu.style.left = left + 'px';
+      menu.style.top  = (r.bottom + 6) + 'px';
+    }
+  });
+  document.addEventListener('click', () => menu.classList.remove('open'));
+  menu.addEventListener('click', e => e.stopPropagation());
+
+  document.getElementById('roleOptEditMode').addEventListener('click', () => {
+    menu.classList.remove('open');
+    window.location.href = 'editing-mode-new.html?project=' + slug;
+  });
+}
+
+/* ── Become-a-contributor flow ──────────────────────────────
+   Matches the old build's copy and confirm flow. Confirming just closes
+   the modal for now — this is a wireframe commitment, not a backend. */
+function initContribModal(P) {
+  const modal = document.getElementById('contribModal');
+  document.getElementById('contribModalText').textContent =
+    `You're about to become a contributor on "${P.title}". You're stepping into a collaborative space where you can experiment locally, then push your changes to the public graph when you're ready.`;
+
+  const open  = () => modal.classList.add('show');
+  const close = () => modal.classList.remove('show');
+
+  document.getElementById('contributeBtn').addEventListener('click', open);
+  document.getElementById('contribClose').addEventListener('click', close);
+  document.getElementById('contribCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.getElementById('contribConfirm').addEventListener('click', () => {
+    close();
+    // Transition to edit mode as "contributor" (role param mirrors old build).
+    window.location.href = 'editing-mode-new.html?project=' + slug;
+  });
+}
+</script>
+
+<script src="theme.js"></script>
+</body>
+</html>

@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConnectifyAI</title>
+  <script>
+    try {
+      if (localStorage.getItem('cfg.theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --border: #e4e8ee;
+      --border-light: #eef1f6;
+      --canvas-bg: #fafbfd;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff4ff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --tag-bg: #f1f5f9;
+      --tag-text: #475569;
+      --section-bg: #f4f6f9;
+      --edge: #94a3b8;
+      --dot-red: #ef4444;
+      --dot-yellow: #f59e0b;
+      --dot-purple: #8b5cf6;
+      --dot-green: #10b981;
+      --dot-blue: #3b82f6;
+      --avatar-1: #8b5cf6;
+      --avatar-2: #f59e0b;
+      --avatar-3: #ec4899;
+      --avatar-4: #10b981;
+      --avatar-5: #3b82f6;
+      --avatar-6: #ef4444;
+      --avatar-7: #0ea5e9;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text-primary);
+      font-size: 14px; -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      height: 56px; background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: grid; grid-template-columns: 208px 1fr auto;
+      align-items: center; padding: 0 24px 0 20px; gap: 16px;
+      position: relative; z-index: 10;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 15px;
+      color: var(--text-primary); text-decoration: none;
+    }
+    .brand-logo {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--primary); display: grid; place-items: center; color: #fff;
+    }
+    .brand-logo svg { width: 16px; height: 16px; }
+    .breadcrumb {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-size: 13.5px; color: var(--text-secondary);
+    }
+    .breadcrumb a, .breadcrumb .current { color: var(--text-secondary); text-decoration: none; font-weight: 500; }
+    .breadcrumb a:hover { color: var(--text-primary); }
+    .breadcrumb .sep { color: var(--text-muted); }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .text-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--text-secondary); background: transparent;
+      border: none; padding: 6px 10px;
+      font-size: 13.5px; font-family: inherit; cursor: pointer; border-radius: 6px;
+    }
+    .text-btn:hover { color: var(--text-primary); background: var(--bg); }
+    .view-mode-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); padding: 6px 12px;
+      border-radius: 999px; background: var(--surface);
+      font-size: 13px; color: var(--text-primary);
+      font-weight: 500; cursor: pointer; font-family: inherit;
+    }
+    .view-mode-pill svg { width: 14px; height: 14px; color: var(--text-muted); }
+    .view-mode-pill:hover { background: var(--bg); }
+    /* ── Role dropdown ─────────────────────────────────── */
+    .role-dropdown { position: fixed; background: #fff; border: 1px solid var(--border); border-radius: 11px; box-shadow: 0 4px 20px rgba(15,23,42,0.13); padding: 4px; min-width: 210px; z-index: 9999; display: none; }
+    .role-dropdown.open { display: block; }
+    .role-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: background 0.1s; }
+    .role-opt:hover:not(.disabled) { background: var(--bg); }
+    .role-opt.disabled { color: var(--text-muted); cursor: default; }
+    .role-opt.current { color: var(--primary); }
+    .role-opt .role-check { width: 14px; height: 14px; color: var(--primary); flex-shrink: 0; }
+    .role-opt .role-badge { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 20px; background: var(--tag-bg); color: var(--text-muted); }
+    .role-opt.disabled .role-badge { opacity: 0.55; }
+    .role-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+    .role-perms-link { display: flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 7px; font-size: 12.5px; color: var(--text-muted); cursor: pointer; transition: background 0.1s; }
+    .role-perms-link:hover { background: var(--bg); color: var(--text-secondary); }
+    .role-perms-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+    /* ── Request modal shared styles ─────────────────── */
+    .request-modal-card { width: 460px; display: flex; flex-direction: column; gap: 16px; }
+    .request-modal-header { display: flex; align-items: center; gap: 10px; padding-bottom: 4px; }
+    .request-modal-header h2 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; flex: 1; margin: 0; }
+    .request-field { display: flex; flex-direction: column; gap: 6px; }
+    .request-field label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+    .request-field textarea, .request-field input[type=text] { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: inherit; color: var(--text-primary); background: var(--bg); resize: vertical; outline: none; box-sizing: border-box; transition: border-color 0.15s; }
+    .request-field textarea:focus, .request-field input[type=text]:focus { border-color: var(--primary); background: #fff; }
+    .request-field textarea { min-height: 80px; }
+    .request-perms-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .request-perms-box h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 0; }
+    .request-perms-box ul { margin: 0; padding: 0 0 0 16px; display: flex; flex-direction: column; gap: 5px; }
+    .request-perms-box li { font-size: 12.5px; color: var(--text-secondary); line-height: 1.45; }
+    .request-recipients { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+    .request-recipients .recip-label { display: flex; align-items: center; gap: 5px; }
+    .request-recipients svg { width: 12px; height: 12px; flex-shrink: 0; }
+    .request-recipients strong { color: var(--text-secondary); font-weight: 600; font-size: 13px; }
+    .confirm-cancel { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); font-family: inherit; transition: background 0.1s; }
+    .confirm-cancel:hover { background: var(--bg); }
+    .confirm-ok { padding: 7px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.1s; }
+    .confirm-ok.primary { background: var(--primary); color: #fff; }
+    .confirm-ok.primary:hover { opacity: 0.88; }
+    .avatar-dropdown {
+      display: flex; align-items: center; gap: 6px;
+      cursor: pointer; padding: 4px 8px 4px 4px;
+      border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+    }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: grid; place-items: center;
+      color: #fff; font-size: 11px; font-weight: 600; flex-shrink: 0;
+    }
+    .chev { width: 14px; height: 14px; color: var(--text-muted); }
+
+    /* ── LAYOUT ── */
+    .layout { display: grid; grid-template-columns: var(--nav-w, 56px) 320px 1fr; height: calc(100vh - 56px); transition: grid-template-columns 0.18s ease; }
+    body.sidebar-expanded { --nav-w: 188px; }
+
+    .sidebar-icons {
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; padding: 14px 0;
+    }
+    .sidebar-icons a {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      color: var(--text-muted); border-radius: 8px; text-decoration: none; flex-shrink: 0;
+    }
+    .sidebar-icons a:hover { background: var(--bg); color: var(--text-primary); }
+    .sidebar-icons a.active { background: var(--primary-soft); color: var(--primary); }
+    .sidebar-icons svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-icons .nav-label { display: none; font-size: 13px; font-weight: 500; }
+    .nav-toggle { width: 36px; height: 36px; display: grid; place-items: center; color: var(--text-muted); border-radius: 8px; cursor: pointer; background: transparent; border: none; margin-bottom: 6px; transition: background 0.12s; }
+    .nav-toggle:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-toggle svg { width: 16px; height: 16px; transition: transform 0.18s ease; }
+    body.sidebar-expanded .sidebar-icons { align-items: stretch; padding: 14px 10px; }
+    body.sidebar-expanded .sidebar-icons a { width: auto; height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 10px; justify-content: flex-start; }
+    body.sidebar-expanded .sidebar-icons .nav-label { display: inline; }
+    body.sidebar-expanded .nav-toggle { align-self: flex-end; }
+    body.sidebar-expanded .nav-toggle svg { transform: rotate(180deg); }
+
+    /* ── INFO PANEL ── */
+    .info-panel {
+      background: var(--surface); border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 18px 20px 24px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .panel-top { display: flex; align-items: center; justify-content: space-between; }
+    .icon-btn {
+      width: 30px; height: 30px; display: grid; place-items: center;
+      border: none; background: transparent; border-radius: 8px;
+      color: var(--text-secondary); cursor: pointer;
+    }
+    .icon-btn:hover { background: var(--bg); color: var(--text-primary); }
+    .icon-btn svg { width: 16px; height: 16px; }
+    .panel-top-right { display: flex; gap: 2px; }
+    .graph-title h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 2px; line-height: 1.25; }
+    .graph-title .author { color: var(--text-muted); font-size: 13px; }
+    .tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { padding: 4px 10px; border-radius: 999px; background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; }
+    .contrib-section h3, .desc-section h3 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }
+    .contrib-list { display: flex; flex-direction: column; gap: 8px; }
+    .contrib-row { display: flex; align-items: center; gap: 10px; }
+    .mini-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center;
+      color: #fff; font-size: 10px; font-weight: 600; flex-shrink: 0;
+    }
+    .avatar-pair { position: relative; width: 26px; height: 26px; flex-shrink: 0; }
+    .avatar-pair .mini-avatar { width: 17px !important; height: 17px !important; font-size: 7px !important; position: absolute; box-shadow: 0 0 0 1.5px var(--surface); }
+    .avatar-pair .mini-avatar:first-child  { top: 0; left: 0; }
+    .avatar-pair .mini-avatar:last-child   { bottom: 0; right: 0; }
+    .contrib-row .body { display: flex; flex-direction: column; line-height: 1.2; flex: 1; min-width: 0; }
+    .contrib-name { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+    .contrib-name .role { color: var(--text-muted); font-weight: 400; }
+    .contrib-meta { font-size: 11.5px; color: var(--text-muted); }
+    .others-row {
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; user-select: none; padding: 2px 0;
+    }
+    .others-row .stack-list { font-size: 12px; color: var(--text-muted); line-height: 1.25; flex: 1; min-width: 0; }
+    .others-row .stack-list strong { color: var(--text-secondary); font-weight: 500; display: block; font-size: 13px; }
+    .others-caret { width: 20px; height: 20px; display: grid; place-items: center; color: var(--text-muted); flex-shrink: 0; transition: transform 0.15s; }
+    .others-caret svg { width: 14px; height: 14px; }
+    .others-row.expanded .others-caret { transform: rotate(180deg); }
+    .others-list { display: none; flex-direction: column; gap: 8px; padding-left: 36px; margin-top: 4px; }
+    .others-list.show { display: flex; }
+    .others-list .other-entry { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-primary); }
+    .others-list .mini-avatar { width: 20px; height: 20px; font-size: 9px; }
+    .desc-section p { font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+    /* Collapsible long description: clamped to 7 lines with a "Read more /
+       Show less" toggle. The clamp relies on -webkit-line-clamp (widely
+       supported in modern browsers). */
+    .desc-section p.clamp {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 7;
+      line-clamp: 7;
+      overflow: hidden;
+    }
+    .desc-toggle {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--primary);
+    }
+    .desc-toggle.visible { display: inline-flex; }
+    .desc-toggle svg { width: 12px; height: 12px; transition: transform 0.15s ease; }
+    .desc-toggle.expanded svg { transform: rotate(180deg); }
+    .desc-toggle:hover { text-decoration: underline; }
+    .panel-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; }
+    .btn {
+      flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; border: 1px solid transparent; white-space: nowrap; font-family: inherit;
+    }
+    .btn svg { width: 14px; height: 14px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: var(--surface); color: var(--primary); border-color: var(--primary); }
+    .btn-outline:hover { background: var(--primary-soft); }
+
+    /* ── CANVAS ── */
+    .canvas-wrap {
+      position: relative; overflow: hidden;
+      background: var(--canvas-bg);
+      background-image: radial-gradient(circle, #d5d9e0 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+    .canvas { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
+    .canvas.panning { cursor: grabbing; }
+    .canvas-inner {
+      position: relative;
+      transform-origin: 0 0;
+      isolation: isolate;
+    }
+    .node-overlay {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; overflow: visible;
+    }
+    .node-overlay path { fill: none; stroke: var(--edge); stroke-width: 1.4; }
+    .node-overlay circle { fill: var(--edge); }
+    .node {
+      position: absolute; width: 200px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      font-size: 12.5px; box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+      z-index: 2; user-select: none;
+    }
+    .node.dragging { box-shadow: 0 8px 24px rgba(15,23,42,0.12); }
+    .node-head {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border-light); cursor: grab; border-radius: 12px 12px 0 0;
+    }
+    .node-head:active { cursor: grabbing; }
+    .node-head .type-icon { width: 16px; height: 16px; display: grid; place-items: center; color: var(--text-secondary); flex-shrink: 0; }
+    .node-head .type-icon svg { width: 14px; height: 14px; }
+    .node-head .type-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; flex: 1; }
+    .node-head .user-dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+    .node-head .menu-dots { color: var(--text-muted); cursor: pointer; width: 18px; height: 18px; display: grid; place-items: center; font-size: 15px; }
+    .node-body { padding: 10px 12px 12px; }
+    .node-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 500; color: var(--text-primary); cursor: pointer;
+      padding: 4px 8px; margin: -2px -8px; border-radius: 6px;
+      transition: background 0.12s, color 0.12s;
+    }
+    .node-item:hover { color: var(--primary); background: var(--bg); }
+    .node-item .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.65); }
+    .node-section {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 12px; background: var(--section-bg);
+      border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);
+      cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+    }
+    .node-section:hover { background: #edf0f5; }
+    .node-section .left { display: flex; align-items: center; gap: 8px; }
+    .node-section .dir-icon { width: 14px; height: 14px; color: var(--text-secondary); }
+    .node-section .caret { width: 12px; height: 12px; color: var(--text-muted); transition: transform 0.15s; }
+    .node-section.collapsed .caret { transform: rotate(-90deg); }
+    .io-list { display: flex; flex-direction: column; overflow: hidden; }
+    .io-list.collapsed { display: none; }
+    .io-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 11.5px; position: relative; }
+    .io-row + .io-row { border-top: 1px solid var(--border-light); }
+    .io-name { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; color: var(--text-primary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .type-pill { font-size: 9.5px; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.02em; flex-shrink: 0; }
+    .type-string  { background: #dcfce7; color: #15803d; }
+    .type-jpg     { background: #ffedd5; color: #c2410c; }
+    .type-png     { background: #ffedd5; color: #c2410c; }
+    .type-text    { background: #ede9fe; color: #7c3aed; }
+    .type-image   { background: #fce7f3; color: #be185d; }
+    .type-audio   { background: #dbeafe; color: #1d4ed8; }
+    .type-binary  { background: #e0e7ff; color: #4338ca; }
+    .type-float   { background: #fef3c7; color: #92400e; }
+    .type-lbl     { background: #dcfce7; color: #15803d; }
+    .type-bbox    { background: #fef3c7; color: #b45309; }
+    .type-id      { background: #f0fdf4; color: #166534; }
+    .type-video   { background: #fce7f3; color: #be185d; }
+    .type-inactive { background: var(--tag-bg); color: var(--text-secondary); }
+
+    /* ── ZOOM CONTROLS ── */
+    .zoom-ctrls {
+      position: absolute; bottom: 20px; left: 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; display: flex; align-items: center; gap: 4px;
+      padding: 4px 8px; box-shadow: 0 2px 8px rgba(15,23,42,0.06); z-index: 5;
+    }
+    .zoom-ctrls button { background: transparent; border: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--text-secondary); cursor: pointer; }
+    .zoom-ctrls button:hover { background: var(--bg); color: var(--text-primary); }
+    .zoom-ctrls svg { width: 14px; height: 14px; }
+    .zoom-value { font-size: 12px; color: var(--text-primary); font-weight: 500; padding: 0 4px; min-width: 42px; text-align: center; }
+
+    /* ── MODAL (shared) ── */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.35); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 24px; }
+    .modal-backdrop.show { display: flex; }
+    .modal-card { background: var(--surface); border-radius: 14px; width: 460px; max-width: 100%; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(15,23,42,0.22); padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 16px; }
+    .modal-header { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; }
+    .modal-header .type-icon { width: 16px; height: 16px; color: var(--text-secondary); }
+    .modal-header .type-icon svg { width: 16px; height: 16px; }
+    .modal-header .type-label { font-size: 13.5px; color: var(--text-secondary); font-weight: 500; flex: 1; }
+    .modal-close { width: 28px; height: 28px; display: grid; place-items: center; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: 6px; }
+    .modal-close:hover { background: var(--bg); color: var(--text-primary); }
+    .modal-close svg { width: 16px; height: 16px; }
+    .modal-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    .modal-title .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 3px rgba(255,255,255,0.65); }
+    .modal-section h4 { font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .modal-select { border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-primary); background: var(--surface); cursor: pointer; gap: 10px; }
+    .modal-select:hover { background: var(--bg); }
+    .modal-select .left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+    .modal-select .chev { color: var(--text-muted); flex-shrink: 0; }
+    .code-block { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; display: grid; grid-template-columns: 32px 1fr; overflow: hidden; }
+    .code-gutter { background: #fef3c7; color: #92400e; padding: 10px 0; text-align: right; padding-right: 8px; line-height: 1.7; user-select: none; }
+    .code-content { padding: 10px 12px; line-height: 1.7; color: var(--text-primary); white-space: pre; }
+    .code-content .kw { color: #9333ea; }
+    .code-content .str { color: #15803d; }
+    .code-content .var { color: var(--primary); }
+    .contrib-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--tag-bg); padding: 5px 12px 5px 5px; border-radius: 999px; font-size: 12.5px; color: var(--text-primary); font-weight: 500; }
+    .contrib-chip .mini-avatar { width: 20px; height: 20px; font-size: 9px; }
+    .details-box { background: var(--tag-bg); border-radius: 8px; padding: 12px 14px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-secondary); line-height: 1.6; }
+    .details-box .row { display: grid; grid-template-columns: 100px 1fr; }
+    .details-box .k { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Paths drawer (read-only in view mode) ── */
+    .paths-drawer {
+      position: fixed; top: 56px; right: 0; bottom: 0; width: 320px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      box-shadow: -4px 0 16px rgba(15,23,42,0.06);
+      transform: translateX(100%); transition: transform 0.22s ease;
+      display: flex; flex-direction: column; z-index: 20;
+      pointer-events: none;
+    }
+    .paths-drawer.open { transform: translateX(0); pointer-events: auto; }
+    .pd-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 12px; border-bottom: 1px solid var(--border-light);
+    }
+    .pd-title-wrap { display: flex; align-items: center; gap: 9px; }
+    .pd-title-icon { width: 16px; height: 16px; color: var(--primary); }
+    .pd-title { font-size: 14px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.005em; }
+    .pd-close {
+      width: 28px; height: 28px; display: grid; place-items: center;
+      border: none; background: transparent; color: var(--text-muted);
+      border-radius: 6px; cursor: pointer; transition: background 0.12s, color 0.12s;
+    }
+    .pd-close:hover { background: var(--bg); color: var(--text-primary); }
+    .pd-close svg { width: 16px; height: 16px; }
+    .pd-body { flex: 1; overflow-y: auto; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .pd-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 2px; }
+    .pd-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 30px 12px; color: var(--text-muted); text-align: center;
+      border: 1px dashed var(--border); border-radius: 10px; margin-top: 8px;
+    }
+    .pd-empty svg { width: 32px; height: 32px; color: var(--text-muted); opacity: 0.65; }
+    .pd-empty > div:nth-of-type(1) { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .pd-empty-hint { font-size: 12px; color: var(--text-muted); }
+    .pd-list { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 8px; }
+    /* Read-only path cards: whole card acts as a button to focus the path
+       on the canvas. No rename, delete, duplicate, edit, or run controls. */
+    .pd-item {
+      border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px 10px;
+      background: var(--surface); display: flex; flex-direction: column; gap: 9px;
+      transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+      cursor: pointer; text-align: left; font: inherit; width: 100%;
+    }
+    /* No hover effect on saved paths — click a path to focus it on
+       the canvas (that sets .active, which is the only visual state). */
+    .pd-item.active { border-color: var(--primary); background: #f1f5ff; box-shadow: 0 2px 8px rgba(37,99,235,0.1); }
+    .pd-item-name {
+      font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+      line-height: 1.3; word-break: break-word;
+    }
+    .pd-item-meta { font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .pd-item-meta .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--text-muted); opacity: 0.5; }
+    .pd-item-meta .pd-author { display: inline-flex; align-items: center; gap: 5px; }
+    .pd-item-meta .pd-author .pd-avatar {
+      width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center;
+      color: #fff; font-size: 9px; font-weight: 700; flex-shrink: 0;
+    }
+    .pd-item-chain { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pd-chain-pill {
+      font-size: 10.5px; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      padding: 2px 7px; border-radius: 20px; background: var(--tag-bg); color: var(--tag-text);
+      max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pd-chain-arrow { color: var(--text-muted); font-size: 10px; align-self: center; }
+
+    /* Path highlight on canvas: nodes in the focused path get a primary ring;
+       edges that connect two in-path nodes tint blue. Everything else stays
+       as-is so the path visually pops. */
+    .node.path-highlight { box-shadow: 0 0 0 3px rgba(37,99,235,0.55), 0 8px 22px rgba(37,99,235,0.22); }
+    .node-overlay path.edge-highlight { stroke: var(--primary); stroke-width: 2; }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <a href="dashboard.html" class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/>
+          <path d="M7.5 7.5L10.8 16.5"/><path d="M16.5 7.5L13.2 16.5"/><path d="M8 6L16 6"/>
+        </svg>
+      </div>
+      ConnectifyAI
+    </a>
+    <nav class="breadcrumb">
+      <a id="bcOrg" href="#">—</a><span class="sep">/</span>
+      <a id="bcProject" href="#">—</a><span class="sep">/</span>
+      <span class="current">Master</span>
+    </nav>
+    <div class="topbar-actions">
+      <button class="text-btn" id="viewPathsBtn" type="button">Paths</button>
+      <button class="view-mode-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        View Only
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+      <button class="avatar-dropdown">
+        <span class="avatar">JS</span>
+        <svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar-icons">
+      <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <a href="dashboard.html" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a href="#" title="Create">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+        <span class="nav-label">Create</span>
+      </a>
+      <a id="sideViewLink" href="#" class="active" title="Discover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">Discover</span>
+      </a>
+      <a href="#" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nav-label">Settings</span>
+      </a>
+    </aside>
+
+    <aside class="info-panel">
+      <div class="panel-top">
+        <button class="icon-btn" onclick="location.href='dashboard.html'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="panel-top-right">
+          <button class="icon-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5L15.4 17.5M15.4 6.5L8.6 10.5"/></svg>
+          </button>
+          <button class="icon-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="graph-title">
+        <h1 id="sideTitle">—</h1>
+        <div class="author" id="sideAuthor">—</div>
+      </div>
+      <div class="tag-row" id="sideTagRow"></div>
+      <div class="contrib-section">
+        <h3 id="contribCount">—</h3>
+        <div class="contrib-list" id="contribList"></div>
+      </div>
+      <div class="desc-section">
+        <h3>Description</h3>
+        <p id="sideDesc" class="clamp">—</p>
+        <button class="desc-toggle" id="sideDescToggle" type="button">
+          <span class="desc-toggle-label">Read more</span>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+        </button>
+      </div>
+      <div class="panel-actions">
+        <button class="btn btn-primary" id="contributeBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+          Contribute
+        </button>
+        <button class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Make a copy
+        </button>
+      </div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <div class="canvas" id="canvas">
+        <div class="canvas-inner" id="canvasInner"></div>
+      </div>
+      <div class="zoom-ctrls">
+        <button id="zoomOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <span class="zoom-value" id="zoomValue">—</span>
+        <button id="zoomIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paths drawer (read-only) -->
+  <aside id="pathsDrawer" class="paths-drawer" aria-hidden="true">
+    <header class="pd-header">
+      <div class="pd-title-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pd-title-icon"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
+        <span class="pd-title">Paths</span>
+      </div>
+      <button class="pd-close" id="pathsDrawerClose" type="button" aria-label="Close paths drawer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="pd-body">
+      <p class="pd-sub">Click a path to highlight it on the canvas.</p>
+      <div class="pd-empty" id="pdEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
+        <div>No paths yet</div>
+        <div class="pd-empty-hint">Contributors can create paths in edit mode.</div>
+      </div>
+      <ul class="pd-list" id="pdList"></ul>
+    </div>
+  </aside>
+
+  <!-- Node detail modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <!-- Role dropdown -->
+  <div id="roleDropdown" class="role-dropdown">
+    <div class="role-opt current" id="roleOptViewOnly" data-role="view-only">
+      <span>View Only</span>
+      <svg class="role-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <!-- Shown instead of View Only when user is a contributor in view mode -->
+    <div class="role-opt current" id="roleOptViewMode" data-role="view-mode" style="display:none">
+      <span>View Mode</span>
+      <svg class="role-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="role-opt" id="roleOptContributor" data-role="contributor">
+      <span>Request Contributor status</span>
+      <span class="role-badge">Contributor</span>
+    </div>
+    <!-- Shown instead of Request Contributor when user is already a contributor -->
+    <div class="role-opt" id="roleOptEditMode" data-role="edit-mode" style="display:none">
+      <span>Switch to Edit Mode</span>
+    </div>
+    <div class="role-opt disabled" id="roleOptAdmin" data-role="admin">
+      <span>Request Admin status</span>
+      <span class="role-badge">Admin</span>
+    </div>
+    <div class="role-divider"></div>
+    <div class="role-perms-link" id="rolePermsLink">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      What can I do at my current role?
+    </div>
+  </div>
+
+  <!-- Request Admin modal -->
+  <div class="modal-backdrop" id="requestAdminModal">
+    <div class="modal-card request-modal-card">
+      <div class="request-modal-header">
+        <span style="display:grid;place-items:center;width:22px;height:22px;color:var(--primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <h2>Request Admin Access</h2>
+        <button class="modal-close" id="requestAdminClose">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="request-field">
+        <label>Why do you need admin access?</label>
+        <textarea id="adminReasonInput" placeholder="Describe how you'd use admin permissions and what you're trying to accomplish…" rows="3"></textarea>
+      </div>
+      <div class="request-field">
+        <label>Which parts of the project will you manage?</label>
+        <input type="text" id="adminScopeInput" placeholder="e.g. node connections, contributor access, dataset versions…" />
+      </div>
+      <div class="request-perms-box">
+        <h4>Admin permissions include</h4>
+        <ul>
+          <li>Add and remove contributors from the project</li>
+          <li>Merge and approve pushed changes to the public graph</li>
+          <li>Edit and delete any node or connection</li>
+          <li>Rename the project and update its description and tags</li>
+          <li>Archive or lock the project</li>
+        </ul>
+      </div>
+      <div class="request-recipients" id="adminRecipients">
+        <span class="recip-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Your request will be sent to
+        </span>
+        <strong id="adminRecipientNames">—</strong>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="confirm-cancel" id="requestAdminCancel">Cancel</button>
+        <button class="confirm-ok primary" id="requestAdminSubmit">Send request</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Permissions info modal -->
+  <div class="modal-backdrop" id="permsModal">
+    <div class="modal-card" style="width:420px;gap:14px;">
+      <div style="display:flex;align-items:center;gap:10px;padding-bottom:4px;">
+        <span style="display:grid;place-items:center;width:22px;height:22px;color:var(--primary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.01em;flex:1;" id="permsModalTitle">Your permissions</span>
+        <button class="modal-close" id="permsClose">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="permsModalBody" style="font-size:13px;line-height:1.55;color:var(--text-secondary);"></div>
+    </div>
+  </div>
+
+  <!-- Become a contributor modal -->
+  <div class="modal-backdrop" id="contribModal">
+    <div class="modal-card" style="width:420px;gap:14px;position:relative;">
+      <button class="modal-close" id="contribClose" style="position:absolute;top:14px;right:14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 32px 4px;">
+        <span style="display:grid;place-items:center;width:22px;height:22px;color:var(--primary);">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+        </span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.01em;">Become a Contributor</span>
+      </div>
+      <p id="contribModalText" style="font-size:13px;line-height:1.55;color:var(--text-secondary);text-align:center;padding:0 8px;"></p>
+      <div style="display:flex;justify-content:center;padding-top:4px;">
+        <button class="btn btn-primary" id="contribConfirm" style="min-width:120px;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="canvas.js"></script>
+  <script>
+  // ── Sidebar collapse (shared across pages via localStorage) ──
+  (function() {
+    const KEY = 'cfg.sidebarExpanded';
+    function apply() {
+      const stored = localStorage.getItem(KEY);
+      const on = stored === null ? true : stored === '1';
+      document.body.classList.toggle('sidebar-expanded', on);
+    }
+    apply();
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('navToggle');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const on = !document.body.classList.contains('sidebar-expanded');
+        localStorage.setItem(KEY, on ? '1' : '0');
+        apply();
+        if (window.Canvas && typeof Canvas.drawEdges === 'function') {
+          setTimeout(() => Canvas.drawEdges(), 220);
+        }
+      });
+    });
+    window.addEventListener('storage', e => { if (e.key === KEY) apply(); });
+  })();
+  </script>
+  <script>
+  // ── Load project data then init ──────────────────────
+  const params = new URLSearchParams(location.search);
+  const slug   = params.get('project');
+  const isContributorViewMode = params.get('mode') === 'contributor';
+  if (!slug) { document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="dashboard.html">Go to dashboard</a></p>'; }
+  else {
+    const s = document.createElement('script');
+    s.src = slug + '/data.js';
+    s.onload = initApp;
+    s.onerror = () => { document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}". <a href="dashboard.html">Go to dashboard</a></p>`; };
+    document.head.appendChild(s);
+  }
+
+  function initApp() {
+    const P = window.PROJECT;
+    document.title = 'ConnectifyAI — ' + P.title;
+
+    // Breadcrumb
+    document.getElementById('bcOrg').textContent = P.org;
+    document.getElementById('bcProject').textContent = P.title;
+    document.getElementById('sideViewLink').href = 'view-mode.html?project=' + P.slug;
+
+    // Sidebar
+    document.getElementById('sideTitle').textContent = P.title;
+    document.getElementById('sideAuthor').textContent = 'by ' + P.org;
+    const descEl = document.getElementById('sideDesc');
+    const descToggle = document.getElementById('sideDescToggle');
+    descEl.textContent = P.description;
+    // Show the Read more / Show less toggle only if the clamped (7-line)
+    // height is actually smaller than the natural full-text height. Measured
+    // after layout so font metrics are correct.
+    requestAnimationFrame(() => {
+      descEl.classList.add('clamp');
+      const clampedHeight = descEl.scrollHeight;
+      descEl.classList.remove('clamp');
+      const fullHeight = descEl.scrollHeight;
+      if (fullHeight - clampedHeight > 1) {
+        descEl.classList.add('clamp');
+        descToggle.classList.add('visible');
+        descToggle.addEventListener('click', () => {
+          const expanded = descToggle.classList.toggle('expanded');
+          descEl.classList.toggle('clamp', !expanded);
+          descToggle.querySelector('.desc-toggle-label').textContent = expanded ? 'Show less' : 'Read more';
+        });
+      }
+    });
+    document.getElementById('contribCount').textContent = P.contributorCount + ' Contributors';
+    document.getElementById('contribModalText').textContent =
+      `You're about to become a contributor on "${P.title}". You're stepping into a collaborative space where you can experiment locally, then push your changes to the public graph when you're ready.`;
+
+    // Tags
+    const tagRow = document.getElementById('sideTagRow');
+    P.tags.forEach(t => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tagRow.appendChild(s); });
+
+    // Contributors
+    const list = document.getElementById('contribList');
+    P.contributors.forEach(c => {
+      list.insertAdjacentHTML('beforeend', `
+        <div class="contrib-row">
+          <span class="mini-avatar" style="background:${c.bg}">${c.letter}</span>
+          <div class="body">
+            <span class="contrib-name">${c.name}${c.role ? ` <span class="role">(${c.role})</span>` : ''}</span>
+            <span class="contrib-meta">${c.pushes} pushes</span>
+          </div>
+        </div>`);
+    });
+    // Others expandable row
+    list.insertAdjacentHTML('beforeend', `
+      <div class="others-row" id="othersToggle">
+        <div class="avatar-pair">
+          <span class="mini-avatar" style="background:${P.others[0].bg}">${P.others[0].letter}</span>
+          <span class="mini-avatar" style="background:${P.others[1].bg}">${P.others[1].letter}</span>
+        </div>
+        <div class="stack-list"><strong>${P.othersCount} others</strong>${P.othersPreview}</div>
+        <span class="others-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+      </div>
+      <div class="others-list" id="othersList">
+        ${P.others.map(o => `<div class="other-entry"><span class="mini-avatar" style="width:20px;height:20px;font-size:9px;background:${o.bg}">${o.letter}</span><span>${o.name}</span></div>`).join('')}
+      </div>`);
+    document.getElementById('othersToggle').addEventListener('click', () => {
+      document.getElementById('othersToggle').classList.toggle('expanded');
+      document.getElementById('othersList').classList.toggle('show');
+    });
+
+    // Canvas: shared module handles rendering, drag, pan/zoom, CRUD.
+    // View mode uses the raw node positions and disables edit capabilities.
+    Canvas.init({ offset: 0, editable: false, initialZoom: P.viewZoom });
+    Canvas.onNodeClick(openNodeModal);
+    Canvas.build(P);
+    initPathsDrawer(P);
+  }
+
+  // ── Paths drawer (read-only) ───────────────────────────
+  // Mirrors the editing-mode drawer but strips all mutation controls and
+  // adds a single "focus path" click: fit viewport to the chain and paint
+  // its nodes + interior edges blue until another path is selected or the
+  // drawer is closed.
+  function initPathsDrawer(P) {
+    const drawerEl = document.getElementById('pathsDrawer');
+    const btnEl    = document.getElementById('viewPathsBtn');
+    const closeEl  = document.getElementById('pathsDrawerClose');
+    const listEl   = document.getElementById('pdList');
+    const emptyEl  = document.getElementById('pdEmpty');
+    const storageKey = 'cfg.paths.' + P.slug;
+    let paths = [];
+    let activePathId = null;
+
+    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function labelFor(id) { const n = Canvas.getNode(id); return n ? n.label : id; }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        paths = raw ? (JSON.parse(raw) || []) : [];
+      } catch (_) { paths = []; }
+    }
+
+    function formatDate(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const diff = Date.now() - ts;
+      if (diff < 60_000)               return 'just now';
+      if (diff < 60 * 60_000)          return Math.floor(diff / 60_000) + 'm ago';
+      if (diff < 24 * 60 * 60_000)     return Math.floor(diff / (60 * 60_000)) + 'h ago';
+      if (diff < 7 * 24 * 60 * 60_000) return Math.floor(diff / (24 * 60 * 60_000)) + 'd ago';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function render() {
+      emptyEl.style.display = paths.length ? 'none' : '';
+      if (!paths.length) { listEl.innerHTML = ''; return; }
+      listEl.innerHTML = paths.map(p => {
+        const MAX = 4;
+        const head = p.nodeIds.slice(0, MAX);
+        const pills = head.map((id, i) => {
+          const arrow = i > 0 ? '<span class="pd-chain-arrow">\u2192</span>' : '';
+          return `${arrow}<span class="pd-chain-pill">${esc(labelFor(id))}</span>`;
+        }).join('');
+        const extra = p.nodeIds.length - head.length;
+        const tail  = extra > 0
+          ? `<span class="pd-chain-arrow">\u2192</span><span class="pd-chain-pill">+${extra}</span>`
+          : '';
+        const a = p.author || { name: 'Unknown', letter: '?', color: '#64748b' };
+        return `
+          <li>
+            <button class="pd-item ${activePathId === p.id ? 'active' : ''}" data-id="${p.id}" type="button">
+              <div class="pd-item-name">${esc(p.name)}</div>
+              <div class="pd-item-chain">${pills}${tail}</div>
+              <div class="pd-item-meta">
+                <span class="pd-author" title="${esc(a.name)}">
+                  <span class="pd-avatar" style="background:${a.color || '#64748b'}">${esc(a.letter || '?')}</span>
+                  ${esc(a.name || 'Unknown')}
+                </span>
+                <span class="dot-sep"></span>
+                <span>${esc(formatDate(p.createdAt))}</span>
+                <span class="dot-sep"></span>
+                <span>${p.nodeIds.length} nodes</span>
+              </div>
+            </button>
+          </li>`;
+      }).join('');
+    }
+
+    function clearHighlight() {
+      activePathId = null;
+      highlightedEdgeIds = new Set();
+      document.querySelectorAll('.node.path-highlight').forEach(n => n.classList.remove('path-highlight'));
+      document.querySelectorAll('.node-overlay path.edge-highlight').forEach(p => p.classList.remove('edge-highlight'));
+    }
+
+    // Edge redraws rewrite the edge SVG via innerHTML, which nukes any
+    // classes we add. A MutationObserver watches for those rewrites and
+    // reapplies the highlight so tints persist through pan/zoom/redraws.
+    let highlightedEdgeIds = new Set();
+    let edgeMutObserver = null;
+    function applyEdgeHighlight() {
+      const inner = Canvas.getCanvasInner();
+      const svg = inner.querySelector('svg.node-overlay:not(.dots-overlay)');
+      if (!svg || !highlightedEdgeIds.size) return;
+      const conns = Canvas.getConnections();
+      const paths = svg.querySelectorAll('path');
+      conns.forEach((c, i) => {
+        if (!highlightedEdgeIds.has(c.from[0]) || !highlightedEdgeIds.has(c.to[0])) return;
+        if (paths[i]) paths[i].classList.add('edge-highlight');
+      });
+    }
+    function ensureEdgeObserver() {
+      const inner = Canvas.getCanvasInner();
+      const svg = inner.querySelector('svg.node-overlay:not(.dots-overlay)');
+      if (!svg || edgeMutObserver) return;
+      edgeMutObserver = new MutationObserver(applyEdgeHighlight);
+      edgeMutObserver.observe(svg, { childList: true });
+    }
+
+    function focusPath(p) {
+      if (!p || !p.nodeIds.length) return;
+      clearHighlight();
+      const validIds = p.nodeIds.filter(id => Canvas.getNode(id));
+      if (!validIds.length) { render(); return; }
+      activePathId = p.id;
+      highlightedEdgeIds = new Set(validIds);
+      Canvas.fitToNodes(validIds, {
+        padding: 32,
+        reserve: { top: 70, bottom: 40, right: 340, left: 40 },
+        maxZoom: 2.0, minZoom: 0.25,
+      });
+      const inner = Canvas.getCanvasInner();
+      validIds.forEach(id => {
+        const el = inner.querySelector(`.node[data-node-id="${id}"]`);
+        if (el) el.classList.add('path-highlight');
+      });
+      ensureEdgeObserver();
+      applyEdgeHighlight();
+      // Reapply once more after the fit animation resettles edges.
+      setTimeout(applyEdgeHighlight, 380);
+      render();
+    }
+
+    function openDrawer()  { drawerEl.classList.add('open');    drawerEl.setAttribute('aria-hidden', 'false'); }
+    function closeDrawer() { drawerEl.classList.remove('open'); drawerEl.setAttribute('aria-hidden', 'true'); clearHighlight(); render(); }
+
+    btnEl.addEventListener('click',  () => {
+      if (drawerEl.classList.contains('open')) { closeDrawer(); return; }
+      load();
+      render();
+      openDrawer();
+    });
+    closeEl.addEventListener('click', closeDrawer);
+    listEl.addEventListener('click', e => {
+      const btn = e.target.closest('.pd-item');
+      if (!btn) return;
+      const p = paths.find(x => x.id === btn.dataset.id);
+      if (p) focusPath(p);
+    });
+    // Refresh when another tab/page updates the shared store.
+    window.addEventListener('storage', e => {
+      if (e.key !== storageKey) return;
+      load();
+      if (activePathId && !paths.find(p => p.id === activePathId)) clearHighlight();
+      render();
+    });
+  }
+
+  // Zoom controls wired to canvas module
+  document.getElementById('zoomIn').addEventListener('click',  () => Canvas.zoomIn());
+  document.getElementById('zoomOut').addEventListener('click', () => Canvas.zoomOut());
+
+  // ── Node detail modal ─────────────────────────────────
+  const modal = document.getElementById('modal');
+  const modalCard = document.getElementById('modalCard');
+  function openNodeModal(node) {
+    const P = window.PROJECT;
+    const firstOut = node.outputs && node.outputs[0];
+    const pathLabel = `${node.type === 'Dataset' ? node.label.split(/[-\s]/)[0] + '-Lib' : node.id}/${node.label}`;
+    const contributor = P.contributors[0];
+    modalCard.innerHTML = `
+      <div class="modal-header">
+        <span class="type-icon">${Canvas.ICONS[node.type]}</span>
+        <span class="type-label">${node.type}</span>
+        <button class="modal-close" id="nodeModalClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-title"><span class="dot" style="background:${node.color}"></span>${node.label}</div>
+      <div class="modal-section"><h4>${node.type}</h4>
+        <div class="modal-select"><span class="left"><span>${pathLabel}</span></span><svg class="chev" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></div>
+      </div>
+      <div class="modal-section"><h4>Script</h4>
+        <div class="code-block"><div class="code-gutter">1<br>2<br>3</div><div class="code-content">{
+  <span class="str">"output"</span>: <span class="var">query1</span>.data
+}</div></div>
+      </div>
+      <div class="modal-section"><h4>Outputs</h4>
+        ${firstOut ? `<div class="modal-select"><span class="left"><span>${firstOut.name}</span>${Canvas.typePill(firstOut.type)}<span class="type-pill type-inactive">Inactive</span></span><svg class="chev" viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></div>` : '<div class="modal-select"><span class="left"><span>None</span></span></div>'}
+      </div>
+      <div class="modal-section"><h4>Contributors</h4>
+        <span class="contrib-chip"><span class="mini-avatar" style="background:${contributor.bg}">${contributor.letter}</span>${contributor.name}</span>
+      </div>
+      <div class="modal-section"><h4>Details</h4>
+        <div class="details-box">
+          <div class="row"><span class="k">Created:</span><span>Jan 5, 2024</span></div>
+          <div class="row"><span class="k">Last Edited:</span><span>Jan 5, 2024</span></div>
+          <div class="row"><span class="k">Paths:</span><span>None</span></div>
+          <div class="row"><span class="k">Source:</span><span>${node.type === 'Dataset' ? 'Custom Dataset' : 'Custom ' + node.type}</span></div>
+        </div>
+      </div>`;
+    modal.classList.add('show');
+    document.getElementById('nodeModalClose').addEventListener('click', () => modal.classList.remove('show'));
+  }
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { modal.classList.remove('show'); document.getElementById('contribModal').classList.remove('show'); requestAdminModal?.classList.remove('show'); permsModal?.classList.remove('show'); } });
+
+  // ── Contributor modal ─────────────────────────────────
+  const contribModal = document.getElementById('contribModal');
+  document.getElementById('contributeBtn').addEventListener('click', () => contribModal.classList.add('show'));
+  document.getElementById('contribClose').addEventListener('click',  () => contribModal.classList.remove('show'));
+  contribModal.addEventListener('click', e => { if (e.target === contribModal) contribModal.classList.remove('show'); });
+  document.getElementById('contribConfirm').addEventListener('click', () => {
+    window.location.href = 'editing-mode.html?project=' + slug;
+  });
+
+  // ── Role dropdown ─────────────────────────────────────
+  // Roles in order: view-only → contributor → admin
+  // (owner intentionally omitted from self-service flow)
+  const ROLE_LEVELS = { 'view-only': 0, 'contributor': 1, 'admin': 2 };
+  let currentRole      = 'view-only';
+  let adminRequestSent = false;
+
+  const rolePillBtn   = document.querySelector('.view-mode-pill');
+  const roleDropdown  = document.getElementById('roleDropdown');
+  rolePillBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span id="rolePillText">View Only</span>
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>`;
+
+  function updateRoleUI(role) {
+    currentRole = role;
+    const LABELS = { 'view-only':'View Only', 'contributor':'Contributor', 'admin':'Admin' };
+    document.getElementById('rolePillText').textContent = LABELS[role] || role;
+    // Update checkmark + disable states in dropdown
+    document.querySelectorAll('.role-opt').forEach(opt => {
+      const r = opt.dataset.role;
+      opt.classList.toggle('current',  r === role);
+      opt.classList.toggle('disabled', ROLE_LEVELS[r] <= ROLE_LEVELS[role] && r !== role);
+      // Remove check SVG from non-current; ensure current has one
+      const existingCheck = opt.querySelector('.role-check');
+      if (r === role && !existingCheck) {
+        opt.insertAdjacentHTML('beforeend', `<svg class="role-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`);
+      } else if (r !== role && existingCheck) {
+        existingCheck.remove();
+      }
+    });
+    // Hide view-only option once past it
+    document.getElementById('roleOptViewOnly').style.display =
+      role === 'view-only' ? '' : 'none';
+  }
+
+  rolePillBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const r    = rolePillBtn.getBoundingClientRect();
+    const open = roleDropdown.classList.contains('open');
+    roleDropdown.classList.toggle('open', !open);
+    if (!open) {
+      const menuW = 210;
+      let left = r.right - menuW;
+      left = Math.max(8, Math.min(left, window.innerWidth - menuW - 8));
+      roleDropdown.style.left = left + 'px';
+      roleDropdown.style.top  = (r.bottom + 6) + 'px';
+    }
+  });
+  document.addEventListener('click', () => roleDropdown.classList.remove('open'));
+  roleDropdown.addEventListener('click', e => e.stopPropagation());
+
+  // ── Role option clicks ────────────────────────────────
+  document.getElementById('roleOptContributor').addEventListener('click', () => {
+    if (currentRole !== 'view-only') return;
+    roleDropdown.classList.remove('open');
+    contribModal.classList.add('show');
+  });
+
+  document.getElementById('roleOptEditMode').addEventListener('click', () => {
+    roleDropdown.classList.remove('open');
+    window.location.href = 'editing-mode.html?project=' + slug;
+  });
+
+  document.getElementById('roleOptAdmin').addEventListener('click', () => {
+    if (document.getElementById('roleOptAdmin').classList.contains('disabled')) return;
+    roleDropdown.classList.remove('open');
+    openRequestModal('admin');
+  });
+
+  // ── Contributor view-mode bootstrap ──────────────────
+  // If the user arrived from editing-mode via "Switch to View Mode",
+  // reconfigure the dropdown for a contributor who's just browsing.
+  if (isContributorViewMode) {
+    currentRole = 'contributor';
+    document.getElementById('rolePillText').textContent = 'View Mode';
+    // Swap View Only → View Mode (current), Request Contributor → Switch to Edit Mode
+    document.getElementById('roleOptViewOnly').style.display    = 'none';
+    document.getElementById('roleOptViewMode').style.display    = '';
+    document.getElementById('roleOptContributor').style.display = 'none';
+    document.getElementById('roleOptEditMode').style.display    = '';
+    // Unlock Admin request (contributors can request admin)
+    document.getElementById('roleOptAdmin').classList.remove('disabled');
+  }
+
+  // ── Request admin modal ───────────────────────────────
+  const requestAdminModal = document.getElementById('requestAdminModal');
+
+  function openRequestModal(tier) {
+    // Populate recipients from project owners/admins
+    const P = window.PROJECT;
+    const owners = P.contributors.filter(c => c.role === 'Owner' || c.role === 'Admin');
+    const names  = owners.length
+      ? owners.map(c => c.name).join(', ')
+      : P.contributors[0]?.name || 'project owners';
+    document.getElementById('adminRecipientNames').textContent = names;
+    requestAdminModal.classList.add('show');
+  }
+
+  document.getElementById('requestAdminClose').addEventListener('click',  () => requestAdminModal.classList.remove('show'));
+  document.getElementById('requestAdminCancel').addEventListener('click', () => requestAdminModal.classList.remove('show'));
+  requestAdminModal.addEventListener('click', e => { if (e.target === requestAdminModal) requestAdminModal.classList.remove('show'); });
+  function applyAdminPending() {
+    adminRequestSent = true;
+    const adminOpt = document.getElementById('roleOptAdmin');
+    adminOpt.querySelector('.role-badge').outerHTML =
+      `<span class="role-badge" style="background:rgba(234,179,8,0.12);color:#a16207;border:1px solid rgba(234,179,8,0.3);">Pending</span>`;
+    adminOpt.style.pointerEvents = 'none';
+  }
+
+  document.getElementById('requestAdminSubmit').addEventListener('click', () => {
+    requestAdminModal.classList.remove('show');
+    document.getElementById('adminReasonInput').value = '';
+    document.getElementById('adminScopeInput').value  = '';
+    applyAdminPending();
+    sessionStorage.setItem('adminRequestPending_' + slug, 'true');
+  });
+
+  // Restore pending state if user toggled over from edit mode
+  if (sessionStorage.getItem('adminRequestPending_' + slug) === 'true') applyAdminPending();
+
+  // ── Permissions info modal ────────────────────────────
+  const permsModal = document.getElementById('permsModal');
+  const PERMS = {
+    'view-only': {
+      title: 'View Only — your current permissions',
+      items: [
+        'Browse and explore the project graph',
+        'View node details, inputs, and outputs',
+        'Pan, zoom, and navigate the canvas',
+        'Copy the project to your own workspace',
+      ]
+    },
+    contributor: {
+      title: 'Contributor — your current permissions',
+      items: [
+        'Everything in View Only',
+        'Add, edit, and delete nodes on the canvas',
+        'Create and remove connections between nodes',
+        'Push local changes to the public graph for review',
+        'Rename your own nodes and edit their metadata',
+      ]
+    },
+    admin: {
+      title: 'Admin — your current permissions',
+      items: [
+        'Everything in Contributor',
+        'Add and remove contributors from the project',
+        'Merge and approve pushed changes',
+        'Edit or delete any node or connection',
+        'Rename the project and update its description and tags',
+        'Archive or lock the project',
+      ]
+    },
+  };
+
+  document.getElementById('rolePermsLink').addEventListener('click', () => {
+    roleDropdown.classList.remove('open');
+    const info = PERMS[currentRole] || PERMS['view-only'];
+    document.getElementById('permsModalTitle').textContent = info.title;
+    document.getElementById('permsModalBody').innerHTML =
+      `<ul style="padding-left:18px;margin:0;display:flex;flex-direction:column;gap:7px;">${info.items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+    permsModal.classList.add('show');
+  });
+  document.getElementById('permsClose').addEventListener('click', () => permsModal.classList.remove('show'));
+  permsModal.addEventListener('click', e => { if (e.target === permsModal) permsModal.classList.remove('show'); });
+  </script>
+  <script src="theme.js"></script>
+</body>
+</html>

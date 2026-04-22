@@ -1,0 +1,285 @@
+/* ============================================================
+   DARK MODE
+   Applied by setting `data-theme="dark"` on the <html> element.
+   Preference is persisted to localStorage (see theme.js). The
+   theme is applied pre-paint in an inline <script> near the top
+   of each page so there's no flash-of-light-theme on load.
+
+   Strategy:
+   1. Re-skin the existing design tokens (--bg, --surface, etc.)
+      so every selector that already consumes them flips
+      automatically.
+   2. Patch the handful of elements whose backgrounds are
+      hardcoded (#fff, #fffbeb, etc.) since rewriting every
+      such declaration across three huge HTML files would be
+      noisier than this targeted override.
+   ============================================================ */
+
+html[data-theme="dark"] {
+  --bg: #0b1220;
+  /* --surface bumped +2% luminance over the first pass so node and
+     card fills read as lifted vs. the page background. */
+  --surface: #18233a;
+  /* Borders bumped +2% so nodes / discover cards / modal edges stay
+     visible now that everything behind them is dark too. */
+  --border: #2b3754;
+  --border-light: #222e49;
+  --canvas-bg: #0a1122;
+  --section-bg: #131d32;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-soft: rgba(59,130,246,0.18);
+
+  /* Text nudged brighter to keep contrast vs. the brighter surface. */
+  --text-primary: #edf1f8;
+  --text-secondary: #a3b0c2;
+  --text-muted: #6b7a92;
+
+  --tag-bg: #223050;
+  --tag-text: #cbd5e1;
+  --edge: #64748b;
+
+  --sidebar-bg: #0b1220;
+  --sidebar-active-bg: #172554;
+  --sidebar-active-text: #93c5fd;
+
+  color-scheme: dark;
+}
+
+/* ── Patch hardcoded surfaces ────────────────────────────────
+   These selectors use `#fff`, `white`, or warm cream tones
+   inline; the rules below swap them in dark mode only. */
+
+html[data-theme="dark"] .role-dropdown,
+html[data-theme="dark"] .kebab-menu,
+html[data-theme="dark"] .canvas-context-menu,
+html[data-theme="dark"] .confirm-popup,
+html[data-theme="dark"] .modal-card,
+html[data-theme="dark"] .filter-search,
+html[data-theme="dark"] .confirm-cancel {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* Inputs + textareas inside modals that whiten on focus. */
+html[data-theme="dark"] .request-field textarea,
+html[data-theme="dark"] .request-field input[type="text"],
+html[data-theme="dark"] .request-field textarea:focus,
+html[data-theme="dark"] .request-field input[type=text]:focus,
+html[data-theme="dark"] .filter-search input,
+html[data-theme="dark"] .filter-search input:focus,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="search"] {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+html[data-theme="dark"] textarea::placeholder,
+html[data-theme="dark"] input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Code block (default was warm cream — becomes a deeper slate
+   with a blue-ish tint so code keywords still read). */
+html[data-theme="dark"] .code-block {
+  background: #0d1526;
+  border-color: #1f2a40;
+}
+html[data-theme="dark"] .code-gutter {
+  background: #0a1122;
+  color: #64748b;
+}
+html[data-theme="dark"] .code-content { color: var(--text-primary); }
+html[data-theme="dark"] .code-content .str { color: #86efac; }
+html[data-theme="dark"] .code-content .var { color: #93c5fd; }
+html[data-theme="dark"] .code-content .kw  { color: #c4b5fd; }
+
+/* Pills that were light pastel — keep hue but add alpha so
+   they don't look blown out against a dark surface. */
+html[data-theme="dark"] .type-string  { background: rgba(37,99,235,0.18);  color: #93c5fd; }
+html[data-theme="dark"] .type-jpg,
+html[data-theme="dark"] .type-png     { background: rgba(249,115,22,0.18); color: #fdba74; }
+html[data-theme="dark"] .type-binary  { background: rgba(100,116,139,0.24); color: #cbd5e1; }
+html[data-theme="dark"] .type-image   { background: rgba(236,72,153,0.18); color: #f9a8d4; }
+html[data-theme="dark"] .type-text    { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+html[data-theme="dark"] .type-audio   { background: rgba(168,85,247,0.18); color: #d8b4fe; }
+html[data-theme="dark"] .type-float   { background: rgba(245,158,11,0.18); color: #fcd34d; }
+html[data-theme="dark"] .type-lbl     { background: rgba(59,130,246,0.18); color: #93c5fd; }
+html[data-theme="dark"] .type-bbox    { background: rgba(234,179,8,0.18);  color: #fde68a; }
+html[data-theme="dark"] .type-id      { background: rgba(34,197,94,0.18);  color: #86efac; }
+html[data-theme="dark"] .type-video   { background: rgba(236,72,153,0.18); color: #f9a8d4; }
+html[data-theme="dark"] .type-inactive{ background: rgba(100,116,139,0.22); color: #94a3b8; }
+
+/* Paths drawer — active path still highlights, but the plain hover
+   state is intentionally removed (the rename field, icon buttons,
+   and Run Experiment CTA are the only affordances). */
+html[data-theme="dark"] .pd-item.active { background: #1e3a8a; border-color: var(--primary); }
+
+/* Comment cards rebuild their own palette via CSS variables.
+   Override those vars so the card reads as dark-blue-tinted. */
+html[data-theme="dark"] .comment-card {
+  --cmt-bg:     rgba(59,130,246,0.14);
+  --cmt-border: rgba(59,130,246,0.35);
+  --cmt-accent: #60a5fa;
+}
+
+/* Subtle shadows don't pop on dark bg — soften them. */
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .sidebar,
+html[data-theme="dark"] .side-panel,
+html[data-theme="dark"] .sidebar-icons {
+  box-shadow: none;
+  background: var(--surface);
+}
+
+/* Canvas dotted-grid background. The light-mode rule sets both the
+   base color AND a radial-gradient grid of #d5d9e0 dots — invisible
+   on black — so we repaint the grid here with a dim slate: just
+   present enough to hint at the grid, not bright enough to compete
+   with node content. */
+html[data-theme="dark"] .canvas,
+html[data-theme="dark"] .canvas-wrap {
+  background: var(--canvas-bg);
+  background-image: radial-gradient(circle, #1f2a45 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* Input/Output dropdown headers inside nodes had a hardcoded `#edf0f5`
+   hover fill that turned snow-white in dark mode. */
+html[data-theme="dark"] .node-section:hover {
+  background: rgba(148,163,184,0.08);
+}
+
+/* Discover / node-details / request modals — light-mode relied on a
+   soft drop shadow for separation, which effectively vanishes on a
+   dark canvas. Add a hairline border + amped-up shadow. */
+html[data-theme="dark"] .modal-card,
+html[data-theme="dark"] .discover-card,
+html[data-theme="dark"] .confirm-popup {
+  border: 1px solid rgba(148,163,184,0.16);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.55);
+}
+
+/* Discover card input/output pills used saturated pastel backgrounds
+   that pop aggressively on dark. Subtle tinted fills instead. */
+html[data-theme="dark"] .disc-tag.io-in  { background: rgba(34,197,94,0.14);  color: #86efac; }
+html[data-theme="dark"] .disc-tag.io-out { background: rgba(59,130,246,0.16); color: #93c5fd; }
+
+/* Discover modal: cards and filter pills sit directly on the modal
+   surface, so they need a slight brightness lift to read as distinct
+   objects (vs. the modal itself, which is `var(--surface)`). */
+html[data-theme="dark"] .disc-card,
+html[data-theme="dark"] .filter-pill,
+html[data-theme="dark"] .discover-search {
+  background: #22304d;
+  border-color: #34446a;
+}
+html[data-theme="dark"] .filter-pill:hover { background: #2a3a5c; }
+html[data-theme="dark"] .filter-pill.active {
+  background: rgba(59,130,246,0.22);
+  border-color: #60a5fa;
+  color: #bfdbfe;
+}
+
+/* Path builder — selection/hover states were opaque near-white. Use
+   translucent tints so the node surface still reads through. */
+html[data-theme="dark"] body.building-path .node.path-candidate:hover {
+  background: rgba(59,130,246,0.08);
+  box-shadow: 0 0 0 1.5px rgba(59,130,246,0.45), 0 2px 8px rgba(0,0,0,0.3);
+}
+html[data-theme="dark"] .node.path-selected {
+  background: rgba(59,130,246,0.16);
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 12px rgba(0,0,0,0.45);
+}
+
+/* Path builder footer buttons — undo was hardcoded to `#fff`. */
+html[data-theme="dark"] .pb-undo {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+html[data-theme="dark"] .pb-undo:hover:not(:disabled) {
+  background: rgba(148,163,184,0.10);
+}
+
+/* Paths drawer items — `Run Experiment` button shipped `#fff`; name
+   hover shipped `#f1f5ff`. Both go snow-white on dark.
+   At rest the button blends with the card; on hover it becomes the
+   primary blue fill, matching the light-mode pattern. Re-declared
+   here because our dark rule above bumps specificity past the base
+   `:hover` rule. */
+html[data-theme="dark"] .pd-run {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+html[data-theme="dark"] .pd-run:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+html[data-theme="dark"] .pd-item-name:hover {
+  background: rgba(59,130,246,0.14);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.14), 0 1px 0 var(--primary);
+}
+html[data-theme="dark"] .pd-item-name-input {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* "+ New path" button sat on a faint tint that washed out against
+   black. Keep the dashed primary-ring aesthetic but lift the fill
+   and text so it reads as a clear CTA in dark. */
+html[data-theme="dark"] .pd-new {
+  background: rgba(59,130,246,0.22);
+  border-color: rgba(96,165,250,0.55);
+  color: #bfdbfe;
+}
+html[data-theme="dark"] .pd-new:hover {
+  background: rgba(59,130,246,0.32);
+  border-color: var(--primary);
+  color: #dbeafe;
+}
+
+/* Path builder panel + find bar keep their light-surface bg
+   rule — redirect it through --surface so it flips. */
+html[data-theme="dark"] .path-builder,
+html[data-theme="dark"] .find-bar { background: var(--surface); color: var(--text-primary); }
+
+/* Dashboard graph thumbnails (the grid-with-radial-glows background). */
+html[data-theme="dark"] .graph-thumb {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(59,130,246,0.18) 0%, transparent 45%),
+    radial-gradient(circle at 80% 70%, rgba(139,92,246,0.18) 0%, transparent 50%),
+    #0d1526;
+}
+
+/* Scrollbars, where the project styles webkit thumbs directly. */
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #2d3b5a; }
+
+/* ── Theme toggle button (shared) ────────────────────────────
+   Injected into each page's topbar actions area by theme.js. */
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { background: var(--bg); color: var(--text-primary); }
+.theme-toggle svg { width: 16px; height: 16px; }
+/* Show sun in dark mode, moon in light mode. */
+.theme-toggle .ico-sun  { display: none; }
+.theme-toggle .ico-moon { display: block; }
+html[data-theme="dark"] .theme-toggle .ico-sun  { display: block; }
+html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }

@@ -1,0 +1,92 @@
+window.PROJECT = {
+  slug: 'neurological-disease-analysis',
+  title: 'Neurological Disease Analysis',
+  org: 'RazLab',
+  tags: ['Neuroscience', 'Disease Detection'],
+  contributorCount: 21,
+  contributors: [
+    { letter: 'R', bg: '#0f172a',          name: 'Razlab',              role: 'Owner', pushes: 18 },
+    { letter: 'R', bg: 'var(--avatar-6)',   name: 'Razvan Marinescu',    role: 'Admin', pushes: 6  },
+    { letter: 'J', bg: 'var(--avatar-5)',   name: 'Jesh Bheemanpally',   role: 'Admin', pushes: 2  },
+    { letter: 'M', bg: 'var(--avatar-1)',   name: 'Mansi Saini',                        pushes: 2  },
+  ],
+  othersCount: 17,
+  othersPreview: 'Gideon Fox, Ish Khandelwal…',
+  others: [
+    { letter: 'G', bg: 'var(--avatar-4)', name: 'Gideon Fox' },
+    { letter: 'I', bg: 'var(--avatar-3)', name: 'Ish Khandelwal' },
+    { letter: 'A', bg: 'var(--avatar-7)', name: 'Aarav Patel' },
+    { letter: 'L', bg: 'var(--avatar-5)', name: 'Leo Nakamura' },
+    { letter: 'T', bg: 'var(--avatar-2)', name: 'Tara Alvarez' },
+    { letter: 'K', bg: 'var(--avatar-6)', name: 'Kai Johansson' },
+    { letter: 'P', bg: 'var(--avatar-4)', name: 'Priya Rao' },
+    { letter: 'D', bg: 'var(--avatar-1)', name: 'Diego Moreno' },
+    { letter: 'S', bg: 'var(--avatar-3)', name: 'Sofia Kim' },
+    { letter: 'N', bg: 'var(--avatar-7)', name: 'Nia Owusu' },
+    { letter: 'E', bg: 'var(--avatar-5)', name: 'Elena Rossi' },
+    { letter: 'M', bg: 'var(--avatar-2)', name: 'Mateo Silva' },
+    { letter: 'Y', bg: 'var(--avatar-6)', name: 'Yuki Tanaka' },
+    { letter: 'R', bg: 'var(--avatar-4)', name: 'Ravi Desai' },
+    { letter: 'B', bg: 'var(--avatar-1)', name: 'Bella Conti' },
+    { letter: 'O', bg: 'var(--avatar-3)', name: 'Omar Haddad' },
+    { letter: 'Z', bg: 'var(--avatar-7)', name: 'Zara Malik' },
+  ],
+  description: 'This graph contains the relationships between different medical modalities, such as genetic information and MRI scans to perform tasks, such as Alzheimer\'s detection.',
+  canvasWidth: 1600,
+  canvasHeight: 820,
+  viewZoom: 0.65,
+  nodes: [
+    { id: 'skull-samples',  type: 'Dataset', label: 'PET-Skull-Samples',        color: 'var(--dot-red)',    user: { letter: 'R', color: 'var(--avatar-6)' }, x: 40,   y: 40,
+      outputs: [{ name: 'skull_image', type: 'jpg' }] },
+    { id: 'skull-seg',      type: 'Model',   label: 'PET-Skull-Segmentation',   color: 'var(--dot-red)',    user: { letter: 'R', color: 'var(--avatar-6)' }, x: 300,  y: 40,
+      inputs:  [{ name: 'skull_image', type: 'jpg' }],
+      outputs: [{ name: 'segmented_image', type: 'jpg' }] },
+    { id: 'brain-seg',      type: 'Model',   label: 'PET-Brain-Segmentation',   color: 'var(--dot-yellow)', user: { letter: 'J', color: 'var(--avatar-2)' }, x: 560,  y: 135,
+      inputs:  [{ name: 'skull_segmented', type: 'jpg' }],
+      outputs: [{ name: 'brain_segmented', type: 'jpg' }] },
+    { id: 'brain-class',    type: 'Model',   label: 'PET-Brain-Classification', color: 'var(--dot-red)',    user: { letter: 'R', color: 'var(--avatar-6)' }, x: 820,  y: 230,
+      inputs:  [{ name: 'brain_segmented', type: 'jpg' }],
+      outputs: [{ name: 'label', type: 'string' }] },
+    { id: 'mri',            type: 'Model',   label: 'MRI Brain Classification', color: 'var(--dot-red)',    user: { letter: 'G', color: 'var(--avatar-7)' }, x: 1080, y: 330,
+      inputs:  [
+        { name: 'pet_label',    type: 'jpg' },
+        { name: 'volume_label', type: 'string' },
+        { name: 'gene_label',   type: 'string' }
+      ], outputs: [] },
+    { id: 'volume-samples', type: 'Dataset', label: 'Volume-Samples',           color: 'var(--dot-purple)', user: { letter: 'J', color: 'var(--avatar-2)' }, x: 40,   y: 260,
+      outputs: [
+        { name: 'ST101SV_08_01_16', type: 'string' },
+        { name: 'ST10ISV_OESFEN',   type: 'string' },
+        { name: 'ST10ISV_UESFEN',   type: 'string' }
+      ] },
+    { id: 'volume-class',   type: 'Model',   label: 'Volume-Classification',    color: 'var(--dot-purple)', user: { letter: 'J', color: 'var(--avatar-2)' }, x: 300, y: 310,
+      inputs:  [{ name: 'ST101SV_08_01_16', type: 'string' }],
+      outputs: [{ name: 'label', type: 'string' }] },
+    { id: 'gene-samples',   type: 'Dataset', label: 'Gene-Samples',             color: 'var(--dot-purple)', user: { letter: 'M', color: 'var(--avatar-1)' }, x: 40,  y: 490,
+      outputs: [{ name: 'APOE4', type: 'string' }] },
+    { id: 'gene-class',     type: 'Model',   label: 'Gene-Classification',      color: 'var(--dot-purple)', user: { letter: 'M', color: 'var(--avatar-1)' }, x: 300, y: 530,
+      inputs:  [{ name: 'APOE4', type: 'string' }],
+      outputs: [{ name: 'label', type: 'string' }] },
+    { id: 'merged',         type: 'Logic',   label: 'Merged-Dataset',           color: 'var(--dot-yellow)', user: { letter: 'M', color: 'var(--avatar-4)' }, x: 560, y: 400,
+      inputs:  [
+        { name: 'ST101SV_08_01_16', type: 'string' },
+        { name: 'label',            type: 'string' }
+      ],
+      outputs: [
+        { name: 'ST101SV_08_01_16', type: 'string' },
+        { name: 'label',            type: 'string' }
+      ] }
+  ],
+  connections: [
+    { from: ['skull-samples',  'out', 'skull_image'],        to: ['skull-seg',    'in', 'skull_image'] },
+    { from: ['skull-seg',      'out', 'segmented_image'],    to: ['brain-seg',    'in', 'skull_segmented'] },
+    { from: ['brain-seg',      'out', 'brain_segmented'],    to: ['brain-class',  'in', 'brain_segmented'] },
+    { from: ['brain-class',    'out', 'label'],              to: ['mri',          'in', 'pet_label'] },
+    { from: ['volume-samples', 'out', 'ST101SV_08_01_16'],   to: ['volume-class', 'in', 'ST101SV_08_01_16'] },
+    { from: ['volume-class',   'out', 'label'],              to: ['merged',       'in', 'ST101SV_08_01_16'] },
+    { from: ['gene-samples',   'out', 'APOE4'],              to: ['gene-class',   'in', 'APOE4'] },
+    { from: ['gene-class',     'out', 'label'],              to: ['merged',       'in', 'label'] },
+    { from: ['merged',         'out', 'ST101SV_08_01_16'],   to: ['mri',          'in', 'volume_label'] },
+    { from: ['merged',         'out', 'label'],              to: ['mri',          'in', 'gene_label'] }
+  ]
+};

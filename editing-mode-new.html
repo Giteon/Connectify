@@ -53,13 +53,18 @@
       height: 100vh;
       --leftnav-w: 44px;
     }
+    /* Expanded runs panel is fixed over the canvas; row 4 collapses so row 3
+       keeps full height (avoids squashing the left nav when the drawer grows). */
+    .app.bp-expanded {
+      grid-template-rows: var(--topbar-h) var(--variant-h) 1fr 0fr;
+    }
     .app.leftnav-expanded { --leftnav-w: 180px; }
     .topbar        { grid-column: 1 / -1; grid-row: 1; }
     .variant-strip { grid-column: 1 / -1; grid-row: 2; }
-    .leftnav       { grid-column: 1; grid-row: 3; width: var(--leftnav-w); transition: width .18s ease; }
-    .drawer-left   { grid-column: 2; grid-row: 3; }
-    .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; }
-    .drawer-right  { grid-column: 4; grid-row: 3; }
+    .leftnav       { grid-column: 1; grid-row: 3; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
+    .drawer-left   { grid-column: 2; grid-row: 3; min-height: 0; }
+    .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; min-height: 0; }
+    .drawer-right  { grid-column: 4; grid-row: 3; min-height: 0; }
     .bottom-panel  { grid-column: 1 / -1; grid-row: 4; }
 
     /* ── Left nav rail (collapsed by default) ─────────────────
@@ -478,7 +483,7 @@
       font-size: 12.5px;
     }
     .variant-confirm-pop::before {
-      content: ''; position: absolute; top: -6px; left: 18px;
+      content: ''; position: absolute; top: -6px; left: var(--pop-tail-left, 18px);
       width: 10px; height: 10px; background: var(--surface);
       border-left: 1px solid var(--border); border-top: 1px solid var(--border);
       transform: rotate(45deg);
@@ -497,6 +502,8 @@
     .variant-confirm-pop .pop-yes:hover { background: #b91c1c; }
     .variant-confirm-pop .pop-no { color: var(--text-secondary); border-color: var(--border); background: transparent; }
     .variant-confirm-pop .pop-no:hover { background: var(--bg); }
+    .path-confirm-pop.extract .pop-yes { background: var(--primary); color: #fff; }
+    .path-confirm-pop.extract .pop-yes:hover { background: var(--primary-hover); }
     /* Dashed "add variant" chip — brighter border + subtle plus icon so it
        doesn't disappear against the strip background. */
     .variant-add {
@@ -509,7 +516,7 @@
     }
     .variant-add:hover { color: var(--primary); border-color: var(--primary); border-style: solid; background: var(--primary-soft); }
     .variant-add svg { width: 11px; height: 11px; }
-    html[data-theme="dark"] .variant-add { border-color: #64748b; color: #cbd5e1; }
+    html[data-theme="dark"] .variant-add { border-color: #364457; color: #cbd5e1; }
     html[data-theme="dark"] .variant-add:hover { border-color: var(--primary); }
     html[data-theme="dark"] .variant-add-wrap { background: var(--bg); }
     html[data-theme="dark"] .variant-tab .tab-x { color: #cbd5e1; }
@@ -525,11 +532,27 @@
       width: 0; overflow: hidden;
       transition: width .18s ease;
     }
-    .drawer-left  { border-right: 1px solid var(--border); }
-    .drawer-right { border-left:  1px solid var(--border); }
+    .drawer-left  {
+      --drawer-w: var(--drawer-left-w);
+      border-right: 1px solid var(--border);
+      align-items: flex-end;
+    }
+    .drawer-right {
+      --drawer-w: var(--drawer-right-w);
+      border-left:  1px solid var(--border);
+      align-items: flex-start;
+    }
     .drawer.open { width: var(--drawer-w); }
-    .drawer-left.open  { --drawer-w: var(--drawer-left-w); }
-    .drawer-right.open { --drawer-w: var(--drawer-right-w); }
+    /* Keep inner content at full drawer width throughout the animation so
+       it slides as a full panel instead of reflowing during width changes. */
+    .drawer > .drawer-tabs,
+    .drawer > .drawer-body,
+    .drawer > .drawer-search {
+      width: var(--drawer-w);
+      min-width: var(--drawer-w);
+      box-sizing: border-box;
+      align-self: stretch;
+    }
 
     .drawer-tabs {
       display: flex; border-bottom: 1px solid var(--border);
@@ -565,7 +588,7 @@
     .drawer-search {
       display: flex; align-items: center; gap: 7px;
       border: 1px solid var(--border); border-radius: 7px;
-      padding: 6px 10px; background: var(--surface); margin: 12px 12px 0;
+      padding: 6px 10px; background: var(--surface); margin: 12px 0 0;
       position: relative;
     }
     .drawer-search svg { width: 13px; height: 13px; color: var(--text-muted); }
@@ -728,13 +751,13 @@
       background: var(--cmt-bg, #f5f8fc);
       border: 1px solid var(--cmt-border, #d8e3ef);
       border-radius: 10px;
-      font-size: 12.5px; color: var(--text-primary); z-index: 10000;
+      font-size: 12.5px; color: var(--text-primary); z-index: 4800;
       box-shadow: 0 2px 8px rgba(15,23,42,0.10);
       user-select: none; transition: box-shadow 0.15s ease;
     }
     html[data-theme="dark"] .comment-card {
       background: #000;
-      border-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 55%, transparent);
+      border-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 20%, transparent);
       box-shadow: 0 4px 18px rgba(0,0,0,0.45);
     }
     html[data-theme="dark"] .comment-card .author,
@@ -746,7 +769,8 @@
       background: color-mix(in srgb, var(--cmt-accent, #7ca3c8) 28%, transparent);
     }
     html[data-theme="dark"] .comment-card .comment-tag {
-      background: color-mix(in srgb, var(--cmt-accent, #7ca3c8) 22%, transparent);
+      background: color-mix(in srgb, var(--cmt-accent, #616d9e) 40%, transparent);
+      color: #fff;
     }
     html[data-theme="dark"] .comment-card .comment-reply {
       border-top-color: color-mix(in srgb, var(--cmt-accent, #7ca3c8) 36%, transparent);
@@ -798,8 +822,14 @@
     html[data-theme="dark"] .comment-card.collapsed:focus-within,
     html[data-theme="dark"] .comment-card.collapsed.dragging,
     html[data-theme="dark"] .comment-card.collapsed.pinned-open {
-      border-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 55%, transparent);
+      border-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 20%, transparent);
       background: #000;
+    }
+    html[data-theme="dark"] .comment-card.collapsed:hover .comment-head,
+    html[data-theme="dark"] .comment-card.collapsed:focus-within .comment-head,
+    html[data-theme="dark"] .comment-card.collapsed.dragging .comment-head,
+    html[data-theme="dark"] .comment-card.collapsed.pinned-open .comment-head {
+      border-bottom-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 14%, transparent);
     }
     .comment-card.collapsed:hover .comment-head,
     .comment-card.collapsed:focus-within .comment-head,
@@ -835,7 +865,9 @@
       padding: 7px 8px 6px; cursor: grab;
       border-bottom: 1px solid var(--cmt-border, #d8e3ef);
     }
-    html[data-theme="dark"] .comment-card .comment-head { border-bottom-color: color-mix(in srgb, var(--cmt-border) 40%, transparent); }
+    html[data-theme="dark"] .comment-card .comment-head {
+      border-bottom-color: color-mix(in srgb, var(--cmt-border, #bfdbfe) 14%, transparent);
+    }
     .comment-card .comment-head:active { cursor: grabbing; }
     .comment-card .comment-avatar {
       width: 20px; height: 20px; border-radius: 50%;
@@ -893,7 +925,7 @@
       background: var(--surface); color: var(--text-primary);
       transition: border-color 0.12s, height 0.15s;
     }
-    .comment-card .comment-reply-compose textarea:focus { border-color: var(--cmt-accent, #7ca3c8); height: 52px; }
+    .comment-card .comment-reply-compose textarea:focus { border-color: var(--cmt-accent, #829eb9); height: 52px; }
     .comment-card .comment-reply-compose button {
       border: none; background: var(--cmt-accent, #7ca3c8); color: #fff;
       border-radius: 6px; padding: 0 9px; cursor: pointer;
@@ -981,8 +1013,45 @@
       display: flex; flex-direction: column;
       height: 0; overflow: hidden;
       transition: height .18s ease;
+      z-index: 0;
     }
-    .bottom-panel.open { height: var(--bottom-h); }
+    .bottom-panel.open {
+      position: relative;
+      z-index: 40;
+      height: var(--bp-h, var(--bottom-h));
+    }
+    /* Full-bleed overlay from below the variant strip to the viewport bottom */
+    .bottom-panel.open.expanded {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: calc(var(--topbar-h) + var(--variant-h));
+      height: auto;
+      width: 100%;
+      z-index: 45;
+      /* Flush to variant strip — no drop shadow at full height */
+      box-shadow: none;
+    }
+    .bottom-panel.open.expanded.bp-top-anim {
+      transition: top 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bottom-panel.open.bp-dragging { transition: none !important; }
+    .bp-resize {
+      flex-shrink: 0;
+      height: 7px;
+      cursor: ns-resize;
+      background: transparent;
+      border-top: 1px solid transparent;
+      margin-top: -1px;
+    }
+    .bottom-panel.open .bp-resize:hover {
+      background: var(--bg);
+      border-top-color: var(--border-light);
+    }
+    .bottom-panel.open.expanded .bp-resize {
+      border-top-color: var(--border);
+    }
     .bp-tabs {
       display: flex; align-items: stretch;
       border-bottom: 1px solid var(--border);
@@ -1001,22 +1070,62 @@
       color: var(--text-secondary); padding: 1px 6px; border-radius: 10px;
     }
     .bp-tab.problems .bp-count { background: #fef2f2; color: #dc2626; }
+    html[data-theme="dark"] .bp-tab.problems .bp-count {
+      background: rgba(248, 113, 113, 0.1);
+      color: rgba(252, 165, 165, 0.78);
+      font-weight: 500;
+    }
     .bp-close {
       margin-left: auto; align-self: center;
       width: 26px; height: 26px; display: grid; place-items: center;
       background: transparent; border: none; color: var(--text-muted);
       cursor: pointer; border-radius: 5px;
     }
+    .bp-expand {
+      margin-left: auto; align-self: center;
+      width: 26px; height: 26px; display: grid; place-items: center;
+      background: transparent; border: none; color: var(--text-muted);
+      cursor: pointer; border-radius: 5px;
+    }
+    .bp-expand:hover { background: var(--bg); color: var(--text-primary); }
+    .bp-expand svg { width: 14px; height: 14px; transition: transform .16s ease; }
+    .bottom-panel.expanded .bp-expand svg { transform: rotate(180deg); }
     .bp-close:hover { background: var(--bg); color: var(--text-primary); }
     .bp-close svg { width: 14px; height: 14px; }
 
-    .bp-body { flex: 1; overflow: auto; padding: 12px 16px 16px; }
+    .bp-body { flex: 1; overflow: auto; padding: 12px 16px 16px; min-height: 0; }
     .bp-panel { display: none; }
     .bp-panel.active { display: block; }
+    /* Runs tab: outer shell does not scroll — each column scrolls on its own. */
+    .bp-body:has(#bpRuns.active) {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #bpRuns.active {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
 
     /* Runs panel */
-    .runs-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; height: 100%; }
-    .runs-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; }
+    .runs-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+      overflow: hidden;
+      align-items: stretch;
+    }
+    .runs-list {
+      display: flex; flex-direction: column; gap: 6px; padding-right: 4px;
+      min-height: 0;
+      overflow-y: auto;
+      align-self: stretch;
+    }
     .run-card {
       border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
       cursor: pointer; display: flex; flex-direction: column; gap: 3px;
@@ -1033,8 +1142,178 @@
     .run-card .m { font-size: 11.5px; color: var(--text-muted); }
     .run-detail {
       border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;
-      display: flex; flex-direction: column; gap: 12px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 12px;
+      min-height: 0;
+      overflow-y: auto;
+      align-self: stretch;
     }
+    .run-card-top { display: flex; align-items: center; gap: 6px; }
+    .run-compare-check { width: 14px; height: 14px; accent-color: var(--primary); cursor: pointer; }
+    .run-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      height: 22px; padding: 0 8px;
+      border: 1px solid var(--border-light);
+      border-radius: 999px;
+      font-size: 11px; color: var(--text-secondary);
+      background: var(--bg);
+    }
+    .run-pill.path { border-color: rgba(37,99,235,0.24); color: var(--primary); }
+    .run-pill.active { border-color: rgba(37,99,235,0.4); color: var(--primary); background: var(--primary-soft); }
+    .run-pill.warn { border-color: rgba(217,119,6,0.28); color: #b45309; }
+    .run-detail-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .run-detail-head .title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .run-detail-head .sub { font-size: 12px; color: var(--text-muted); }
+    .run-head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .loss-curve {
+      width: 100%; height: 160px;
+      border: 1px solid var(--border-light); border-radius: 7px;
+      background: linear-gradient(to bottom, rgba(148,163,184,0.06), rgba(148,163,184,0.02));
+      padding: 8px;
+      position: relative;
+    }
+    .loss-curve svg { width: 100%; height: 100%; display: block; }
+    .loss-curve .axis { stroke: #cbd5e1; stroke-width: 1; }
+    .loss-curve .grid { stroke: #e2e8f0; stroke-width: 1; }
+    .loss-curve .series { fill: none; stroke: var(--primary); stroke-width: 2.2; }
+    .loss-curve .series.compare { stroke: #7c3aed; }
+    .loss-curve .series.delta { stroke: #dc2626; }
+    .loss-curve .lbl { fill: var(--text-muted); font-size: 10px; }
+    .loss-curve .series-end { fill: #fff; stroke-width: 2; }
+    .loss-curve .series-end.a { stroke: var(--primary); }
+    .loss-curve .series-end.b { stroke: #7c3aed; }
+    .loss-curve .series-end.delta { stroke: #dc2626; }
+    .loss-curve .end-tag {
+      font-size: 10px;
+      fill: var(--text-secondary);
+      paint-order: stroke;
+      stroke: var(--surface);
+      stroke-width: 2px;
+      stroke-linejoin: round;
+    }
+    .loss-curve .hover-line {
+      stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 3;
+      opacity: 0; pointer-events: none;
+    }
+    .loss-curve .hover-dot {
+      r: 3.5; fill: #fff; stroke-width: 2;
+      opacity: 0; pointer-events: none;
+    }
+    .loss-curve .hover-dot.a { stroke: var(--primary); }
+    .loss-curve .hover-dot.b { stroke: #7c3aed; }
+    .loss-curve .hover-dot.delta { stroke: #dc2626; }
+    .loss-curve-tip {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -110%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.12);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 2;
+    }
+    .loss-curve-tip .k { color: var(--text-muted); margin-right: 6px; }
+    .loss-curve-tip .a { color: var(--primary); font-weight: 600; }
+    .loss-curve-tip .b { color: #7c3aed; font-weight: 600; }
+    .loss-curve-tip .d { color: #dc2626; font-weight: 600; }
+    .loss-compare-controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .loss-mode-toggle {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .loss-mode-toggle button {
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 5px 9px;
+      cursor: pointer;
+    }
+    .loss-mode-toggle button:last-child { border-right: 0; }
+    .loss-mode-toggle button.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .loss-mode-toggle button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .loss-legend {
+      display: inline-flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .loss-legend label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .loss-legend .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .loss-legend .swatch.a { background: var(--primary); }
+    .loss-legend .swatch.b { background: #7c3aed; }
+    .loss-compare-split {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .run-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .confusion-grid {
+      border: 1px solid var(--border-light); border-radius: 7px;
+      overflow: hidden; font-size: 11.5px;
+    }
+    .conf-row { display: grid; grid-template-columns: 120px repeat(var(--conf-cols), 1fr); }
+    .conf-row > div {
+      padding: 6px 8px; border-right: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);
+      text-align: center; color: var(--text-secondary);
+    }
+    .conf-row > div:first-child { text-align: left; color: var(--text-primary); background: var(--bg); font-weight: 500; }
+    .conf-row:last-child > div { border-bottom: 0; }
+    .conf-row > div:last-child { border-right: 0; }
+    .per-class-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+      border: 1px solid var(--border-light); border-radius: 7px; overflow: hidden;
+    }
+    .per-class-table th, .per-class-table td {
+      padding: 7px 8px; border-bottom: 1px solid var(--border-light); text-align: left;
+    }
+    .per-class-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); background: var(--bg); }
+    .per-class-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .per-class-table tr:last-child td { border-bottom: 0; }
+    .compare-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .compare-card { border: 1px solid var(--border-light); border-radius: 7px; padding: 10px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+    .compare-card .title { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+    .compare-metric-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .compare-metric-item { border: 1px solid var(--border-light); border-radius: 6px; padding: 6px 7px; background: var(--surface); }
+    .compare-metric-item .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .compare-metric-item .v { font-size: 14px; font-weight: 650; color: var(--text-primary); }
+    .compare-delta { font-size: 12px; color: var(--text-secondary); }
     .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .metric {
       border: 1px solid var(--border-light); border-radius: 7px;
@@ -1083,11 +1362,464 @@
     .canvas { position: absolute; inset: 0; overflow: hidden; cursor: default; }
     .canvas.panning { cursor: grabbing; }
     .canvas-inner { position: relative; transform-origin: 0 0; isolation: isolate; }
+    .subgraph-layer {
+      position: absolute;
+      inset: 0;
+      /* Let clicks reach nodes in empty canvas; subgraph boxes opt in below. */
+      pointer-events: none;
+      /* Below edit-mode edge front (15016); chrome heads render in `.subgraph-head-layer` (15017). */
+      z-index: 15015;
+    }
+    /* Subgroup title bars: below edge front (15016) so edges read above the bar; still above shell (15015). */
+    .subgraph-head-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 15017;
+      pointer-events: none;
+    }
+    .subgraph-head-layer .sg-head { pointer-events: auto; }
+    .subgraph-box {
+      position: absolute;
+      pointer-events: auto;
+      border-radius: 12px;
+      overflow: visible;
+      cursor: grab;
+      transition: box-shadow .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .subgraph-box:active { cursor: grabbing; }
+    .subgraph-box.sg-animating {
+      transition:
+        left .26s cubic-bezier(0.4, 0, 0.2, 1),
+        top .26s cubic-bezier(0.4, 0, 0.2, 1),
+        width .26s cubic-bezier(0.4, 0, 0.2, 1),
+        height .26s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .subgraph-box.expanded {
+      border: 2px dashed rgba(37,99,235,0.55);
+      background: rgba(37,99,235,0.08);
+      backdrop-filter: blur(1px);
+    }
+    .subgraph-box.member-drag-active {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.20);
+    }
+    .subgraph-box.drop-ready {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.20);
+      background: rgba(37,99,235,0.12);
+    }
+    .subgraph-box.detach-ready {
+      border-color: #f59e0b;
+      background: rgba(245,158,11,0.10);
+    }
+    .subgraph-box.collapsed {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.10);
+    }
+    .subgraph-box.preview {
+      pointer-events: none;
+      border: 2px dashed rgba(37,99,235,0.62);
+      background: rgba(37,99,235,0.04);
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+    }
+    .subgraph-box.group-dragging {
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.24), 0 10px 24px rgba(15,23,42,0.12);
+    }
+    @keyframes sgBoxDance {
+      0%,100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); filter: brightness(1); }
+      20% { box-shadow: 0 0 0 4px rgba(37,99,235,0.22); filter: brightness(1.04); }
+      40% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+      60% { box-shadow: 0 0 0 4px rgba(37,99,235,0.22); filter: brightness(1.04); }
+      80% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    }
+    .subgraph-box.sg-dance {
+      animation: sgBoxDance 520ms ease-in-out;
+    }
+    .sg-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      color: var(--text-primary);
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--surface) 84%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    }
+    .sg-head[data-sg-state="expanded"] {
+      position: absolute;
+      /* Geometry: `_positionLiftedSgHead` insets by the dashed border width so the bar does not cover the stroke. */
+      z-index: 50;
+      overflow: visible;
+      /* Inner top corners align with 12px outer radius minus 2px border. */
+      border-radius: 10px 10px 0 0;
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      border: none;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      min-height: 34px;
+    }
+    .sg-folder {
+      width: 14px;
+      height: 14px;
+      color: #2563eb;
+      flex-shrink: 0;
+    }
+    .sg-head-tags {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      margin-left: 0;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .sg-name {
+      border-radius: 1px;
+      padding: 0px 0px;
+      min-width: 20px;
+      max-width: 180px;
+      outline: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sg-name[contenteditable="true"] {
+      background: var(--surface);
+      border: 1px solid rgba(37,99,235,0.45);
+    }
+    .sg-summary {
+      padding: 4px 10px 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .sg-head[data-sg-state="expanded"],
+    .subgraph-box.expanded .sg-summary {
+      position: absolute;
+      pointer-events: auto;
+    }
+    .sg-head[data-sg-state="expanded"] {
+      padding: 8px 10px;
+    }
+    .subgraph-box.expanded .sg-summary { display: none; }
+    .sg-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      background: color-mix(in srgb, var(--surface) 72%, #0d151e 8%);
+      flex-shrink: 0;
+    }
+    html[data-theme="dark"] .sg-pill {
+      background: color-mix(in srgb, var(--surface) 72%, #e2e8f0 10%);
+      border-color: color-mix(in srgb, var(--border-light) 55%, #94a3b8 25%);
+    }
+    .sg-toggle {
+      margin-left: 2px;
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: transparent;
+      padding: 0;
+      color: var(--text-secondary);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .sg-kebab {
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      padding: 0;
+    }
+    .sg-kebab-wrap { position: relative; z-index: 1; }
+    .sg-head[data-sg-state="expanded"] .sg-kebab-wrap,
+    .sg-head[data-sg-state="collapsed"] .sg-kebab-wrap {
+      z-index: 80;
+    }
+    .sg-kebab:hover { color: var(--text-primary); }
+    .sg-kebab svg { width: 12px; height: 12px; }
+    .sg-head .sg-toggle,
+    .sg-head .sg-kebab,
+    .sg-head [data-sg-name] { cursor: pointer; }
+    .sg-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 150px;
+      width: max-content;
+      max-width: min(300px, calc(100vw - 24px));
+      box-sizing: border-box;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 18px rgba(15,23,42,0.16);
+      padding: 4px;
+      display: none;
+      z-index: 9;
+    }
+    .sg-head[data-sg-state="expanded"] .sg-menu,
+    .sg-head[data-sg-state="collapsed"] .sg-menu {
+      z-index: 200;
+    }
+    /* Portaled to body so the menu stacks above .sg-member nodes (z 15250). */
+    .sg-menu.sg-menu-portal {
+      position: fixed;
+      z-index: 30050;
+      display: none;
+    }
+    .sg-menu.sg-menu-portal.open {
+      display: block;
+    }
+    .sg-menu.open { display: block; }
+    /* Dissolve subgroup: small confirm anchored under the menu action (not full-screen). */
+    .sg-dissolve-confirm-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30090;
+      background: rgba(15, 23, 42, 0.14);
+    }
+    html[data-theme="dark"] .sg-dissolve-confirm-backdrop {
+      background: rgba(0, 0, 0, 0.45);
+    }
+    .sg-dissolve-confirm {
+      position: fixed;
+      z-index: 30091;
+      width: min(300px, calc(100vw - 24px));
+      padding: 12px 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+      font-size: 12.5px;
+      color: var(--text-primary);
+    }
+    html[data-theme="dark"] .sg-dissolve-confirm {
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+    }
+    .sg-dissolve-confirm .sg-dc-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .sg-dissolve-confirm .sg-dc-desc {
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .sg-dissolve-confirm .sg-dc-desc strong { color: var(--text-primary); font-weight: 600; }
+    .sg-dissolve-confirm .sg-dc-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .sg-dissolve-confirm .sg-dc-actions button {
+      padding: 6px 12px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    .sg-dissolve-confirm .sg-dc-actions button:hover { background: var(--bg); }
+    .sg-dissolve-confirm .sg-dc-ok {
+      border-color: #dc2626;
+      background: #dc2626;
+      color: #fff;
+    }
+    .sg-dissolve-confirm .sg-dc-ok:hover { background: #b91c1c; border-color: #b91c1c; }
+    .sg-menu-item {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      text-align: left;
+      font-size: 12.5px;
+      border-radius: 6px;
+      padding: 7px 9px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .sg-menu-item:hover { background: var(--bg); }
+    .sg-menu-item:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .sg-toggle img {
+      width: 11px;
+      height: 11px;
+      display: block;
+    }
+    .sg-head[data-sg-state="collapsed"] {
+      position: relative;
+      z-index: 40;
+      overflow: visible;
+      margin: 0;
+      /* 12px card radius minus 1px border */
+      border-radius: 11px 11px 0 0;
+      border: none;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      min-height: 34px;
+    }
+    .subgraph-box.collapsed .sg-summary { display: none; }
+    .subgraph-box.collapsed .sg-kebab,
+    .sg-head[data-sg-state="collapsed"] .sg-kebab { margin-left: 0; }
+    .sg-collapsed-list {
+      position: absolute;
+      left: 7px;
+      right: 7px;
+      top: 40px;
+      bottom: 6px;
+      /* overflow-y: auto forces overflow-x away from `visible` (CSS overflow 3),
+         so .sg-row-port at left/right -7px was clipped at this box edge. */
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 5px 8px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      justify-content: safe center;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .sg-collapsed-list::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    .sg-node-row {
+      position: relative;
+      z-index: 0;
+      min-height: 26px;
+      border: 1px solid var(--border-light);
+      border-radius: 7px;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 8px;
+      font-size: 11.5px;
+      color: var(--text-primary);
+      overflow: visible;
+    }
+    .sg-node-row .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: inset 0 0 0 2.5px rgba(255,255,255,0.65);
+    }
+    /* Match .io-row .port-anchor: centered on the row edge, above row paint. */
+    .sg-row-port {
+      position: absolute;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .sg-node-row > .sg-row-port {
+      z-index: 5;
+      /* Read over edge strokes (edges render in a layer above the subgraph shell). */
+      filter: drop-shadow(0 0 4px rgba(255,255,255,0.92));
+    }
+    html[data-theme="dark"] .sg-node-row > .sg-row-port,
+    html[data-theme="dark"] .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-in,
+    html[data-theme="dark"] .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-out {
+      filter: none;
+    }
+    .sg-node-row > .sg-row-port-in { left: -7px; }
+    .sg-node-row > .sg-row-port-out { right: -7px; }
+    .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-in,
+    .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-out {
+      position: absolute;
+      top: 50%;
+      z-index: 5;
+      filter: drop-shadow(0 0 4px rgba(255,255,255,0.92));
+    }
+    .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-in { left: -7px; }
+    .subgraph-box.collapsed > .sg-row-port.sg-port-bundle-out { right: -7px; }
+    .sg-row-port.connected { background: radial-gradient(circle, var(--edge) 4px, transparent 4px); }
+    .sg-row-port.edge-hovered { background: radial-gradient(circle, var(--primary) 5px, transparent 5px); }
+    .sg-node-row .icon {
+      width: 12px;
+      height: 12px;
+      display: inline-grid;
+      place-items: center;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .sg-node-row .icon svg {
+      width: 12px;
+      height: 12px;
+    }
+    .sg-node-row .name {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .subgraph-marquee {
+      position: absolute;
+      border: 1px solid rgba(14,165,233,0.9);
+      background: rgba(14,165,233,0.12);
+      pointer-events: none;
+      z-index: 8;
+    }
+    /* Group / subgraph marquee tool: drag on empty canvas to box-select. */
+    body.sg-marquee-tool .canvas { cursor: crosshair; }
+    body.sg-marquee-tool .canvas .node { cursor: default; }
+    body.sg-marquee-tool .canvas .subgraph-box { cursor: default; }
     .node-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
     .node-overlay path { fill: none; stroke: var(--edge); stroke-width: 1.4; }
     .node-overlay path.edge-hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
-    .node-overlay path.edge-hit:hover + path,
-    .node-overlay path.edge-active { stroke: var(--primary); stroke-width: 1.8; }
+    .node-overlay path.edge-hit:hover + path.edge-line,
+    .node-overlay path.edge-line.edge-active { stroke: var(--primary); stroke-width: 1.8; }
+
+    /* Run-flow state styling; JS applies run-flow-* classes per edge group. */
+    .canvas.running-edges .node-overlay path.edge-line { opacity: 0.22; }
+    .canvas.running-edges .node-overlay path.edge-line.run-flow-target {
+      opacity: 0.45;
+      stroke: #60a5fa;
+      stroke-dasharray: 2 14;
+      stroke-linecap: round;
+    }
+    .canvas.running-edges .node-overlay path.edge-line.run-flow-done {
+      opacity: 0.7;
+      stroke: #3b82f6;
+    }
+    .canvas.running-edges .node-overlay path.edge-line.run-flow-active {
+      opacity: 1;
+      stroke: var(--primary);
+      stroke-width: 1.95;
+      animation: edge-run-flow 0.78s linear infinite;
+    }
+    .canvas.running-edges .node-overlay path.edge-hit:hover + path.edge-line.run-flow-target,
+    .canvas.running-edges .node-overlay path.edge-line.run-flow-active.edge-active {
+      stroke-width: 2.1;
+    }
+    @keyframes edge-run-flow {
+      to { stroke-dashoffset: -16; }
+    }
 
     .edge-delete-bubble {
       position: fixed; width: 28px; height: 28px; border-radius: 50%;
@@ -1103,10 +1835,47 @@
     .node {
       position: absolute; width: 200px; background: var(--surface);
       border: 1px solid var(--border); border-radius: 12px; font-size: 12.5px;
-      box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 2;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 15100;
       user-select: none; transition: box-shadow 0.15s, border-color 0.15s;
+      overflow: visible;
     }
     .node.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.18); }
+    .node.sg-selected {
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 2px rgba(14,165,233,0.26), 0 8px 20px rgba(14,165,233,0.08);
+    }
+    .node.sg-member { z-index: 15250 !important; }
+    /* While targeting a subgroup drop, paint above edges (15016) and heads (15017). */
+    .canvas-inner .node.sg-drag-over-subgraph { z-index: 15460 !important; }
+    .canvas-inner .node.sg-drag-over-subgraph + svg.node-overlay { z-index: 15460 !important; }
+    .node.sg-marquee-hit {
+      border-color: #0284c7;
+      box-shadow: 0 0 0 2px rgba(2,132,199,0.25), 0 8px 16px rgba(2,132,199,0.10);
+    }
+    .node.sg-hidden { display: none !important; }
+    .node.subgraph-merge-target {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.28), 0 10px 26px rgba(37,99,235,0.14);
+    }
+    .node.subgraph-merge-target::before {
+      content: '+';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: center;
+      font-weight: 700;
+      box-shadow: 0 6px 14px rgba(37,99,235,0.35);
+      pointer-events: none;
+      z-index: 5;
+    }
     .node.find-match {
       border-color: #3b82f6;
       box-shadow: 0 0 0 2px rgba(59,130,246,0.28), 0 8px 20px rgba(37,99,235,0.10);
@@ -1157,9 +1926,12 @@
     .node-section.bottom-edge-round.collapsed {
       border-bottom-color: transparent;
     }
-    .io-list { display: flex; flex-direction: column; }
+    .io-list { display: flex; flex-direction: column; overflow: visible; }
     .io-list.collapsed { display: none; }
-    .io-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; font-size: 11.5px; position: relative; }
+    .io-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 7px 11px; font-size: 11.5px; position: relative; overflow: visible;
+    }
     .io-row + .io-row { border-top: 1px solid var(--border-light); }
     .io-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--text-primary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .type-pill { font-size: 9.5px; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; flex-shrink: 0; }
@@ -1182,8 +1954,18 @@
       box-shadow: 0 0 0 4px rgba(56,189,248,.28), 0 0 10px 2px rgba(56,189,248,.3);
       transform: translateY(-50%) scale(1.1);
     }
+    .canvas-inner:not(.dragging-rope) .io-row:hover .port-anchor {
+      background: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56,189,248,.28), 0 0 10px 2px rgba(56,189,248,.3);
+      transform: translateY(-50%) scale(1.1);
+    }
     .canvas-inner.dragging-rope { cursor: crosshair; }
     .canvas-inner.dragging-rope .io-row.compatible .port-anchor {
+      background: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56,189,248,.28), 0 0 10px 2px rgba(56,189,248,.3);
+      transform: translateY(-50%) scale(1.1);
+    }
+    .canvas-inner.dragging-rope .io-row.compatible:hover .port-anchor {
       background: #38bdf8;
       box-shadow: 0 0 0 4px rgba(56,189,248,.28), 0 0 10px 2px rgba(56,189,248,.3);
       transform: translateY(-50%) scale(1.1);
@@ -1199,7 +1981,7 @@
     }
     .drag-rope-overlay {
       position: absolute; left: 0; top: 0; width: 100%; height: 100%;
-      pointer-events: none; overflow: visible; display: none; z-index: 10000;
+      pointer-events: none; overflow: visible; display: none; z-index: 16000;
     }
     .drag-rope-overlay path { fill: none; stroke: #38bdf8; stroke-width: 2; stroke-dasharray: 6 4; stroke-linecap: round; }
 
@@ -1223,7 +2005,7 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; padding: 4px;
       display: flex; flex-direction: column; gap: 2px;
-      box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 5;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 1;
     }
     .tool {
       width: 34px; height: 34px; display: grid; place-items: center;
@@ -1262,7 +2044,7 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 999px; padding: 3px 5px;
       display: flex; align-items: center; gap: 2px;
-      box-shadow: 0 2px 8px rgba(15,23,42,0.06); z-index: 5;
+      box-shadow: 0 2px 8px rgba(15,23,42,0.06); z-index: 1;
     }
     .zoom-ctrls button {
       background: transparent; border: none; width: 26px; height: 26px;
@@ -1273,6 +2055,15 @@
     .zoom-ctrls button:disabled { opacity: 0.4; cursor: default; }
     .zoom-ctrls button:disabled:hover { background: transparent; color: var(--text-secondary); }
     .zoom-ctrls svg { width: 13px; height: 13px; }
+    .zoom-ctrls img {
+      width: 13px; height: 13px;
+      max-width: 100%; max-height: 100%;
+      object-fit: contain; display: block;
+    }
+    html[data-theme="dark"] #autoLayoutBtn img,
+    html[data-theme="dark"] .sg-toggle img {
+      filter: invert(1) brightness(1.14);
+    }
     .zoom-ctrls .zv { font-size: 11.5px; color: var(--text-primary); font-weight: 500; padding: 0 4px; min-width: 40px; text-align: center; }
     .zoom-ctrls .zoom-sep { width: 1px; align-self: stretch; background: var(--border); margin: 3px 3px; }
 
@@ -1571,12 +2362,30 @@
     .path-draw-banner {
       display: flex; flex-direction: column; gap: 6px;
       padding: 10px 12px; background: rgba(37,99,235,0.08);
-      border-bottom: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 8px;
     }
     .path-draw-banner .title {
       font-size: 12.5px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;
     }
     .path-draw-banner .hint { font-size: 11px; color: var(--text-muted); }
+    /* Path drawer closed while building — same controls as drawer banner. */
+    .path-draw-float-overlay {
+      position: fixed;
+      top: calc(var(--topbar-h, 52px) + var(--variant-h, 38px) + 10px);
+      right: 14px;
+      z-index: 12000;
+      max-width: min(360px, calc(100vw - 28px));
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: 0 10px 36px rgba(15, 23, 42, 0.14);
+    }
+    .path-draw-float-overlay[hidden] { display: none !important; }
+    .path-draw-float-overlay .path-draw-banner {
+      border-radius: 10px;
+      margin: 0;
+    }
     .path-draw-nodes {
       display: flex; flex-wrap: wrap; gap: 4px; max-height: 60px; overflow-y: auto;
     }
@@ -1680,6 +2489,15 @@
       display: grid; place-items: center; width: 24px; height: 24px;
     }
     .path-item-actions button svg { width: 12px; height: 12px; }
+    .path-item-actions button img { width: 12px; height: 12px; object-fit: contain; }
+    .path-item-actions button[data-act="extract"] img {
+      opacity: 0.82;
+      filter: grayscale(1) brightness(1.15) contrast(0.92);
+    }
+    html[data-theme="dark"] .path-item-actions button[data-act="extract"] img {
+      opacity: 0.9;
+      filter: grayscale(1) brightness(1.45) contrast(0.9);
+    }
     .path-item-actions button:hover { background: var(--bg); color: var(--text-primary); border-color: var(--border); }
     .path-item-actions button.danger:hover { color: var(--dot-red); border-color: var(--dot-red); }
     .path-item-actions.inline-confirm { gap: 5px; }
@@ -1993,25 +2811,29 @@
     <!-- Floating tool palette (top-left). The + at the top opens the Discover
          drawer as the single "add content" affordance (standard pattern:
          Figma/FigJam plus button, Notion sidebar +). Below it: select/pan,
-         comment tool, path tool. Node-type tools were dropped — Discover is
-         now the one place to browse & add models/datasets/logic. -->
+         group marquee, comment tool, path tool. Node-type tools were dropped —
+         Discover is the one place to browse & add models/datasets/logic. -->
     <div class="tool-palette">
       <button class="tool tool-primary" data-tool="discover" id="toolDiscover" data-side="left" data-tab="discover" title="Open Discover (models, datasets, logic)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        <span class="tool-tip">Add content — open Discover</span>
+        <span class="tool-tip">(D) Add content — open Discover</span>
       </button>
       <span class="tool-sep" aria-hidden="true"></span>
       <button class="tool active" data-tool="select" title="Select / pan (V)">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 7.5-6.5 1.8-1.8 6.5z"/></svg>
-        <span class="tool-tip">Select / pan</span>
+        <span class="tool-tip">(V) Select / pan</span>
+      </button>
+      <button class="tool" data-tool="subgraph-marquee" id="toolSubgraphMarquee" title="Subgroup selection — drag marquee to select nodes, release to create subgroup.">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="1" stroke-dasharray="3 2.5"/></svg>
+        <span class="tool-tip">(M) Create subgroup</span>
       </button>
       <button class="tool" data-tool="comment" id="toolComment" title="Drop a comment (C)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="tool-tip">Drop a comment</span>
+        <span class="tool-tip">(C) Drop a comment</span>
       </button>
       <button class="tool" data-tool="path" id="toolPath" title="Draw a path (P)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
-        <span class="tool-tip">Draw a path</span>
+        <span class="tool-tip">(P) Draw a path</span>
       </button>
     </div>
 
@@ -2056,7 +2878,7 @@
       </button>
       <span class="zoom-sep"></span>
       <button id="autoLayoutBtn" title="Auto layout nodes">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4l5 5"/><path d="M14 5l-7.5 7.5a2.5 2.5 0 0 0 0 3.5l1.5 1.5a2.5 2.5 0 0 0 3.5 0L19 10"/><path d="M3 21l5-5"/><path d="M4 7h2"/><path d="M5 6v2"/><path d="M20 3h2"/><path d="M21 2v2"/><path d="M18 20h2"/><path d="M19 19v2"/></svg>
+        <img src="icons/clean-up.png" alt="Auto layout" />
       </button>
     </div>
 
@@ -2101,6 +2923,7 @@
        that benefits from horizontal real estate (metric tables, run
        comparison, validation errors). -->
   <section class="bottom-panel" id="bottomPanel" aria-hidden="true">
+    <div class="bp-resize" id="bpResize" title="Drag to resize" aria-hidden="true"></div>
     <div class="bp-tabs">
       <button class="bp-tab" data-tab="runs">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -2115,6 +2938,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
         Problems
         <span class="bp-count" id="problemsCount">0</span>
+      </button>
+      <button class="bp-expand" id="bpExpand" title="Expand panel" aria-label="Expand panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>
       </button>
       <button class="bp-close" id="bpClose" title="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -2226,6 +3052,9 @@
 <!-- Right-click canvas context menu (positioned fixed at cursor) -->
 <div class="canvas-ctx-menu" id="canvasCtxMenu"></div>
 
+<!-- Path builder: shown when drawer is closed but draw mode is still on -->
+<div id="pathDrawFloatOverlay" class="path-draw-float-overlay" hidden aria-live="polite"></div>
+
 <!-- Comment compose/edit modal -->
 <div class="comment-modal" id="commentModal" aria-hidden="true">
   <div class="comment-modal-card" role="dialog" aria-modal="true" aria-labelledby="commentModalTitle">
@@ -2288,6 +3117,62 @@ function confirmDialog({ title = 'Are you sure?', desc = '', confirmLabel = 'Del
   });
 }
 
+/** Inline confirm for dissolving a subgroup; `anchorRect` from the menu row (viewport px). */
+let _sgDissolveUi = null;
+function _dismissSgDissolveConfirm() {
+  if (!_sgDissolveUi) return;
+  document.removeEventListener('keydown', _sgDissolveUi.onKey, true);
+  _sgDissolveUi.backdrop.remove();
+  _sgDissolveUi = null;
+}
+function _showSgDissolveConfirm(anchorRect, groupName) {
+  return new Promise(resolve => {
+    _dismissSgDissolveConfirm();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sg-dissolve-confirm-backdrop';
+    const card = document.createElement('div');
+    card.className = 'sg-dissolve-confirm';
+    card.innerHTML = `
+      <div class="sg-dc-title">Dissolve subgroup?</div>
+      <div class="sg-dc-desc">Nodes stay on the canvas; only the <strong class="sg-dc-name"></strong> frame is removed.</div>
+      <div class="sg-dc-actions">
+        <button type="button" class="sg-dc-cancel">Cancel</button>
+        <button type="button" class="sg-dc-ok">Dissolve</button>
+      </div>`;
+    card.querySelector('.sg-dc-name').textContent = (groupName || 'This group').trim() || 'This group';
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+    const place = () => {
+      const w = card.offsetWidth || 280;
+      const h = card.offsetHeight || 120;
+      let left = anchorRect.left;
+      let top = anchorRect.bottom + 8;
+      const pad = 10;
+      if (left + w > window.innerWidth - pad) left = window.innerWidth - pad - w;
+      if (left < pad) left = pad;
+      if (top + h > window.innerHeight - pad) top = Math.max(pad, anchorRect.top - h - 8);
+      card.style.left = `${Math.round(left)}px`;
+      card.style.top = `${Math.round(top)}px`;
+    };
+    place();
+    requestAnimationFrame(place);
+    const finish = (v) => {
+      _dismissSgDissolveConfirm();
+      resolve(v);
+    };
+    backdrop.addEventListener('click', (ev) => { if (ev.target === backdrop) finish(false); });
+    card.addEventListener('click', (ev) => ev.stopPropagation());
+    card.querySelector('.sg-dc-cancel').addEventListener('click', () => finish(false));
+    card.querySelector('.sg-dc-ok').addEventListener('click', () => finish(true));
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    _sgDissolveUi = { backdrop, onKey };
+    card.querySelector('.sg-dc-cancel').focus();
+  });
+}
+
 // ── Load project data then init ────────────────────────────
 const slug = new URLSearchParams(location.search).get('project');
 if (!slug) {
@@ -2327,6 +3212,7 @@ function cloneGraph(g) {
       outputs: (n.outputs || []).map(p => ({ ...p })),
     })),
     connections: (g.connections || []).map(c => ({ from: [...c.from], to: [...c.to] })),
+    subgraphs: _cloneSubgraphs(g.subgraphs || []),
     canvasWidth: g.canvasWidth,
     canvasHeight: g.canvasHeight,
   };
@@ -2335,6 +3221,1216 @@ function cloneGraph(g) {
 // Active variant id lives here in memory; persisted to localStorage.
 // Variant-scoped panels (paths, history, runs filter) read from this.
 let ACTIVE_VID = 'v1';
+const SUBGRAPHS = {
+  items: [],
+  layerEl: null,
+  drag: null,
+  dragGroup: null,
+  previewEl: null,
+  selectedNodeIds: new Set(),
+  marquee: null,
+  marqueeTool: false,
+  /** When expanded subgraph menu is portaled to `document.body` for stacking above nodes. */
+  _menuPortal: null,
+  _menuPortalRaf: null,
+};
+let _subgraphListenersBound = false;
+
+function setPaletteTool(name) {
+  document.querySelectorAll('.tool-palette .tool').forEach(t => t.classList.toggle('active', t.dataset.tool === name));
+  SUBGRAPHS.marqueeTool = (name === 'subgraph-marquee');
+  document.body.classList.toggle('sg-marquee-tool', SUBGRAPHS.marqueeTool);
+}
+
+function _sgShowInternalPins(g) {
+  return g && g.showInternalPins !== false;
+}
+function _cloneSubgraphs(items) {
+  return (items || []).map(g => ({
+    id: g.id || ('sg_' + Date.now().toString(36)),
+    name: (g.name || 'New Group').trim() || 'New Group',
+    collapsed: !!g.collapsed,
+    nodeIds: [...new Set((g.nodeIds || []).filter(Boolean))],
+    showInternalPins: g.showInternalPins !== false,
+  }));
+}
+function getSubgraphSnapshot() {
+  return _cloneSubgraphs(SUBGRAPHS.items);
+}
+function _getNodeEl(nodeId) {
+  return document.querySelector(`.node[data-node-id="${CSS.escape(nodeId)}"]`);
+}
+function _getSubgraphById(id) {
+  return SUBGRAPHS.items.find(g => g.id === id) || null;
+}
+function _getSubgraphByNode(nodeId) {
+  return SUBGRAPHS.items.find(g => (g.nodeIds || []).includes(nodeId)) || null;
+}
+function _detachSgMenuPortal() {
+  if (SUBGRAPHS._menuPortalRaf != null) {
+    cancelAnimationFrame(SUBGRAPHS._menuPortalRaf);
+    SUBGRAPHS._menuPortalRaf = null;
+  }
+  const p = SUBGRAPHS._menuPortal;
+  if (!p?.menu || !p.wrap) {
+    SUBGRAPHS._menuPortal = null;
+    return;
+  }
+  const { menu, wrap } = p;
+  if (menu.parentNode !== wrap) wrap.appendChild(menu);
+  menu.classList.remove('sg-menu-portal', 'open');
+  menu.style.cssText = '';
+  SUBGRAPHS._menuPortal = null;
+}
+function _syncSgMenuPortalPosition() {
+  const p = SUBGRAPHS._menuPortal;
+  const menu = p?.menu;
+  const btn = p?.btn;
+  if (!menu || !menu.classList.contains('sg-menu-portal') || !menu.classList.contains('open')) return;
+  if (!btn || !btn.isConnected) {
+    _detachSgMenuPortal();
+    return;
+  }
+  const r = btn.getBoundingClientRect();
+  const mw = Math.max(menu.getBoundingClientRect().width || menu.offsetWidth || 160, 150);
+  menu.style.position = 'fixed';
+  menu.style.top = `${Math.round(r.bottom + 4)}px`;
+  menu.style.left = `${Math.round(Math.max(8, r.right - mw))}px`;
+  menu.style.zIndex = '30050';
+  menu.style.minWidth = '150px';
+  menu.style.width = 'max-content';
+  menu.style.maxWidth = 'min(300px, calc(100vw - 24px))';
+}
+function _menuPortalTick() {
+  if (!SUBGRAPHS._menuPortal?.menu?.classList.contains('sg-menu-portal')
+      || !SUBGRAPHS._menuPortal?.menu?.classList.contains('open')) {
+    SUBGRAPHS._menuPortalRaf = null;
+    return;
+  }
+  _syncSgMenuPortalPosition();
+  SUBGRAPHS._menuPortalRaf = requestAnimationFrame(_menuPortalTick);
+}
+function _attachSgMenuPortal(menu, btn, wrap) {
+  _detachSgMenuPortal();
+  menu.classList.add('sg-menu-portal', 'open');
+  document.body.appendChild(menu);
+  SUBGRAPHS._menuPortal = { menu, wrap, btn };
+  requestAnimationFrame(() => {
+    _syncSgMenuPortalPosition();
+    if (SUBGRAPHS._menuPortalRaf != null) cancelAnimationFrame(SUBGRAPHS._menuPortalRaf);
+    SUBGRAPHS._menuPortalRaf = requestAnimationFrame(_menuPortalTick);
+  });
+}
+function _closeAllSgMenusInLayer(layer) {
+  _detachSgMenuPortal();
+  layer?.querySelectorAll('.sg-menu.open').forEach(m => m.classList.remove('open'));
+  document.getElementById('subgraphHeadLayer')?.querySelectorAll('.sg-menu.open').forEach(m => m.classList.remove('open'));
+}
+function _ensureSubgraphLayer() {
+  const inner = Canvas.getCanvasInner();
+  if (!inner) return null;
+  if (SUBGRAPHS.layerEl && SUBGRAPHS.layerEl.isConnected) {
+    inner.appendChild(SUBGRAPHS.layerEl);
+    return SUBGRAPHS.layerEl;
+  }
+  const layer = document.createElement('div');
+  layer.className = 'subgraph-layer';
+  layer.id = 'subgraphLayer';
+  inner.appendChild(layer);
+  SUBGRAPHS.layerEl = layer;
+  return layer;
+}
+/** Lift `.sg-head` out of `#subgraphLayer` for positioning; z 15017 keeps heads below edge front (15016). */
+function _ensureSubgraphHeadLayer() {
+  const inner = Canvas.getCanvasInner();
+  if (!inner) return null;
+  let el = document.getElementById('subgraphHeadLayer');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'subgraphHeadLayer';
+    el.className = 'subgraph-head-layer';
+    inner.appendChild(el);
+  }
+  const front = inner.querySelector('svg.edge-overlay-front');
+  if (front?.parentElement === inner && el.parentElement === inner) {
+    if (el.previousElementSibling !== front) inner.insertBefore(el, front.nextSibling);
+  } else if (el.parentElement !== inner) {
+    inner.appendChild(el);
+  }
+  return el;
+}
+function _subgraphBoxFromHead(head) {
+  const gid = head?.dataset?.sgGroup;
+  if (!gid) return null;
+  return document.querySelector(`.subgraph-box[data-id="${CSS.escape(gid)}"]`);
+}
+function _positionLiftedSgHead(head, box) {
+  if (!head || !box) return;
+  const left = parseFloat(box.style.left) || 0;
+  const top = parseFloat(box.style.top) || 0;
+  const width = parseFloat(box.style.width) || 0;
+  /* Match box border so the head sits on the inner side of the stroke (border-box sizing on .subgraph-box). */
+  let bw = 0;
+  if (box.classList.contains('expanded')) bw = 2;
+  else if (box.classList.contains('collapsed')) bw = 1;
+  else if (box.classList.contains('preview')) bw = 2;
+  const innerLeft = left + bw;
+  const innerTop = top + bw;
+  const innerW = Math.max(0, width - bw * 2);
+  head.style.position = 'absolute';
+  head.style.left = `${innerLeft}px`;
+  head.style.top = `${innerTop}px`;
+  head.style.width = `${innerW}px`;
+  head.style.right = 'auto';
+  head.style.marginLeft = '0';
+  head.style.boxSizing = 'border-box';
+}
+function _syncAllLiftedSgHeads() {
+  const hl = document.getElementById('subgraphHeadLayer');
+  if (!hl) return;
+  hl.querySelectorAll('.sg-head[data-sg-group]').forEach(head => {
+    const box = _subgraphBoxFromHead(head);
+    if (box) _positionLiftedSgHead(head, box);
+  });
+}
+function _liftSubgraphHeadsIntoOverlay(layer) {
+  const headLayer = _ensureSubgraphHeadLayer();
+  if (!headLayer) return;
+  headLayer.replaceChildren();
+  layer.querySelectorAll('.subgraph-box').forEach(box => {
+    const head = box.querySelector('.sg-head');
+    if (!head) return;
+    const gid = box.dataset.id;
+    if (gid) {
+      head.dataset.sgGroup = gid;
+      head.dataset.sgState = box.classList.contains('collapsed') ? 'collapsed' : 'expanded';
+    }
+    headLayer.appendChild(head);
+    _positionLiftedSgHead(head, box);
+  });
+}
+function _maybeRunLiftedHeadSyncLoop() {
+  const step = () => {
+    _syncAllLiftedSgHeads();
+    if (document.querySelector('.subgraph-box.sg-animating')) requestAnimationFrame(step);
+  };
+  if (document.querySelector('.subgraph-box.sg-animating')) requestAnimationFrame(step);
+}
+/** World-space AABB for overlap checks; works while peers are `sg-hidden` (display:none) before the next render. */
+function _sgMemberLayoutRect(nodeId) {
+  const el = _getNodeEl(nodeId);
+  const nd = Canvas.getNode(nodeId);
+  if (!el || !nd) return null;
+  const x = parseFloat(el.style.left) || Number(nd.x) || 0;
+  const y = parseFloat(el.style.top) || Number(nd.y) || 0;
+  let w = el.offsetWidth;
+  let h = el.offsetHeight;
+  if (el.classList.contains('sg-hidden') || w < 2 || h < 2) {
+    w = Math.max(180, w || 200);
+    h = Math.max(120, h || 120);
+  }
+  return { x, y, w, h };
+}
+/** Nudge a node that was just added to an expanded subgraph so it does not overlap other members. */
+function _nudgeSubgraphMemberClearOverlaps(nodeId, group) {
+  const GAP = 12;
+  if (!group || group.collapsed || (group.nodeIds || []).length < 2) return;
+  const el = _getNodeEl(nodeId);
+  const n = Canvas.getNode(nodeId);
+  if (!el || !n) return;
+  for (let iter = 0; iter < 80; iter++) {
+    const self = _sgMemberLayoutRect(nodeId);
+    if (!self) return;
+    let moved = false;
+    for (const id of group.nodeIds) {
+      if (id === nodeId) continue;
+      const o = _sgMemberLayoutRect(id);
+      if (!o) continue;
+      const ox = Math.min(self.x + self.w, o.x + o.w) - Math.max(self.x, o.x);
+      const oy = Math.min(self.y + self.h, o.y + o.h) - Math.max(self.y, o.y);
+      if (ox <= 0 || oy <= 0) continue;
+      let dx = 0;
+      let dy = 0;
+      if (ox <= oy) {
+        const dir = (self.x + self.w / 2) <= (o.x + o.w / 2) ? -1 : 1;
+        dx = dir * (ox + GAP);
+      } else {
+        const dir = (self.y + self.h / 2) <= (o.y + o.h / 2) ? -1 : 1;
+        dy = dir * (oy + GAP);
+      }
+      const nx = (parseFloat(el.style.left) || 0) + dx;
+      const ny = (parseFloat(el.style.top) || 0) + dy;
+      n.x = nx;
+      n.y = ny;
+      el.style.left = `${nx}px`;
+      el.style.top = `${ny}px`;
+      moved = true;
+      break;
+    }
+    if (!moved) break;
+  }
+}
+function _subgraphBounds(group) {
+  const PAD_X = 32, PAD_Y = 36;
+  /* Expanded: reserve enough top padding for full-width sg-head so nodes never sit under it. */
+  const SG_HEAD_TOP_PAD = 56;
+  const topPad = (group && !group.collapsed) ? Math.max(PAD_Y, SG_HEAD_TOP_PAD) : PAD_Y;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  (group.nodeIds || []).forEach(id => {
+    const el = _getNodeEl(id);
+    if (!el) return;
+    const x = parseFloat(el.style.left) || 0;
+    const y = parseFloat(el.style.top) || 0;
+    const w = el.offsetWidth || 200;
+    const h = el.offsetHeight || 120;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  });
+  if (!isFinite(minX)) return null;
+  const left = Math.round(minX - PAD_X);
+  const top = Math.round(minY - topPad);
+  const width = Math.round((maxX - minX) + PAD_X * 2);
+  const height = Math.round((maxY - minY) + topPad + PAD_Y);
+  return { left, top, width, height };
+}
+function _normalizeSubgraphs() {
+  const validNodeIds = new Set(Canvas.getAllNodes().map(n => n.id));
+  SUBGRAPHS.items = SUBGRAPHS.items
+    .map(g => ({ ...g, nodeIds: [...new Set((g.nodeIds || []).filter(id => validNodeIds.has(id)))] }))
+    .filter(g => g.nodeIds.length >= 1);
+}
+function _syncCollapsedNodeVisibility() {
+  document.querySelectorAll('.node.sg-hidden').forEach(el => el.classList.remove('sg-hidden'));
+  document.querySelectorAll('.node.sg-member').forEach(el => el.classList.remove('sg-member'));
+  SUBGRAPHS.items.forEach(g => {
+    (g.nodeIds || []).forEach(id => _getNodeEl(id)?.classList.add('sg-member'));
+  });
+  SUBGRAPHS.items.filter(g => g.collapsed).forEach(g => {
+    (g.nodeIds || []).forEach(id => _getNodeEl(id)?.classList.add('sg-hidden'));
+  });
+}
+function _setSelectedNodes(ids) {
+  SUBGRAPHS.selectedNodeIds = new Set((ids || []).filter(Boolean));
+  document.querySelectorAll('.node.sg-selected').forEach(n => n.classList.remove('sg-selected'));
+  SUBGRAPHS.selectedNodeIds.forEach(id => _getNodeEl(id)?.classList.add('sg-selected'));
+}
+function _markSubgraphMutation() {
+  if (typeof pushUndoSnapshot === 'function' && typeof HISTORY_APPLYING !== 'undefined' && !HISTORY_APPLYING) {
+    pushUndoSnapshot();
+  }
+  if (typeof CANVAS_CHANGE_EPOCH !== 'undefined') CANVAS_CHANGE_EPOCH += 1;
+  if (typeof LAST_AUTO_LAYOUT_EPOCH !== 'undefined') LAST_AUTO_LAYOUT_EPOCH = -1;
+  snapshotActiveVariant();
+}
+function _startSubgraphRename(groupId) {
+  const nameEl = document.querySelector(`#subgraphHeadLayer .sg-head[data-sg-group="${CSS.escape(groupId)}"] .sg-name`)
+    || document.querySelector(`.subgraph-box[data-id="${CSS.escape(groupId)}"] .sg-name`);
+  if (!nameEl) return;
+  if (nameEl.contentEditable === 'true') return;
+  const g = _getSubgraphById(groupId);
+  if (!g) return;
+  nameEl.contentEditable = 'true';
+  nameEl.focus();
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(nameEl);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  let done = false;
+  const endEdit = () => {
+    document.removeEventListener('pointerdown', onDocPointerDown, true);
+    nameEl.removeEventListener('keydown', onKey);
+    nameEl.removeEventListener('blur', onBlur);
+  };
+  const commit = () => {
+    if (done) return;
+    done = true;
+    endEdit();
+    const next = (nameEl.textContent || '').trim() || 'New Group';
+    g.name = next;
+    nameEl.textContent = next;
+    nameEl.contentEditable = 'false';
+    _markSubgraphMutation();
+  };
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    endEdit();
+    nameEl.textContent = g.name || 'New Group';
+    nameEl.contentEditable = 'false';
+  };
+  const onBlur = () => { commit(); };
+  const onDocPointerDown = (ev) => {
+    if (nameEl.contains(ev.target)) return;
+    nameEl.blur();
+  };
+  const onKey = (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      nameEl.blur();
+    }
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      cancel();
+    }
+  };
+  document.addEventListener('pointerdown', onDocPointerDown, true);
+  nameEl.addEventListener('blur', onBlur);
+  nameEl.addEventListener('keydown', onKey);
+}
+function _nodeAnchorWorld(nodeId, side) {
+  const el = _getNodeEl(nodeId);
+  if (!el) return null;
+  const x = parseFloat(el.style.left) || 0;
+  const y = parseFloat(el.style.top) || 0;
+  const w = el.offsetWidth || 200;
+  const h = el.offsetHeight || 120;
+  return {
+    x: side === 'in' ? x : (x + w),
+    y: y + h * 0.5,
+  };
+}
+function _nodePortAnchorWorld(nodeId, dir, portName) {
+  const nodeEl = _getNodeEl(nodeId);
+  if (!nodeEl) return null;
+  const anchor = nodeEl.querySelector(`.port-anchor[data-port="${CSS.escape(dir + ':' + portName)}"]`);
+  if (!anchor) return _nodeAnchorWorld(nodeId, dir === 'in' ? 'in' : 'out');
+  const ar = anchor.getBoundingClientRect();
+  return Canvas.clientToWorld(ar.left + ar.width / 2, ar.top + ar.height / 2);
+}
+function _subgraphExternalIo(group) {
+  const members = new Set(group.nodeIds || []);
+  const incoming = [];
+  const outgoing = [];
+  Canvas.getConnections().forEach(c => {
+    const fromIn = members.has(c.from[0]);
+    const toIn = members.has(c.to[0]);
+    if (fromIn === toIn) return;
+    if (!fromIn && toIn) incoming.push(c);
+    if (fromIn && !toIn) outgoing.push(c);
+  });
+  return { incoming, outgoing };
+}
+function _collapsedRowBoundaryPorts(group, nodeId) {
+  const members = new Set(group.nodeIds || []);
+  let hasIn = false;
+  let hasOut = false;
+  Canvas.getConnections().forEach(c => {
+    const fromIn = members.has(c.from[0]);
+    const toIn = members.has(c.to[0]);
+    if (fromIn === toIn) return;
+    if (!fromIn && toIn && c.to[0] === nodeId) hasIn = true;
+    if (fromIn && !toIn && c.from[0] === nodeId) hasOut = true;
+  });
+  return { hasIn, hasOut };
+}
+function _installSubgraphCollapsedPortHooks() {
+  window.getSubgraphCollapsedPortAnchorEl = (nodeId, dir) => {
+    const g = _getSubgraphByNode(nodeId);
+    if (!g || !g.collapsed) return null;
+    const box = document.querySelector(`.subgraph-box.collapsed[data-id="${CSS.escape(g.id)}"]`);
+    if (!box) return null;
+    if (_sgShowInternalPins(g)) {
+      const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
+      return box.querySelector(`.sg-node-row[data-node-id="${CSS.escape(String(nodeId))}"] ${sel}`);
+    }
+    const sel = dir === 'in' ? '.sg-port-bundle-in' : '.sg-port-bundle-out';
+    return box.querySelector(sel);
+  };
+  window.getSubgraphCollapsedPortWorld = (nodeId, dir, _portName, _canvasRect) => {
+    const g = _getSubgraphByNode(nodeId);
+    if (!g || !g.collapsed) return null;
+    const box = document.querySelector(`.subgraph-box.collapsed[data-id="${CSS.escape(g.id)}"]`);
+    if (!box) return null;
+    let port = null;
+    if (_sgShowInternalPins(g)) {
+      const row = box.querySelector(`.sg-node-row[data-node-id="${CSS.escape(String(nodeId))}"]`);
+      if (!row) return null;
+      const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
+      port = row.querySelector(sel);
+    } else {
+      const sel = dir === 'in' ? '.sg-port-bundle-in' : '.sg-port-bundle-out';
+      port = box.querySelector(sel);
+    }
+    if (!port) return null;
+    const ar = port.getBoundingClientRect();
+    if (!ar.width && !ar.height) return null;
+    return Canvas.clientToWorld(ar.left + ar.width / 2, ar.top + ar.height / 2);
+  };
+  window.syncSubgraphCollapsedPortConnectedState = (connections) => {
+    document.querySelectorAll('.sg-row-port.connected').forEach(el => el.classList.remove('connected'));
+    document.querySelectorAll('.sg-row-port.edge-hovered').forEach(el => el.classList.remove('edge-hovered'));
+    const memberToGroup = new Map();
+    SUBGRAPHS.items.forEach(g => {
+      if (!g.collapsed) return;
+      (g.nodeIds || []).forEach(id => memberToGroup.set(id, g.id));
+    });
+    (connections || []).forEach(c => {
+      const gidFrom = memberToGroup.get(c.from[0]);
+      const gidTo = memberToGroup.get(c.to[0]);
+      if (gidFrom && !gidTo) {
+        const g = _getSubgraphById(gidFrom);
+        const box = document.querySelector(`.subgraph-box.collapsed[data-id="${CSS.escape(gidFrom)}"]`);
+        if (!box || !g) return;
+        if (_sgShowInternalPins(g)) {
+          box.querySelector(`.sg-node-row[data-node-id="${CSS.escape(String(c.from[0]))}"] .sg-row-port-out`)?.classList.add('connected');
+        } else {
+          box.querySelector('.sg-port-bundle-out')?.classList.add('connected');
+        }
+      }
+      if (gidTo && !gidFrom) {
+        const g = _getSubgraphById(gidTo);
+        const box = document.querySelector(`.subgraph-box.collapsed[data-id="${CSS.escape(gidTo)}"]`);
+        if (!box || !g) return;
+        if (_sgShowInternalPins(g)) {
+          box.querySelector(`.sg-node-row[data-node-id="${CSS.escape(String(c.to[0]))}"] .sg-row-port-in`)?.classList.add('connected');
+        } else {
+          box.querySelector('.sg-port-bundle-in')?.classList.add('connected');
+        }
+      }
+    });
+  };
+  window.isInternalCollapsedSubgraphEdge = (c) => {
+    if (!c?.from?.[0] || !c?.to?.[0]) return false;
+    const ga = _getSubgraphByNode(c.from[0]);
+    const gb = _getSubgraphByNode(c.to[0]);
+    return !!(ga && gb && ga.id === gb.id && ga.collapsed);
+  };
+}
+function _autoArrangeSubgraphNodes(nodeIds) {
+  const ids = [...new Set((nodeIds || []).filter(Boolean))];
+  if (ids.length < 2) return;
+  const nodes = ids.map(id => {
+    const el = _getNodeEl(id);
+    return el ? {
+      id,
+      el,
+      x: parseFloat(el.style.left) || 0,
+      y: parseFloat(el.style.top) || 0,
+      w: el.offsetWidth || 200,
+      h: el.offsetHeight || 120,
+    } : null;
+  }).filter(Boolean);
+  if (nodes.length < 2) return;
+  nodes.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const cx = nodes.reduce((s, n) => s + n.x, 0) / nodes.length;
+  const cy = nodes.reduce((s, n) => s + n.y, 0) / nodes.length;
+  const avgW = nodes.reduce((s, n) => s + n.w, 0) / nodes.length;
+  const avgH = nodes.reduce((s, n) => s + n.h, 0) / nodes.length;
+  const cols = Math.max(2, Math.ceil(Math.sqrt(nodes.length)));
+  const rows = Math.ceil(nodes.length / cols);
+  const stepX = avgW + 36;
+  const stepY = avgH + 32;
+  const startX = Math.round(cx - ((cols - 1) * stepX) / 2);
+  const startY = Math.round(cy - ((rows - 1) * stepY) / 2);
+  nodes.forEach((n, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const nx = startX + col * stepX;
+    const ny = startY + row * stepY;
+    n.el.style.left = `${nx}px`;
+    n.el.style.top = `${ny}px`;
+    const data = Canvas.getNode(n.id);
+    if (data) {
+      data.x = nx;
+      data.y = ny;
+    }
+  });
+  Canvas.drawEdges();
+}
+function _subgraphPreviewBounds(nodeIds) {
+  const ids = [...new Set((nodeIds || []).filter(Boolean))];
+  if (ids.length < 1) return null;
+  const PAD_X = 32, PAD_Y = 36;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  ids.forEach(id => {
+    const el = _getNodeEl(id);
+    if (!el) return;
+    const x = parseFloat(el.style.left) || 0;
+    const y = parseFloat(el.style.top) || 0;
+    const w = el.offsetWidth || 200;
+    const h = el.offsetHeight || 120;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  });
+  if (!isFinite(minX)) return null;
+  return {
+    left: Math.round(minX - PAD_X),
+    top: Math.round(minY - PAD_Y),
+    width: Math.round((maxX - minX) + PAD_X * 2),
+    height: Math.round((maxY - minY) + PAD_Y * 2),
+  };
+}
+function _showSubgraphPreview(nodeIds) {
+  const layer = _ensureSubgraphLayer();
+  if (!layer) return;
+  const b = _subgraphPreviewBounds(nodeIds);
+  if (!b) return;
+  if (!SUBGRAPHS.previewEl || !SUBGRAPHS.previewEl.isConnected) {
+    const el = document.createElement('div');
+    el.className = 'subgraph-box preview';
+    el.id = 'sgPreview';
+    layer.appendChild(el);
+    SUBGRAPHS.previewEl = el;
+  }
+  const el = SUBGRAPHS.previewEl;
+  el.style.left = `${b.left}px`;
+  el.style.top = `${b.top}px`;
+  el.style.width = `${b.width}px`;
+  el.style.height = `${b.height}px`;
+}
+function _clearSubgraphPreview() {
+  if (SUBGRAPHS.previewEl?.isConnected) SUBGRAPHS.previewEl.remove();
+  SUBGRAPHS.previewEl = null;
+}
+function _flashSubgraphDance(groupId) {
+  const el = document.querySelector(`.subgraph-box[data-id="${CSS.escape(groupId)}"]`);
+  if (!el) return;
+  el.classList.remove('sg-dance');
+  void el.offsetWidth;
+  el.classList.add('sg-dance');
+}
+function _sgTypeIcon(type) {
+  const icon = Canvas?.ICONS?.[type];
+  if (icon) return icon;
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>';
+}
+function _nudgeSubgraphMembersBelowHead(layer) {
+  const { zoom } = Canvas.getTransform();
+  const z = zoom || 1;
+  const GAP = 8;
+  let changed = false;
+  layer.querySelectorAll('.subgraph-box.expanded[data-id]').forEach(box => {
+    const gid = box.dataset.id;
+    const g = _getSubgraphById(gid);
+    if (!g) return;
+    const head = box.querySelector('.sg-head');
+    if (!head) return;
+    const headWorld = head.getBoundingClientRect().height / z;
+    if (headWorld < 6) return;
+    const boxTop = parseFloat(box.style.top) || 0;
+    const floorY = boxTop + headWorld + GAP;
+    let minY = Infinity;
+    (g.nodeIds || []).forEach(id => {
+      const el = _getNodeEl(id);
+      if (!el || el.classList.contains('sg-hidden')) return;
+      minY = Math.min(minY, parseFloat(el.style.top) || 0);
+    });
+    if (!isFinite(minY) || minY >= floorY - 0.5) return;
+    const dy = Math.ceil(floorY - minY);
+    (g.nodeIds || []).forEach(id => {
+      const el = _getNodeEl(id);
+      const n = Canvas.getNode(id);
+      if (!el || !n) return;
+      const ny = (parseFloat(el.style.top) || 0) + dy;
+      n.y = ny;
+      el.style.top = `${ny}px`;
+    });
+    changed = true;
+  });
+  return changed;
+}
+function renderSubgraphs() {
+  _normalizeSubgraphs();
+  _syncCollapsedNodeVisibility();
+  const layer = _ensureSubgraphLayer();
+  if (!layer) return;
+  _detachSgMenuPortal();
+  const prevLayoutByGroup = new Map();
+  layer.querySelectorAll('.subgraph-box[data-id]').forEach(el => {
+    const id = el.dataset.id;
+    prevLayoutByGroup.set(id, {
+      left: parseFloat(el.style.left) || 0,
+      top: parseFloat(el.style.top) || 0,
+      width: parseFloat(el.style.width) || 0,
+      height: parseFloat(el.style.height) || 0,
+    });
+  });
+  const boxLayoutByGroup = new Map();
+  const html = SUBGRAPHS.items.map(group => {
+    const b = _subgraphBounds(group);
+    if (!b) return '';
+    let left = b.left, top = b.top, width = b.width, height = b.height;
+    if (group.collapsed) {
+      const rowCount = (group.nodeIds || []).length;
+      width = 290;
+      /* ~head + rows (26px row + 6px gap) + small chrome; avoid tall empty min when few rows */
+      height = Math.max(96, 40 + rowCount * 32 + 10);
+      left = Math.round(b.left + Math.max(0, (b.width - width) / 2));
+      top = Math.round(b.top + 10);
+    }
+    boxLayoutByGroup.set(group.id, { left, top, width, height });
+    const nodeCountLabel = `${group.nodeIds.length} node${group.nodeIds.length === 1 ? '' : 's'}`;
+    const io = group.collapsed ? _subgraphExternalIo(group) : { incoming: [], outgoing: [] };
+    const pins = group.collapsed && _sgShowInternalPins(group);
+    const bundleIn = group.collapsed && !pins && io.incoming.length
+      ? '<span class="sg-row-port sg-port-bundle-in" aria-hidden="true"></span>'
+      : '';
+    const bundleOut = group.collapsed && !pins && io.outgoing.length
+      ? '<span class="sg-row-port sg-port-bundle-out" aria-hidden="true"></span>'
+      : '';
+    const collapsedRows = group.collapsed
+      ? `<div class="sg-collapsed-list">${(group.nodeIds || []).map(id => {
+          const n = Canvas.getNode(id);
+          const nm = (n?.label || n?.name || id);
+          const dot = n?.color || '#94a3b8';
+          let portIn = '';
+          let portOut = '';
+          if (pins) {
+            const { hasIn, hasOut } = _collapsedRowBoundaryPorts(group, id);
+            portIn = hasIn ? '<span class="sg-row-port sg-row-port-in"></span>' : '';
+            portOut = hasOut ? '<span class="sg-row-port sg-row-port-out"></span>' : '';
+          }
+          return `<div class="sg-node-row" data-node-id="${esc(id)}">${portIn}${portOut}
+            <span class="dot" style="background:${esc(dot)}"></span>
+            <span class="icon">${_sgTypeIcon(n?.type)}</span>
+            <span class="name">${esc(nm)}</span>
+          </div>`;
+        }).join('')}</div>`
+      : '';
+    const pinsMenuLabel = _sgShowInternalPins(group)
+      ? 'Collapse internal ports'
+      : 'Show internal ports';
+    return `
+      <div class="subgraph-box ${group.collapsed ? 'collapsed' : 'expanded'}" data-id="${group.id}"
+           data-left="${left}" data-top="${top}" data-width="${width}" data-height="${height}"
+           style="left:${left}px;top:${top}px;width:${width}px;height:${height}px;">
+        ${bundleIn}${bundleOut}
+        <div class="sg-head" data-sg-group="${group.id}" data-sg-state="${group.collapsed ? 'collapsed' : 'expanded'}">
+          <svg class="sg-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <span class="sg-name" data-sg-name="${group.id}">${esc(group.name || 'New Group')}</span>
+          <span class="sg-head-tags"><span class="sg-pill">${esc(nodeCountLabel)}</span></span>
+          <span style="flex:1 1 auto;"></span>
+          <div class="sg-kebab-wrap">
+            <button class="sg-kebab" data-sg-menu-btn="${group.id}" title="Subgraph actions">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </button>
+            <div class="sg-menu" data-sg-menu="${group.id}">
+              <button type="button" class="sg-menu-item" data-sg-toggle-pins="${group.id}"${group.collapsed ? '' : ' disabled title="Collapse this group to change port pins."'}>${esc(pinsMenuLabel)}</button>
+              <button type="button" class="sg-menu-item" data-sg-auto-layout="${group.id}" ${group.collapsed || group.nodeIds.length < 2 ? 'disabled' : ''}>Auto layout subgraph nodes</button>
+              <button type="button" class="sg-menu-item" data-sg-dissolve="${group.id}">Dissolve subgroup</button>
+            </div>
+          </div>
+          <button class="sg-toggle" data-sg-toggle="${group.id}" title="${group.collapsed ? 'Expand' : 'Collapse'}">
+            <img src="icons/${group.collapsed ? 'expand' : 'minimize'}.png" alt="${group.collapsed ? 'Expand' : 'Collapse'}" />
+          </button>
+        </div>
+        ${collapsedRows}
+      </div>`;
+  }).join('');
+  layer.innerHTML = html;
+  const animateBoxes = !SUBGRAPHS.dragGroup;
+  layer.querySelectorAll('.subgraph-box[data-id]').forEach(el => {
+    if (!animateBoxes) return;
+    const prev = prevLayoutByGroup.get(el.dataset.id);
+    if (!prev) return;
+    const target = {
+      left: parseFloat(el.dataset.left) || 0,
+      top: parseFloat(el.dataset.top) || 0,
+      width: parseFloat(el.dataset.width) || 0,
+      height: parseFloat(el.dataset.height) || 0,
+    };
+    const moved = Math.abs(prev.left - target.left) > 0.5
+      || Math.abs(prev.top - target.top) > 0.5
+      || Math.abs(prev.width - target.width) > 0.5
+      || Math.abs(prev.height - target.height) > 0.5;
+    if (!moved) return;
+    el.classList.add('sg-animating');
+    el.style.left = `${prev.left}px`;
+    el.style.top = `${prev.top}px`;
+    el.style.width = `${prev.width}px`;
+    el.style.height = `${prev.height}px`;
+    requestAnimationFrame(() => {
+      el.style.left = `${target.left}px`;
+      el.style.top = `${target.top}px`;
+      el.style.width = `${target.width}px`;
+      el.style.height = `${target.height}px`;
+    });
+    el.addEventListener('transitionend', () => {
+      el.classList.remove('sg-animating');
+      _syncAllLiftedSgHeads();
+      Canvas.drawEdges();
+    }, { once: true });
+  });
+  if (_nudgeSubgraphMembersBelowHead(layer) && !SUBGRAPHS._headroomReflow) {
+    SUBGRAPHS._headroomReflow = true;
+    try {
+      _markSubgraphMutation();
+      Canvas.drawEdges();
+      renderSubgraphs();
+      return;
+    } finally {
+      SUBGRAPHS._headroomReflow = false;
+    }
+  }
+  layer.querySelectorAll('[data-sg-toggle]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const g = _getSubgraphById(btn.dataset.sgToggle);
+    if (!g) return;
+    g.collapsed = !g.collapsed;
+    _markSubgraphMutation();
+    renderSubgraphs();
+  }));
+  layer.querySelectorAll('[data-sg-menu-btn]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const wrap = btn.closest('.sg-kebab-wrap');
+    const menu = wrap?.querySelector('.sg-menu');
+    if (!menu) return;
+    const wasOpen = menu.classList.contains('open');
+    _closeAllSgMenusInLayer(layer);
+    const willOpen = !wasOpen;
+    if (!willOpen) return;
+    const box = btn.closest('.subgraph-box') || _subgraphBoxFromHead(btn.closest('.sg-head'));
+    if (box?.classList.contains('expanded')) {
+      _attachSgMenuPortal(menu, btn, wrap);
+    } else {
+      menu.classList.add('open');
+    }
+  }));
+  layer.querySelectorAll('[data-sg-auto-layout]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (btn.disabled) return;
+    const gid = btn.dataset.sgAutoLayout;
+    const g = _getSubgraphById(gid);
+    if (!g || g.collapsed || (g.nodeIds || []).length < 2) return;
+    _autoArrangeSubgraphNodes(g.nodeIds);
+    _closeAllSgMenusInLayer(layer);
+    _markSubgraphMutation();
+    renderSubgraphs();
+  }));
+  layer.querySelectorAll('[data-sg-toggle-pins]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (btn.disabled) return;
+    const gid = btn.dataset.sgTogglePins;
+    const g = _getSubgraphById(gid);
+    if (!g) return;
+    g.showInternalPins = !_sgShowInternalPins(g);
+    _closeAllSgMenusInLayer(layer);
+    _markSubgraphMutation();
+    renderSubgraphs();
+  }));
+  layer.querySelectorAll('[data-sg-dissolve]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const gid = btn.dataset.sgDissolve;
+    const g = _getSubgraphById(gid);
+    if (!g) return;
+    const anchor = btn.getBoundingClientRect();
+    _closeAllSgMenusInLayer(layer);
+    _showSgDissolveConfirm(anchor, g.name || 'New Group').then(ok => {
+      if (!ok) return;
+      const before = SUBGRAPHS.items.length;
+      SUBGRAPHS.items = SUBGRAPHS.items.filter(x => x.id !== gid);
+      if (SUBGRAPHS.items.length === before) return;
+      _setSelectedNodes([]);
+      _markSubgraphMutation();
+      renderSubgraphs();
+    });
+  }));
+  document.addEventListener('click', () => {
+    _closeAllSgMenusInLayer(layer);
+  }, { once: true });
+  layer.querySelectorAll('[data-sg-name]').forEach(nameEl => {
+    nameEl.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = nameEl.dataset.sgName;
+      if (!_getSubgraphById(id)) return;
+      _startSubgraphRename(id);
+    });
+  });
+  /* Move heads only after wiring controls (heads start under #subgraphLayer then reparent here). */
+  _liftSubgraphHeadsIntoOverlay(layer);
+  _maybeRunLiftedHeadSyncLoop();
+  Canvas.drawEdges();
+  requestAnimationFrame(() => Canvas.drawEdges());
+}
+function _addNodeToSubgraph(nodeId, groupId) {
+  const g = _getSubgraphById(groupId);
+  if (!g) return false;
+  SUBGRAPHS.items.forEach(x => { x.nodeIds = x.nodeIds.filter(id => id !== nodeId); });
+  if (!g.nodeIds.includes(nodeId)) g.nodeIds.push(nodeId);
+  g.collapsed = false;
+  _normalizeSubgraphs();
+  const g2 = _getSubgraphById(groupId);
+  if (g2) _nudgeSubgraphMemberClearOverlaps(nodeId, g2);
+  return true;
+}
+function _createSubgraph(nodeIds, focusRename) {
+  const ids = [...new Set((nodeIds || []).filter(Boolean))];
+  if (ids.length < 1) return null;
+  SUBGRAPHS.items.forEach(g => { g.nodeIds = g.nodeIds.filter(id => !ids.includes(id)); });
+  const g = { id: 'sg_' + Date.now().toString(36), name: 'New Group', nodeIds: ids, collapsed: false, showInternalPins: true };
+  SUBGRAPHS.items.push(g);
+  _autoArrangeSubgraphNodes(ids);
+  _normalizeSubgraphs();
+  renderSubgraphs();
+  if (focusRename) setTimeout(() => _startSubgraphRename(g.id), 20);
+  return g;
+}
+function _removeNodeFromSubgraph(nodeId, groupId) {
+  const g = _getSubgraphById(groupId);
+  if (!g) return false;
+  g.nodeIds = g.nodeIds.filter(id => id !== nodeId);
+  _normalizeSubgraphs();
+  return true;
+}
+function _clearSubgraphDragUi() {
+  document.querySelectorAll('.node.subgraph-merge-target').forEach(el => el.classList.remove('subgraph-merge-target'));
+  document.querySelectorAll('.node.sg-drag-over-subgraph').forEach(el => el.classList.remove('sg-drag-over-subgraph'));
+  document.querySelectorAll('.subgraph-box.drop-ready, .subgraph-box.detach-ready, .subgraph-box.member-drag-active')
+    .forEach(el => el.classList.remove('drop-ready', 'detach-ready', 'member-drag-active'));
+  _clearSubgraphPreview();
+}
+function _bestOverlapNode(draggedNodeId) {
+  const sourceEl = _getNodeEl(draggedNodeId);
+  if (!sourceEl) return null;
+  const sr = sourceEl.getBoundingClientRect();
+  let best = null;
+  let bestArea = 0;
+  document.querySelectorAll('.node').forEach(n => {
+    if (n.dataset.nodeId === draggedNodeId) return;
+    if (n.classList.contains('sg-hidden')) return;
+    const nr = n.getBoundingClientRect();
+    const overlapW = Math.max(0, Math.min(sr.right, nr.right) - Math.max(sr.left, nr.left));
+    const overlapH = Math.max(0, Math.min(sr.bottom, nr.bottom) - Math.max(sr.top, nr.top));
+    const area = overlapW * overlapH;
+    if (area <= bestArea) return;
+    bestArea = area;
+    best = n;
+  });
+  return bestArea >= 64 ? best : null;
+}
+function _pointInRect(x, y, r) {
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+/** Ignore edge hit paths so drops register on the subgraph/card beneath. */
+function _clientPickSubgraphBoxIdAt(x, y, dragNodeId) {
+  for (const el of document.elementsFromPoint(x, y) || []) {
+    if (el.tagName === 'path' && el.closest('svg.edge-overlay-front, svg.edge-overlay-back')) continue;
+    const dragged = dragNodeId && _getNodeEl(dragNodeId);
+    if (dragged && (el === dragged || dragged.contains(el))) continue;
+    const hitNode = el.closest?.('.node');
+    if (dragNodeId && hitNode && hitNode.dataset.nodeId !== dragNodeId) continue;
+    const head = el.closest?.('.sg-head[data-sg-group]');
+    if (head?.dataset?.sgGroup) return head.dataset.sgGroup;
+    const box = el.closest?.('.subgraph-box');
+    if (box?.dataset?.id && !box.classList.contains('preview')) return box.dataset.id;
+  }
+  return null;
+}
+function _clientReleaseOverNodeRect(nodeId, x, y, dragNodeId) {
+  if (!nodeId || nodeId === dragNodeId) return false;
+  const el = _getNodeEl(nodeId);
+  if (!el || el.classList.contains('sg-hidden')) return false;
+  return _pointInRect(x, y, el.getBoundingClientRect());
+}
+function _onSubgraphDragMove(e) {
+  const d = SUBGRAPHS.drag;
+  if (!d) return;
+  const nodeEl = _getNodeEl(d.nodeId);
+  if (!nodeEl) return;
+  d.moved = true;
+  _clearSubgraphDragUi();
+  const targetNode = _bestOverlapNode(d.nodeId);
+  d.hoverNodeId = null;
+  d.hoverGroupId = null;
+  if (targetNode && targetNode.dataset.nodeId !== d.nodeId) {
+    const tId = targetNode.dataset.nodeId;
+    const sgA = _getSubgraphByNode(d.nodeId);
+    const sgB = _getSubgraphByNode(tId);
+    if (!sgA || !sgB || sgA.id !== sgB.id) {
+      d.hoverNodeId = tId;
+      targetNode.classList.add('subgraph-merge-target');
+      if (!sgA && !sgB) _showSubgraphPreview([d.nodeId, tId]);
+    }
+  }
+  /* Use stack picking so the dragged node can sit above the subgraph (see `.sg-drag-over-subgraph`) without blocking the target. */
+  const gidPick = _clientPickSubgraphBoxIdAt(e.clientX, e.clientY, d.nodeId);
+  const box = gidPick ? document.querySelector(`.subgraph-box[data-id="${CSS.escape(gidPick)}"]`) : null;
+  if (box) {
+    const gid = box.dataset.id;
+    const sg = _getSubgraphById(gid);
+    const src = _getSubgraphByNode(d.nodeId);
+    if (sg && (!src || src.id !== sg.id)) {
+      d.hoverGroupId = gid;
+      box.classList.add('drop-ready');
+      if (d.lastHoverGroupId !== gid) _flashSubgraphDance(gid);
+      d.lastHoverGroupId = gid;
+    }
+  }
+  if (!d.hoverGroupId) d.lastHoverGroupId = null;
+  if (d.hoverGroupId) nodeEl.classList.add('sg-drag-over-subgraph');
+  const srcGroup = _getSubgraphByNode(d.nodeId);
+  if (srcGroup && !srcGroup.collapsed) {
+    const srcEl = document.querySelector(`.subgraph-box[data-id="${CSS.escape(srcGroup.id)}"]`);
+    const rect = d.srcRect || srcEl?.getBoundingClientRect();
+    if (rect && _pointInRect(e.clientX, e.clientY, rect)) srcEl?.classList.add('member-drag-active');
+    if (rect && !_pointInRect(e.clientX, e.clientY, rect)) srcEl?.classList.remove('member-drag-active');
+    d.dropOutsideSrc = !!(rect && !_pointInRect(e.clientX, e.clientY, rect));
+  }
+}
+function _onSubgraphDragUp(e) {
+  document.removeEventListener('mousemove', _onSubgraphDragMove, true);
+  document.removeEventListener('mouseup', _onSubgraphDragUp, true);
+  const d = SUBGRAPHS.drag;
+  SUBGRAPHS.drag = null;
+  if (!d) return;
+  _clearSubgraphDragUi();
+  if (!d.moved) return;
+  const x = e.clientX;
+  const y = e.clientY;
+  let mutated = false;
+  const srcGroup = _getSubgraphByNode(d.nodeId);
+  if (d.hoverNodeId) {
+    const targetGroup = _getSubgraphByNode(d.hoverNodeId);
+    if (!srcGroup && !targetGroup) {
+      if (_clientReleaseOverNodeRect(d.hoverNodeId, x, y, d.nodeId) || _clientReleaseOverNodeRect(d.nodeId, x, y, d.nodeId)) {
+        mutated = !!_createSubgraph([d.nodeId, d.hoverNodeId], true);
+      }
+    } else if (srcGroup && !targetGroup) {
+      if (_clientReleaseOverNodeRect(d.hoverNodeId, x, y, d.nodeId)) {
+        mutated = _addNodeToSubgraph(d.hoverNodeId, srcGroup.id);
+      }
+    } else if (!srcGroup && targetGroup) {
+      const overTargetBox = _clientPickSubgraphBoxIdAt(x, y, d.nodeId) === targetGroup.id;
+      const overHoverMember = _clientReleaseOverNodeRect(d.hoverNodeId, x, y, d.nodeId);
+      if (overTargetBox || overHoverMember) {
+        mutated = _addNodeToSubgraph(d.nodeId, targetGroup.id);
+      }
+    } else if (srcGroup && targetGroup && srcGroup.id !== targetGroup.id) {
+      if (_clientPickSubgraphBoxIdAt(x, y, d.nodeId) === targetGroup.id) {
+        srcGroup.nodeIds.forEach(id => _addNodeToSubgraph(id, targetGroup.id));
+        srcGroup.nodeIds = [];
+        mutated = true;
+      }
+    }
+  } else if (d.hoverGroupId) {
+    if (_clientPickSubgraphBoxIdAt(x, y, d.nodeId) === d.hoverGroupId) {
+      mutated = _addNodeToSubgraph(d.nodeId, d.hoverGroupId);
+    }
+  } else if (srcGroup && !srcGroup.collapsed && d.dropOutsideSrc) {
+    const srcEl = document.querySelector(`.subgraph-box[data-id="${CSS.escape(srcGroup.id)}"]`);
+    const rect = d.srcRect || srcEl?.getBoundingClientRect();
+    if (rect && !_pointInRect(e.clientX, e.clientY, rect)) {
+      mutated = _removeNodeFromSubgraph(d.nodeId, srcGroup.id);
+    }
+  }
+  _normalizeSubgraphs();
+  renderSubgraphs();
+  if (mutated) _markSubgraphMutation();
+}
+function _collectMarqueeNodes(rect) {
+  const picked = [];
+  document.querySelectorAll('.node').forEach(n => {
+    if (n.classList.contains('sg-hidden')) return;
+    const nr = n.getBoundingClientRect();
+    if (!(nr.right < rect.left || nr.left > rect.right || nr.bottom < rect.top || nr.top > rect.bottom)) {
+      picked.push(n.dataset.nodeId);
+    }
+  });
+  return picked;
+}
+function _previewMarqueeNodes(ids) {
+  const set = new Set(ids || []);
+  document.querySelectorAll('.node').forEach(n => {
+    n.classList.toggle('sg-marquee-hit', set.has(n.dataset.nodeId));
+  });
+}
+function _clearMarqueePreview() {
+  document.querySelectorAll('.node.sg-marquee-hit').forEach(n => n.classList.remove('sg-marquee-hit'));
+}
+function _onSubgraphGroupDragMove(e) {
+  const s = SUBGRAPHS.dragGroup;
+  if (!s) return;
+  const { zoom } = Canvas.getTransform();
+  const dx = (e.clientX - s.startX) / zoom;
+  const dy = (e.clientY - s.startY) / zoom;
+  if (!s.moved && (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)) s.moved = true;
+  s.nodeStart.forEach((pt, nodeId) => {
+    const el = _getNodeEl(nodeId);
+    if (!el) return;
+    el.style.left = `${pt.x + dx}px`;
+    el.style.top = `${pt.y + dy}px`;
+  });
+  Canvas.drawEdges();
+  renderSubgraphs();
+  const box = document.querySelector(`.subgraph-box[data-id="${CSS.escape(s.groupId)}"]`);
+  box?.classList.add('group-dragging');
+}
+function _onSubgraphGroupDragUp() {
+  document.removeEventListener('mousemove', _onSubgraphGroupDragMove, true);
+  document.removeEventListener('mouseup', _onSubgraphGroupDragUp, true);
+  const s = SUBGRAPHS.dragGroup;
+  SUBGRAPHS.dragGroup = null;
+  if (!s) return;
+  if (!s.moved) return;
+  s.nodeStart.forEach((_, nodeId) => {
+    const el = _getNodeEl(nodeId);
+    const n = Canvas.getNode(nodeId);
+    if (!el || !n) return;
+    n.x = parseFloat(el.style.left) || 0;
+    n.y = parseFloat(el.style.top) || 0;
+  });
+  _markSubgraphMutation();
+  renderSubgraphs();
+}
+function _bindSubgraphFeatureListeners() {
+  if (_subgraphListenersBound) return;
+  _subgraphListenersBound = true;
+  const inner = Canvas.getCanvasInner();
+  const canvas = Canvas.getCanvasEl();
+  if (!inner || !canvas) return;
+  inner.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const head = e.target.closest('.node-head');
+    if (!head || e.target.closest('.menu-dots')) return;
+    const node = head.closest('.node');
+    if (!node) return;
+    const sg = _getSubgraphByNode(node.dataset.nodeId);
+    SUBGRAPHS.drag = {
+      nodeId: node.dataset.nodeId,
+      moved: false,
+      hoverNodeId: null,
+      hoverGroupId: null,
+      dropOutsideSrc: false,
+      lastHoverGroupId: null,
+      srcRect: sg ? document.querySelector(`.subgraph-box[data-id="${CSS.escape(sg.id)}"]`)?.getBoundingClientRect() : null,
+    };
+    document.addEventListener('mousemove', _onSubgraphDragMove, true);
+    document.addEventListener('mouseup', _onSubgraphDragUp, true);
+  }, true);
+  inner.addEventListener('click', e => {
+    const head = e.target.closest('.node-head');
+    if (!head) return;
+    const node = head.closest('.node');
+    if (!node) return;
+    const id = node.dataset.nodeId;
+    if (e.metaKey || e.ctrlKey) {
+      const next = new Set(SUBGRAPHS.selectedNodeIds);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      _setSelectedNodes([...next]);
+    } else {
+      _setSelectedNodes([id]);
+    }
+  }, true);
+  inner.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    let box = e.target.closest('.subgraph-box');
+    if (!box) {
+      const h = e.target.closest('.sg-head[data-sg-group]');
+      if (h?.dataset?.sgGroup) {
+        box = document.querySelector(`.subgraph-box[data-id="${CSS.escape(h.dataset.sgGroup)}"]`);
+      }
+    }
+    if (!box) return;
+    if (e.target.closest('.sg-toggle, .sg-kebab, .sg-menu')) return;
+    if (e.target.closest('[data-sg-name]')) return;
+    if (e.target.closest('[data-sg-name][contenteditable="true"]')) return;
+    const gid = box.dataset.id;
+    const g = _getSubgraphById(gid);
+    if (!g) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const nodeStart = new Map();
+    (g.nodeIds || []).forEach(id => {
+      const el = _getNodeEl(id);
+      if (!el) return;
+      nodeStart.set(id, {
+        x: parseFloat(el.style.left) || 0,
+        y: parseFloat(el.style.top) || 0,
+      });
+    });
+    if (!nodeStart.size) return;
+    SUBGRAPHS.dragGroup = { groupId: gid, startX: e.clientX, startY: e.clientY, nodeStart, moved: false };
+    document.addEventListener('mousemove', _onSubgraphGroupDragMove, true);
+    document.addEventListener('mouseup', _onSubgraphGroupDragUp, true);
+  }, true);
+  canvas.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const useMarquee = e.shiftKey || SUBGRAPHS.marqueeTool;
+    if (!useMarquee) return;
+    if (e.target.closest('.node, .subgraph-box, .sg-head[data-sg-group]')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const rect = canvas.getBoundingClientRect();
+    const box = document.createElement('div');
+    box.className = 'subgraph-marquee';
+    canvas.parentElement?.appendChild(box);
+    SUBGRAPHS.marquee = { box, sx: e.clientX - rect.left, sy: e.clientY - rect.top, rect };
+    const onMove = (ev) => {
+      if (!SUBGRAPHS.marquee) return;
+      const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+      const x = Math.min(SUBGRAPHS.marquee.sx, mx);
+      const y = Math.min(SUBGRAPHS.marquee.sy, my);
+      const w = Math.abs(mx - SUBGRAPHS.marquee.sx);
+      const h = Math.abs(my - SUBGRAPHS.marquee.sy);
+      Object.assign(box.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+      const picked = _collectMarqueeNodes(box.getBoundingClientRect());
+      _setSelectedNodes(picked);
+      _previewMarqueeNodes(picked);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onUp, true);
+      const r = box.getBoundingClientRect();
+      box.remove();
+      SUBGRAPHS.marquee = null;
+      const picked = _collectMarqueeNodes(r);
+      _clearMarqueePreview();
+      _setSelectedNodes(picked);
+      const g = picked.length >= 1 ? _createSubgraph(picked, true) : null;
+      if (g) {
+        _setSelectedNodes([]);
+        _markSubgraphMutation();
+      }
+    };
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+  }, true);
+    document.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    if (e.key.toLowerCase() !== 'g') return;
+    if (SUBGRAPHS.selectedNodeIds.size < 1) return;
+    e.preventDefault();
+    const g = _createSubgraph([...SUBGRAPHS.selectedNodeIds], true);
+    if (!g) return;
+    _setSelectedNodes([]);
+    _markSubgraphMutation();
+  });
+  if (inner && !SUBGRAPHS._sgDblclickInner) {
+    SUBGRAPHS._sgDblclickInner = true;
+    inner.addEventListener('dblclick', (e) => {
+      const box = e.target.closest('.subgraph-box');
+      const head = e.target.closest('.sg-head[data-sg-group]');
+      const gid = box?.dataset?.id || head?.dataset?.sgGroup;
+      if (!gid) return;
+      const targetBox = box || document.querySelector(`.subgraph-box[data-id="${CSS.escape(gid)}"]`);
+      if (!targetBox || targetBox.classList.contains('preview')) return;
+      if (e.target.closest('.sg-kebab, .sg-menu, .sg-toggle')) return;
+      if (e.target.closest('.sg-name')) return;
+      const g = _getSubgraphById(gid);
+      if (!g) return;
+      e.preventDefault();
+      e.stopPropagation();
+      g.collapsed = !g.collapsed;
+      _markSubgraphMutation();
+      renderSubgraphs();
+    }, true);
+  }
+}
+function initSubgraphFeature(initialSubgraphs) {
+  _installSubgraphCollapsedPortHooks();
+  SUBGRAPHS.items = _cloneSubgraphs(initialSubgraphs);
+  _bindSubgraphFeatureListeners();
+  renderSubgraphs();
+}
 
 function initApp() {
   const P = window.PROJECT;
@@ -2348,6 +4444,7 @@ function initApp() {
     const base = cloneGraph({
       nodes: P.nodes, connections: P.connections,
       canvasWidth: P.canvasWidth, canvasHeight: P.canvasHeight,
+      subgraphs: P.subgraphs,
     });
     variants = [
       { id: 'v1', name: 'Master',        createdAt: Date.now(), ...base             },
@@ -2371,6 +4468,7 @@ function initApp() {
     canvasWidth: activeVariant.canvasWidth || P.canvasWidth,
     canvasHeight: activeVariant.canvasHeight || P.canvasHeight,
   });
+  initSubgraphFeature(activeVariant.subgraphs || []);
   // Clicking a node either toggles it in the current path draft (if we're
   // in draw mode) or opens the Inspector — never both.
   Canvas.onNodeClick(nodeData => {
@@ -2398,6 +4496,7 @@ function initApp() {
   initMinimap();
   initKebab();
   initCanvasContextMenu();
+  initActiveEdgeDeleteKey();
   // On entry from view mode, start with a full-graph framing so users see
   // the entire workflow immediately.
   requestAnimationFrame(() => requestAnimationFrame(fitAllNodesInView));
@@ -2421,6 +4520,7 @@ function snapshotActiveVariant() {
     views: n.views, downloads: n.downloads,
   }));
   variants[idx].connections = Canvas.getConnections().map(c => ({ from: [...c.from], to: [...c.to] }));
+  variants[idx].subgraphs = getSubgraphSnapshot();
   writeJSON(KEY.variants, variants);
 }
 
@@ -2447,6 +4547,7 @@ function switchVariant(vid) {
     (target.nodes || []).forEach(n => Canvas.addNode({ ...n }));
     (target.connections || []).forEach(c => Canvas.addConnection(c.from, c.to));
     Canvas.drawEdges();
+    initSubgraphFeature(target.subgraphs || []);
   } finally {
     HISTORY_APPLYING = false;
   }
@@ -2894,6 +4995,33 @@ function initPresence(P) {
   });
 }
 
+/* Bottom panel layout helpers (runs / logs / problems dock). */
+function readCssLengthPx(varName, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  const m = raw.match(/^([\d.]+)px$/i);
+  if (m) return parseFloat(m[1]);
+  return fallback;
+}
+function bpShellTopPx() {
+  return readCssLengthPx('--topbar-h', 52) + readCssLengthPx('--variant-h', 38);
+}
+function bpDefaultDockedHeightPx() {
+  return readCssLengthPx('--bottom-h', 240);
+}
+function bpMaxDockedHeightPx() {
+  const minMain = 96;
+  return Math.max(160, window.innerHeight - bpShellTopPx() - minMain);
+}
+function bpFullOverlayHeightPx() {
+  return window.innerHeight - bpShellTopPx();
+}
+function syncBpAppShell() {
+  const app = document.querySelector('.app');
+  const bp = document.getElementById('bottomPanel');
+  if (!app || !bp) return;
+  app.classList.toggle('bp-expanded', bp.classList.contains('open') && bp.classList.contains('expanded'));
+}
+
 /* ── Drawer toggles (topbar) ───────────────────────────────
    Rules:
      • One drawer per side. Opening a left-side tab while the left
@@ -2942,6 +5070,7 @@ function initDrawerToggles() {
         el.classList.add('open');
         activate(side, tab);
       }
+      syncPathDrawFloatOverlay();
     });
   });
   // Clicking a tab inside the drawer switches panel but keeps drawer open.
@@ -2950,6 +5079,7 @@ function initDrawerToggles() {
       const drawer = t.closest('.drawer');
       const side = drawer.classList.contains('drawer-left') ? 'left' : 'right';
       activate(side, t.dataset.tab);
+      syncPathDrawFloatOverlay();
     });
   });
   // Close × on each drawer: collapse the drawer and clear every entry point.
@@ -2961,6 +5091,7 @@ function initDrawerToggles() {
       document.querySelectorAll(`[data-side="${side}"]`).forEach(t => {
         if (t.dataset.tab) t.classList.remove('active');
       });
+      syncPathDrawFloatOverlay();
     });
   });
   // Runs topbar toggle (bottom panel). Separate from the Run button so users
@@ -2975,7 +5106,11 @@ function initDrawerToggles() {
         // Default to the Runs tab when opening via the topbar shortcut.
         bottomEl.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
         bottomEl.querySelectorAll('.bp-panel').forEach(p => p.classList.toggle('active', p.id === 'bpRuns'));
+      } else {
+        bottomEl.classList.remove('expanded');
+        bottomEl.style.removeProperty('top');
       }
+      syncBpAppShell();
     });
   }
   // Drawers start collapsed by default on entry; users can open Discover
@@ -3657,6 +5792,7 @@ function saveHistorySnapshot(msg) {
       views: n.views, downloads: n.downloads,
     })),
     connections: Canvas.getConnections().map(c => ({ from: [...c.from], to: [...c.to] })),
+    subgraphs: getSubgraphSnapshot(),
   };
   hist.push(snapshot);
   writeJSON(KEY.history(ACTIVE_VID), hist);
@@ -3723,6 +5859,7 @@ function paintCanvasFromSnapshot(target) {
     (target.nodes || []).forEach(n => Canvas.addNode({ ...n }));
     (target.connections || []).forEach(c => Canvas.addConnection(c.from, c.to));
     Canvas.drawEdges();
+    initSubgraphFeature(target.subgraphs || []);
   } finally {
     HISTORY_APPLYING = false;
   }
@@ -3769,6 +5906,8 @@ const PATH_DRAW = {
   editingPathId: null,
   hintTimer: null,
 };
+/** Mousedown position for path picks — ignore click after a drag (e.g. node move). */
+const PATH_PICK = { x: 0, y: 0, nodeId: null, armed: false };
 let FOCUSED_PATH_ID = null; // drawer item currently highlighted on the canvas
 
 function initPaths() {
@@ -3948,36 +6087,49 @@ function openAdminRequestModal(P) {
    - "+" (tool-primary) opens Discover in the left drawer — single entry
      point to add any content (models/datasets/logic).
    - select/pan is the default cursor state (V)
+   - group marquee: drag on empty canvas to box-select; ⌘/Ctrl+G to group
    - comment enters comment-drop mode (C)
    - path enters path-draw mode (P)
    Discover no longer has a dedicated pill; the "+" tool *is* the pill. */
 function initToolPalette() {
-  const tools = document.querySelectorAll('.tool-palette .tool');
-  const setActive = (name) => tools.forEach(t => t.classList.toggle('active', t.dataset.tool === name));
-
-  // Select / pan — just re-sets the active state.
+  // Select / pan — re-sets the active state and exits other modes.
   document.querySelector('[data-tool="select"]')?.addEventListener('click', () => {
     if (PATH_DRAW.active) pathDrawCancel();
     if (COMMENTS.dropping) stopCommentDrop();
-    setActive('select');
+    setPaletteTool('select');
+  });
+
+  document.getElementById('toolSubgraphMarquee')?.addEventListener('click', () => {
+    if (PATH_DRAW.active) pathDrawCancel();
+    if (COMMENTS.dropping) stopCommentDrop();
+    setPaletteTool('subgraph-marquee');
   });
 
   // Comment tool toggles comment-drop mode.
   const tc = document.getElementById('toolComment');
   tc?.addEventListener('click', () => {
-    if (COMMENTS.dropping) { stopCommentDrop(); setActive('select'); return; }
+    if (COMMENTS.dropping) { stopCommentDrop(); return; }
     startCommentDrop();
-    setActive('comment');
+    setPaletteTool('comment');
   });
 
-  // Keyboard shortcuts (V / C / P). Discover has its own standard +.
+  // Keyboard shortcuts (V / M / C / P). Discover has its own standard +.
   document.addEventListener('keydown', (e) => {
     // Don't swallow shortcuts while typing in inputs / content-editables.
     const t = e.target;
     if (t && (t.matches('input, textarea, [contenteditable="true"]'))) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
-    if (key === 'v') { setActive('select'); if (PATH_DRAW.active) pathDrawCancel(); if (COMMENTS.dropping) stopCommentDrop(); }
+    if (key === 'v') {
+      setPaletteTool('select');
+      if (PATH_DRAW.active) pathDrawCancel();
+      if (COMMENTS.dropping) stopCommentDrop();
+    }
+    if (key === 'm') {
+      if (PATH_DRAW.active) pathDrawCancel();
+      if (COMMENTS.dropping) stopCommentDrop();
+      setPaletteTool('subgraph-marquee');
+    }
     if (key === 'c') tc?.click();
     if (key === 'p') document.querySelector('[data-tool="path"]')?.click();
   });
@@ -3996,7 +6148,7 @@ function pathDrawStart(opts) {
   rightEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'paths'));
   rightEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelPaths'));
   document.querySelectorAll('.tb-toggle[data-side="right"]').forEach(t => t.classList.toggle('active', t.dataset.tab === 'paths'));
-  document.querySelector('[data-tool="path"]')?.classList.add('active');
+  setPaletteTool('path');
   attachPathClickCapture();
   renderPaths();
   applyPathHighlights();
@@ -4011,7 +6163,7 @@ function pathDrawCancel() {
   PATH_DRAW.nodeIds = [];
   PATH_DRAW.editingPathId = null;
   document.body.classList.remove('building-path');
-  document.querySelector('[data-tool="path"]')?.classList.remove('active');
+  setPaletteTool('select');
   detachPathClickCapture();
   clearPathHighlights();
   renderPaths();
@@ -4030,6 +6182,24 @@ function downstreamOf(id) {
 // Capture-phase click: intercept before Canvas's own node-item listener
 // so we can claim the event regardless of where inside the card the
 // user clicked. Kebab and port handles are let through.
+function onPathPointerDownCapture(e) {
+  if (e.button !== 0 || !PATH_DRAW.active) return;
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl) {
+    PATH_PICK.armed = false;
+    return;
+  }
+  if (e.target.closest('.menu-dots')) return;
+  if (e.target.closest('.port-anchor')) return;
+  if (e.target.closest('.node-section')) return;
+  if (e.target.closest('.node-item')) return;
+  const id = nodeEl.dataset.nodeId;
+  if (!id) return;
+  PATH_PICK.armed = true;
+  PATH_PICK.x = e.clientX;
+  PATH_PICK.y = e.clientY;
+  PATH_PICK.nodeId = id;
+}
 function onPathClickCapture(e) {
   const nodeEl = e.target.closest('.node');
   if (!nodeEl) return;
@@ -4039,15 +6209,28 @@ function onPathClickCapture(e) {
   if (e.target.closest('.node-item'))    return;
   const id = nodeEl.dataset.nodeId;
   if (!id) return;
+  if (PATH_PICK.armed && PATH_PICK.nodeId === id) {
+    const d = Math.hypot(e.clientX - PATH_PICK.x, e.clientY - PATH_PICK.y);
+    if (d > 8) {
+      PATH_PICK.armed = false;
+      return;
+    }
+  }
+  PATH_PICK.armed = false;
   e.stopPropagation();
   e.preventDefault();
   handlePathPick(id);
 }
 function attachPathClickCapture() {
-  Canvas.getCanvasInner().addEventListener('click', onPathClickCapture, true);
+  const inner = Canvas.getCanvasInner();
+  inner.addEventListener('mousedown', onPathPointerDownCapture, true);
+  inner.addEventListener('click', onPathClickCapture, true);
 }
 function detachPathClickCapture() {
-  Canvas.getCanvasInner().removeEventListener('click', onPathClickCapture, true);
+  const inner = Canvas.getCanvasInner();
+  inner.removeEventListener('mousedown', onPathPointerDownCapture, true);
+  inner.removeEventListener('click', onPathClickCapture, true);
+  PATH_PICK.armed = false;
 }
 
 function handlePathPick(id) {
@@ -4096,25 +6279,36 @@ function pathDrawUndo() {
 function pathDrawSave() {
   if (PATH_DRAW.nodeIds.length < 2) return;
   const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
+  let savedPathId = PATH_DRAW.editingPathId;
   if (PATH_DRAW.editingPathId) {
     const existing = paths.find(p => p.id === PATH_DRAW.editingPathId);
     if (existing) {
       existing.nodeIds = [...PATH_DRAW.nodeIds];
       // Legacy field — keep in sync so view mode can still read it.
       existing.nodes = [...PATH_DRAW.nodeIds];
+      savedPathId = existing.id;
     }
   } else {
+    const id = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
     paths.push({
-      id: 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      id,
       name: 'Path ' + (paths.length + 1),
       nodeIds: [...PATH_DRAW.nodeIds],
       nodes: [...PATH_DRAW.nodeIds],
       author: 'You',
       createdAt: Date.now(),
     });
+    savedPathId = id;
   }
   writeJSON(KEY.paths(ACTIVE_VID), paths);
   pathDrawCancel();
+  if (savedPathId) {
+    // Show drawer highlight immediately, then re-apply full focus after
+    // the post-cancel render cycle settles.
+    FOCUSED_PATH_ID = savedPathId;
+    renderPaths();
+    requestAnimationFrame(() => focusSavedPath(savedPathId));
+  }
 }
 
 // Three-state canvas highlighting — see CSS for visuals.
@@ -4203,19 +6397,57 @@ function fitPathNodes(ids) {
 }
 
 function setPathHint(text, isError) {
-  const el = document.getElementById('pathDrawHint');
-  if (!el) return;
-  el.textContent = text;
-  el.classList.toggle('error', !!isError);
+  const els = document.querySelectorAll('[data-path-hint]');
+  if (!els.length) return;
+  els.forEach(el => {
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+  });
   if (PATH_DRAW.hintTimer) { clearTimeout(PATH_DRAW.hintTimer); PATH_DRAW.hintTimer = null; }
   if (isError) {
     PATH_DRAW.hintTimer = setTimeout(() => {
-      el.classList.remove('error');
-      el.textContent = PATH_DRAW.nodeIds.length
+      const hint = PATH_DRAW.nodeIds.length
         ? 'Pick the next downstream node, or hit Save.'
         : 'Click a node to start.';
+      document.querySelectorAll('[data-path-hint]').forEach(el => {
+        el.classList.remove('error');
+        el.textContent = hint;
+      });
     }, 2200);
   }
+}
+
+function wirePathDrawBanner(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-pd-act]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = btn.dataset.pdAct;
+      if (a === 'cancel') pathDrawCancel();
+      else if (a === 'undo') pathDrawUndo();
+      else if (a === 'save') pathDrawSave();
+    });
+  });
+}
+
+function syncPathDrawFloatOverlay() {
+  const fo = document.getElementById('pathDrawFloatOverlay');
+  if (!fo) return;
+  if (!PATH_DRAW.active) {
+    fo.hidden = true;
+    fo.innerHTML = '';
+    return;
+  }
+  const rightEl = document.getElementById('drawerRight');
+  const pathsOpen = rightEl?.classList.contains('open')
+    && document.getElementById('panelPaths')?.classList.contains('active');
+  if (pathsOpen) {
+    fo.hidden = true;
+    fo.innerHTML = '';
+    return;
+  }
+  fo.hidden = false;
+  fo.innerHTML = renderPathDrawBanner();
+  wirePathDrawBanner(fo);
 }
 
 function renderPaths() {
@@ -4242,13 +6474,12 @@ function renderPaths() {
   panel.innerHTML = banner + list;
 
   if (PATH_DRAW.active) {
-    document.getElementById('pathDrawCancel').addEventListener('click', pathDrawCancel);
-    document.getElementById('pathDrawUndo')?.addEventListener('click', pathDrawUndo);
-    document.getElementById('pathDrawSave')?.addEventListener('click', pathDrawSave);
+    wirePathDrawBanner(panel);
   } else {
     document.getElementById('newPathBtn')?.addEventListener('click', () => pathDrawStart());
   }
   panel.querySelectorAll('.path-item').forEach(item => wirePathItem(item));
+  syncPathDrawFloatOverlay();
 }
 
 function renderPathDrawBanner() {
@@ -4270,18 +6501,19 @@ function renderPathDrawBanner() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
         ${PATH_DRAW.editingPathId ? 'Editing path' : 'Drawing path'} · ${ids.length} node${ids.length === 1 ? '' : 's'}
       </div>
-      <div class="path-draw-hint" id="pathDrawHint">${esc(hint)}</div>
+      <div class="path-draw-hint" data-path-hint>${esc(hint)}</div>
       ${chainHtml}
       <div class="path-draw-actions">
-        <button id="pathDrawCancel">Cancel</button>
-        <button id="pathDrawUndo" ${ids.length ? '' : 'disabled'}>Undo</button>
-        <button class="primary" id="pathDrawSave" ${ids.length >= 2 ? '' : 'disabled'}>Save</button>
+        <button type="button" data-pd-act="cancel">Cancel</button>
+        <button type="button" data-pd-act="undo" ${ids.length ? '' : 'disabled'}>Undo</button>
+        <button type="button" class="primary" data-pd-act="save" ${ids.length >= 2 ? '' : 'disabled'}>Save</button>
       </div>
     </div>`;
 }
 
 function renderPathItem(p) {
   const nodeIds = p.nodeIds || p.nodes || [];
+  const pathRunCount = (readJSON(KEY.runs(ACTIVE_VID)) || []).filter(r => r.pathId === p.id).length;
   const MAX_PREVIEW = 3;
   const previewIds = nodeIds.slice(0, MAX_PREVIEW);
   const chainPills = previewIds.map((id, i) => {
@@ -4296,15 +6528,16 @@ function renderPathItem(p) {
   return `
     <div class="path-item${focused}" data-id="${p.id}">
       <div class="path-item-top">
-        <button class="t" data-act="rename-inline" title="Click to rename">${esc(p.name)}</button>
+        <div class="t" data-act="rename-inline" role="button" tabindex="0" title="Click to rename">${esc(p.name)}</div>
         <div class="path-item-actions">
           <button data-act="edit" title="Edit path"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button data-act="extract" title="Extract to variant"><img src="icons/export.png" alt="Extract to variant" /></button>
           <button data-act="duplicate" title="Duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           <button class="danger" data-act="delete" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
         </div>
       </div>
       <div class="path-item-chain">${chainPills}${tail}</div>
-      <div class="m">${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'} · ${esc(p.author || 'Unknown')} · ${formatRelativeTime(p.createdAt)}</div>
+      <div class="m">${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'} · ${esc(p.author || 'Unknown')} · ${formatRelativeTime(p.createdAt)}${pathRunCount ? ` · ${pathRunCount} run${pathRunCount === 1 ? '' : 's'}` : ''}</div>
       <button class="path-item-run" data-act="run">
         <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
         Run experiment
@@ -4321,9 +6554,24 @@ function wirePathItem(item) {
     focusSavedPath(id);
   });
   item.querySelectorAll('button[data-act]').forEach(b => b.addEventListener('click', e => {
+    if (b.isContentEditable) return;
     e.stopPropagation();
     handlePathAction(id, b.dataset.act, b);
   }));
+  const renameEl = item.querySelector('[data-act="rename-inline"]');
+  if (renameEl) {
+    renameEl.addEventListener('click', e => {
+      e.stopPropagation();
+      startInlineRename(id, renameEl);
+    });
+    renameEl.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (renameEl.isContentEditable) return;
+      e.preventDefault();
+      e.stopPropagation();
+      startInlineRename(id, renameEl);
+    });
+  }
 }
 
 function startInlinePathDelete(pathId, btnEl) {
@@ -4383,6 +6631,63 @@ function startInlinePathDelete(pathId, btnEl) {
   document.addEventListener('keydown', onKey);
 }
 
+function startInlinePathExtract(pathId, btnEl) {
+  const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
+  const p = paths.find(x => x.id === pathId);
+  if (!p || !btnEl) return;
+  const existing = document.querySelector('.path-confirm-pop');
+  if (existing) {
+    const same = existing.dataset.pathId === pathId && existing.dataset.mode === 'extract';
+    existing._cleanup?.();
+    if (same) return;
+  }
+
+  const pop = document.createElement('div');
+  pop.className = 'variant-confirm-pop path-confirm-pop extract';
+  pop.dataset.pathId = pathId;
+  pop.dataset.mode = 'extract';
+  pop.innerHTML = `
+    <div class="pop-msg">Extract <strong>${esc(p.name)}</strong> to new variant?</div>
+    <div class="pop-actions">
+      <button type="button" class="pop-no">Cancel</button>
+      <button type="button" class="pop-yes">Confirm</button>
+    </div>`;
+  document.body.appendChild(pop);
+
+  const r = btnEl.getBoundingClientRect();
+  const popW = pop.offsetWidth;
+  let left = r.right - popW;
+  left = Math.min(Math.max(left, 8), window.innerWidth - popW - 8);
+  const tailLeft = Math.min(Math.max((r.left + r.width / 2) - left - 5, 10), popW - 18);
+  pop.style.setProperty('--pop-tail-left', `${tailLeft}px`);
+  pop.style.left = left + 'px';
+  pop.style.top  = (r.bottom + 6) + 'px';
+
+  const cleanup = () => {
+    pop.remove();
+    document.removeEventListener('mousedown', onDoc, true);
+    document.removeEventListener('keydown', onKey);
+  };
+  pop._cleanup = cleanup;
+
+  const doExtract = () => {
+    cleanup();
+    extractPathToVariant(pathId, { includeDependencies: false });
+  };
+  const onDoc = (e) => {
+    if (pop.contains(e.target) || btnEl.contains(e.target)) return;
+    cleanup();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    if (e.key === 'Enter')  { e.preventDefault(); doExtract(); }
+  };
+  pop.querySelector('.pop-yes').addEventListener('click', doExtract);
+  pop.querySelector('.pop-no').addEventListener('click', cleanup);
+  setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
+  document.addEventListener('keydown', onKey);
+}
+
 function handlePathAction(pathId, act, btnEl) {
   const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
   const p = paths.find(x => x.id === pathId);
@@ -4404,15 +6709,96 @@ function handlePathAction(pathId, act, btnEl) {
     renderPaths();
   } else if (act === 'edit') {
     pathDrawStart({ seedIds: (p.nodeIds || p.nodes || []).slice(), editingPathId: p.id });
+  } else if (act === 'extract') {
+    startInlinePathExtract(p.id, btnEl);
   } else if (act === 'rename-inline') {
     startInlineRename(pathId, btnEl);
   } else if (act === 'run') {
-    // Wireframe: start a run. Real integration would scope the run to
-    // just this path's subgraph.
-    startRun();
+    startRun({
+      pathId: p.id,
+      pathName: p.name,
+      pathNodeIds: (p.nodeIds || p.nodes || []).slice(),
+    });
     document.getElementById('bottomPanel')?.classList.add('open');
     document.getElementById('tglRuns')?.classList.add('active');
+    syncBpAppShell();
   }
+}
+
+function extractPathToVariant(pathId, opts) {
+  opts = opts || {};
+  const includeDependencies = opts.includeDependencies !== false;
+  snapshotActiveVariant();
+  const variants = readJSON(KEY.variants) || [];
+  const active = variants.find(v => v.id === ACTIVE_VID);
+  if (!active) return;
+  const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
+  const p = paths.find(x => x.id === pathId);
+  if (!p) return;
+  const pathIds = (p.nodeIds || p.nodes || []).filter(id => active.nodes?.some(n => n.id === id));
+  if (!pathIds.length) return;
+
+  const keep = new Set(pathIds);
+  const conns = active.connections || [];
+  if (includeDependencies) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      conns.forEach(c => {
+        const from = c?.from?.[0], to = c?.to?.[0];
+        if (!from || !to) return;
+        if (!keep.has(to) || keep.has(from)) return;
+        keep.add(from);
+        changed = true;
+      });
+    }
+  }
+
+  const keptNodes = (active.nodes || [])
+    .filter(n => keep.has(n.id))
+    .map(n => ({ ...n, inputs: (n.inputs || []).map(i => ({ ...i })), outputs: (n.outputs || []).map(o => ({ ...o })) }));
+  const keptConns = conns
+    .filter(c => keep.has(c?.from?.[0]) && keep.has(c?.to?.[0]))
+    .map(c => ({ from: [...c.from], to: [...c.to] }));
+  const keptSubgraphs = _cloneSubgraphs((active.subgraphs || []).map(g => ({
+    ...g,
+    nodeIds: (g.nodeIds || []).filter(id => keep.has(id)),
+  }))).filter(g => g.nodeIds.length >= 1);
+  if (!keptNodes.length) return;
+
+  const newId = 'v' + (variants.length + 1) + '_' + Date.now().toString(36).slice(-4);
+  const baseName = `${p.name} (extracted)`;
+  const taken = new Set(variants.map(v => (v.name || '').toLowerCase()));
+  let name = baseName;
+  let i = 2;
+  while (taken.has(name.toLowerCase())) {
+    name = `${baseName} ${i}`;
+    i += 1;
+  }
+  variants.push({
+    id: newId,
+    name,
+    createdAt: Date.now(),
+    nodes: keptNodes,
+    connections: keptConns,
+    subgraphs: keptSubgraphs,
+    canvasWidth: active.canvasWidth || window.PROJECT?.canvasWidth,
+    canvasHeight: active.canvasHeight || window.PROJECT?.canvasHeight,
+  });
+  writeJSON(KEY.variants, variants);
+
+  const extractedPathId = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+  writeJSON(KEY.paths(newId), [{
+    id: extractedPathId,
+    name: p.name,
+    nodeIds: [...pathIds],
+    nodes: [...pathIds],
+    author: 'You',
+    createdAt: Date.now(),
+  }]);
+
+  switchVariant(newId);
+  requestAnimationFrame(() => focusSavedPath(extractedPathId));
 }
 
 function startInlineRename(pathId, nameEl) {
@@ -4437,6 +6823,13 @@ function startInlineRename(pathId, nameEl) {
     renderPaths();
   };
   const onKey = e => {
+    if (e.key === ' ') {
+      // While editing inside a <button>, Space can synthesize a click that
+      // restarts rename/select-all. Stop bubbling; let the space character
+      // insert normally.
+      e.stopPropagation();
+      return;
+    }
     if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
     if (e.key === 'Escape') { nameEl.textContent = nameEl.dataset.origName || nameEl.textContent; nameEl.blur(); }
   };
@@ -4448,31 +6841,35 @@ function startInlineRename(pathId, nameEl) {
 function focusSavedPath(pathId) {
   const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
   const p = paths.find(x => x.id === pathId);
-  if (!p) return;
-  const ids = (p.nodeIds || p.nodes || []).filter(id => Canvas.getNode(id));
-  if (!ids.length) return;
+  if (!p) return false;
   FOCUSED_PATH_ID = pathId;
-  const rightEl = document.getElementById('drawerRight');
-  const leftEl  = document.getElementById('drawerLeft');
-  Canvas.fitToNodes(ids, {
-    padding: 40,
-    reserve: {
-      top: 10, bottom: 10,
-      left:  leftEl?.classList.contains('open')  ? 0 : 60,
-      right: rightEl?.classList.contains('open') ? 0 : 20,
-    },
-    maxZoom: 1.5, minZoom: 0.3,
-  });
-  const set = new Set(ids);
-  document.querySelectorAll('.node').forEach(el => {
-    el.classList.remove('path-highlight', 'path-dim', 'path-selected', 'path-ineligible', 'path-candidate');
-    el.removeAttribute('data-path-idx');
-    const nid = el.dataset.nodeId;
-    if (!nid || !set.has(nid)) return;
-    el.classList.add('path-selected');
-    el.setAttribute('data-path-idx', (ids.indexOf(nid) + 1).toString());
-  });
+  const ids = (p.nodeIds || p.nodes || []).filter(id => Canvas.getNode(id));
+  if (ids.length) {
+    const rightEl = document.getElementById('drawerRight');
+    const leftEl  = document.getElementById('drawerLeft');
+    Canvas.fitToNodes(ids, {
+      padding: 40,
+      reserve: {
+        top: 10, bottom: 10,
+        left:  leftEl?.classList.contains('open')  ? 0 : 60,
+        right: rightEl?.classList.contains('open') ? 0 : 20,
+      },
+      maxZoom: 1.5, minZoom: 0.3,
+    });
+    const set = new Set(ids);
+    document.querySelectorAll('.node').forEach(el => {
+      el.classList.remove('path-highlight', 'path-dim', 'path-selected', 'path-ineligible', 'path-candidate');
+      el.removeAttribute('data-path-idx');
+      const nid = el.dataset.nodeId;
+      if (!nid || !set.has(nid)) return;
+      el.classList.add('path-selected');
+      el.setAttribute('data-path-idx', (ids.indexOf(nid) + 1).toString());
+    });
+  } else {
+    clearPathHighlights();
+  }
   renderPaths();
+  return true;
 }
 
 function clearFocusedPath() {
@@ -4502,14 +6899,7 @@ const COMMENTS = {
   dropping: false,
   ghostEl: null,
   editState: null, // { mode: 'create'|'edit', x, y, id?, tags: [] }
-  items: [
-    { id: 'c1', x: 260, y: 160, text: 'Should we sanity-check the bbox thresholds here?',
-      tags: ['question'], collapsed: true, replies: [], at: Date.now() - 600000,
-      author: { name: 'Tara Alvarez', letter: 'T', color: '#f59e0b', colorDeep: '#92400e', bg: '#fffbeb', border: '#fde68a' } },
-    { id: 'c2', x: 680, y: 340, text: 'I think the ResNet branch can be trimmed — thoughts?',
-      tags: [], collapsed: true, replies: [], at: Date.now() - 3600000,
-      author: { name: 'John Kahfcik', letter: 'J', color: '#3b82f6', colorDeep: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' } },
-  ],
+  items: [],
 };
 // Stand-in for real auth. Every comment/reply is attributed to this user
 // for now; swap these values in when session is wired up.
@@ -4829,7 +7219,7 @@ function stopCommentDrop() {
   document.removeEventListener('mousemove', _onCommentPlaceMove);
   document.removeEventListener('click',     _onCommentPlaceClick, { capture: true });
   document.removeEventListener('keydown',   _onCommentPlaceKey);
-  document.querySelectorAll('.tool-palette .tool').forEach(t => t.classList.toggle('active', t.dataset.tool === 'select'));
+  setPaletteTool('select');
 }
 function _onCommentPlaceMove(e) {
   if (!COMMENTS.ghostEl) return;
@@ -5082,25 +7472,191 @@ function renderInspector(n) {
 function initBottomPanel() {
   const panel = document.getElementById('bottomPanel');
   const closeBtn = document.getElementById('bpClose');
+  const expandBtn = document.getElementById('bpExpand');
+  const resizeEl = document.getElementById('bpResize');
   const tabs = panel.querySelectorAll('.bp-tab');
   const bodies = panel.querySelectorAll('.bp-panel');
+  const BP_MIN_H = 140;
+  let bpDrag = null;
+
+  function onBpResizeMove(e) {
+    if (!bpDrag || !panel.classList.contains('open')) return;
+    if (bpDrag.mode === 'expanded') {
+      const newTop = bpDrag.startTop + (e.clientY - bpDrag.startY);
+      const minTop = bpShellTopPx();
+      const maxTop = window.innerHeight - BP_MIN_H;
+      panel.style.top = Math.max(minTop, Math.min(newTop, maxTop)) + 'px';
+      return;
+    }
+    const delta = bpDrag.startY - e.clientY;
+    let h = bpDrag.startH + delta;
+    h = Math.max(BP_MIN_H, Math.min(h, bpMaxDockedHeightPx()));
+    panel.style.setProperty('--bp-h', Math.round(h) + 'px');
+  }
+  function onBpResizeUp() {
+    document.removeEventListener('mousemove', onBpResizeMove);
+    if (!bpDrag) return;
+    panel.classList.remove('bp-dragging');
+    if (bpDrag.mode === 'expanded') {
+      const h = panel.getBoundingClientRect().height;
+      const fullH = bpFullOverlayHeightPx();
+      if (h < fullH * 0.88) {
+        panel.classList.remove('expanded');
+        panel.style.removeProperty('top');
+        let dockH = Math.max(BP_MIN_H, Math.min(Math.round(h), bpMaxDockedHeightPx()));
+        const defH = bpDefaultDockedHeightPx();
+        const maxD = bpMaxDockedHeightPx();
+        const mid = (defH + maxD) / 2;
+        if (dockH >= mid) dockH = maxD;
+        else if (Math.abs(dockH - defH) < 30) dockH = defH;
+        panel.style.setProperty('--bp-h', dockH + 'px');
+      } else {
+        panel.style.removeProperty('top');
+      }
+    } else {
+      const h = Math.round(panel.getBoundingClientRect().height);
+      const maxD = bpMaxDockedHeightPx();
+      const defH = bpDefaultDockedHeightPx();
+      if (h >= maxD - 12) {
+        panel.classList.add('expanded');
+        panel.style.removeProperty('--bp-h');
+        panel.style.removeProperty('top');
+      } else {
+        const mid = (defH + maxD) / 2;
+        if (h >= mid) panel.style.setProperty('--bp-h', maxD + 'px');
+        else if (h <= (defH + BP_MIN_H) / 2) panel.style.setProperty('--bp-h', defH + 'px');
+        else panel.style.setProperty('--bp-h', h + 'px');
+      }
+    }
+    bpDrag = null;
+    syncBpAppShell();
+  }
+
   function activate(tab) {
     tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     bodies.forEach(b => b.classList.toggle('active', b.id.toLowerCase().endsWith(tab)));
   }
   tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+  panel.querySelector('.bp-tabs')?.addEventListener('dblclick', e => {
+    if (!panel.classList.contains('open')) return;
+    if (e.target.closest('.bp-expand, .bp-close')) return;
+    e.preventDefault();
+    if (!panel.classList.contains('expanded')) {
+      expandBtn?.click();
+      return;
+    }
+    panel.style.setProperty('--bp-h', BP_MIN_H + 'px');
+    expandBtn?.click();
+  });
+  let bpTopAnimGen = 0;
+  expandBtn?.addEventListener('click', () => {
+    if (panel._bpTopAnimEnd) {
+      panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
+      panel._bpTopAnimEnd = null;
+    }
+    panel.classList.remove('bp-top-anim');
+    bpTopAnimGen++;
+    const gen = bpTopAnimGen;
+    const willExpand = !panel.classList.contains('expanded');
+    if (willExpand) {
+      const rect = panel.getBoundingClientRect();
+      panel.classList.add('expanded');
+      syncBpAppShell();
+      panel.style.removeProperty('--bp-h');
+      panel.classList.add('bp-top-anim');
+      panel.style.top = `${rect.top}px`;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (gen !== bpTopAnimGen) return;
+          panel.style.top = `${bpShellTopPx()}px`;
+        });
+      });
+      const onEnd = e => {
+        if (gen !== bpTopAnimGen) return;
+        if (e.target !== panel) return;
+        if (e.propertyName && e.propertyName !== 'top') return;
+        panel.removeEventListener('transitionend', onEnd);
+        if (panel._bpTopAnimEnd === onEnd) panel._bpTopAnimEnd = null;
+        if (!panel.classList.contains('expanded')) return;
+        panel.classList.remove('bp-top-anim');
+        panel.style.removeProperty('top');
+      };
+      panel._bpTopAnimEnd = onEnd;
+      panel.addEventListener('transitionend', onEnd);
+      expandBtn.title = 'Collapse panel';
+      expandBtn.setAttribute('aria-label', 'Collapse panel');
+    } else {
+      const readDockH = () => {
+        const v = getComputedStyle(panel).getPropertyValue('--bp-h').trim();
+        const m = v.match(/^([\d.]+)px$/i);
+        if (m) return parseFloat(m[1]);
+        return bpDefaultDockedHeightPx();
+      };
+      const h = readDockH();
+      const targetTop = Math.max(bpShellTopPx(), window.innerHeight - h);
+      panel.classList.add('bp-top-anim');
+      panel.style.top = `${panel.getBoundingClientRect().top}px`;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (gen !== bpTopAnimGen) return;
+          panel.style.top = `${targetTop}px`;
+        });
+      });
+      const onEnd = e => {
+        if (gen !== bpTopAnimGen) return;
+        if (e.target !== panel) return;
+        if (e.propertyName && e.propertyName !== 'top') return;
+        panel.removeEventListener('transitionend', onEnd);
+        if (panel._bpTopAnimEnd === onEnd) panel._bpTopAnimEnd = null;
+        panel.classList.remove('expanded', 'bp-top-anim');
+        panel.style.removeProperty('top');
+        syncBpAppShell();
+        expandBtn.title = 'Expand panel';
+        expandBtn.setAttribute('aria-label', 'Expand panel');
+      };
+      panel._bpTopAnimEnd = onEnd;
+      panel.addEventListener('transitionend', onEnd);
+    }
+  });
   closeBtn.addEventListener('click', () => {
+    if (panel._bpTopAnimEnd) {
+      panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
+      panel._bpTopAnimEnd = null;
+    }
+    bpTopAnimGen++;
+    panel.classList.remove('bp-top-anim');
+    panel.classList.remove('expanded');
     panel.classList.remove('open');
+    panel.style.removeProperty('top');
     document.getElementById('tglRuns')?.classList.remove('active');
+    if (expandBtn) {
+      expandBtn.title = 'Expand panel';
+      expandBtn.setAttribute('aria-label', 'Expand panel');
+    }
+    syncBpAppShell();
+  });
+  resizeEl?.addEventListener('mousedown', e => {
+    if (e.button !== 0 || !panel.classList.contains('open')) return;
+    e.preventDefault();
+    if (panel.classList.contains('expanded')) {
+      const rect = panel.getBoundingClientRect();
+      bpDrag = { mode: 'expanded', startY: e.clientY, startTop: rect.top };
+    } else {
+      bpDrag = { mode: 'docked', startY: e.clientY, startH: panel.getBoundingClientRect().height };
+    }
+    panel.classList.add('bp-dragging');
+    document.addEventListener('mousemove', onBpResizeMove);
+    document.addEventListener('mouseup', onBpResizeUp, { once: true });
   });
   // Seed a couple of completed runs per variant on first load so the
   // empty state isn't the first thing users see.
   const variants = readJSON(KEY.variants) || [];
   variants.forEach(v => {
     if ((readJSON(KEY.runs(v.id)) || []).length) return;
+    const seeded = makeRunResults(v.id.length * 1337);
     writeJSON(KEY.runs(v.id), [
       { id: 'r_' + v.id + '_a', name: v.name + ' · baseline', at: Date.now() - 86400000, status: 'ok', progress: 100,
-        acc: 88.4, f1: 0.83, loss: 0.30, iter: '10k' },
+        ...seeded, pathId: null, pathName: null, pathNodeIds: [], edgeGroups: [] },
     ]);
   });
   renderRuns();
@@ -5112,42 +7668,457 @@ function initBottomPanel() {
 // Single in-flight run per active variant. We keep a reference so the
 // interval can be cancelled if the user switches variants mid-run.
 let ACTIVE_RUN = null;
+let RUN_DETAIL_ID = null;
+let RUN_COMPARE_IDS = [];
+let RUN_COMPARE_LOSS_MODE = 'overlay'; // overlay | split | delta
+let RUN_COMPARE_VISIBLE = { a: true, b: true };
+
+function _num(v, dflt) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : dflt;
+}
+function _round(n, digits) {
+  const p = 10 ** (digits || 0);
+  return Math.round(n * p) / p;
+}
+function makeRunResults(seed) {
+  const s = _num(seed, Math.random() * 10000);
+  const baseAcc = 86 + ((s * 0.013) % 4.8);
+  const baseF1 = 0.79 + ((s * 0.011) % 0.11);
+  const baseLoss = 0.22 + ((s * 0.017) % 0.14);
+  const classes = ['Car', 'Pedestrian', 'Cyclist', 'Truck'];
+  const lossCurve = [];
+  for (let i = 0; i < 18; i++) {
+    const t = i / 17;
+    const noise = (((s + i * 17) % 9) - 4) * 0.003;
+    const y = Math.max(0.08, 0.92 - t * 0.66 + (1 - t) * 0.05 + noise);
+    lossCurve.push(_round(y, 3));
+  }
+  const confusion = [
+    [126, 8, 3, 6],
+    [7, 98, 11, 2],
+    [4, 12, 103, 6],
+    [5, 3, 6, 89],
+  ];
+  const perClass = [
+    { cls: 'Car',        precision: 0.93, recall: 0.90, f1: 0.92, support: 143 },
+    { cls: 'Pedestrian', precision: 0.84, recall: 0.83, f1: 0.83, support: 118 },
+    { cls: 'Cyclist',    precision: 0.84, recall: 0.82, f1: 0.83, support: 125 },
+    { cls: 'Truck',      precision: 0.86, recall: 0.86, f1: 0.86, support: 103 },
+  ];
+  return {
+    acc: _round(baseAcc, 1),
+    f1: _round(baseF1, 2),
+    loss: _round(baseLoss, 2),
+    iter: (10 + Math.floor(((s * 0.07) % 6))) + 'k',
+    wallSec: 220 + Math.floor((s * 0.19) % 190),
+    lossCurve,
+    classes,
+    confusion,
+    perClass,
+  };
+}
+function formatWallSec(sec) {
+  const s = Math.max(0, Math.floor(_num(sec, 0)));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}m ${String(r).padStart(2, '0')}s`;
+}
+function _seriesPath(arr, mapX, mapY) {
+  if (!arr.length) return '';
+  return arr.map((v, i) => `${i ? 'L' : 'M'} ${mapX(i, arr.length).toFixed(2)} ${mapY(v).toFixed(2)}`).join(' ');
+}
+function buildLossCurveSvg(primary, secondary, opts) {
+  const o = opts || {};
+  const p = Array.isArray(primary?.lossCurve) ? primary.lossCurve : [];
+  const s = Array.isArray(secondary?.lossCurve) ? secondary.lossCurve : [];
+  const mode = o.mode || 'single'; // single | overlay | delta
+  const showA = o.showA !== false;
+  const showB = o.showB !== false;
+  const includeHover = !!o.includeHover;
+  const visibleSeries = [];
+  if (showA && p.length) visibleSeries.push(p);
+  if (showB && s.length) visibleSeries.push(s);
+  if (!visibleSeries.length) return '<div style="font-size:12px;color:var(--text-muted);">No loss data.</div>';
+
+  const W = 560, H = 130, left = 36, right = 10, top = 8, bottom = 22;
+  const iw = W - left - right, ih = H - top - bottom;
+  const mapX = (i, len) => left + (iw * i / Math.max(1, len - 1));
+
+  let chartA = p;
+  let chartB = s;
+  let allVals = visibleSeries.flat();
+  let yLabel = 'loss';
+  let epochMax = Math.max(p.length, s.length);
+  if (mode === 'delta') {
+    const len = Math.min(p.length, s.length);
+    chartA = Array.from({ length: len }, (_, i) => _round(_num(p[i], 0) - _num(s[i], 0), 4));
+    chartB = [];
+    allVals = chartA;
+    yLabel = 'delta';
+    epochMax = len;
+  }
+  if (!allVals.length) return '<div style="font-size:12px;color:var(--text-muted);">No loss data.</div>';
+  const minY = Math.min(...allVals);
+  const maxY = Math.max(...allVals);
+  const pad = mode === 'delta' ? 0.015 : 0.03;
+  const lo = minY - pad;
+  const hi = maxY + pad;
+  const mapY = (v) => top + (hi - v) * (ih / Math.max(0.0001, hi - lo));
+  const endA = chartA.length ? { x: mapX(chartA.length - 1, chartA.length), y: mapY(chartA[chartA.length - 1]) } : null;
+  const endB = chartB.length ? { x: mapX(chartB.length - 1, chartB.length), y: mapY(chartB[chartB.length - 1]) } : null;
+
+  const dataA = chartA.join(',');
+  const dataB = chartB.join(',');
+  const hoverSvg = includeHover ? `
+      <line class="hover-line" data-hover-line x1="${left}" y1="${top}" x2="${left}" y2="${H - bottom}"></line>
+      <circle class="hover-dot a" data-hover-a cx="${left}" cy="${H - bottom}"></circle>
+      ${mode === 'overlay' ? `<circle class="hover-dot b" data-hover-b cx="${left}" cy="${H - bottom}"></circle>` : ''}
+      ${mode === 'delta' ? `<circle class="hover-dot delta" data-hover-delta cx="${left}" cy="${H - bottom}"></circle>` : ''}
+      <rect data-loss-hover-zone x="${left}" y="${top}" width="${iw}" height="${ih}" fill="transparent"
+        data-min-x="${left}" data-max-x="${left + iw}" data-min-y="${top}" data-max-y="${H - bottom}"
+        data-series-a="${esc(dataA)}" data-series-b="${esc(dataB)}" data-mode="${mode}" data-epoch-max="${epochMax}"></rect>` : '';
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-label="Loss curve">
+      <line class="axis" x1="${left}" y1="${top}" x2="${left}" y2="${H - bottom}" />
+      <line class="axis" x1="${left}" y1="${H - bottom}" x2="${W - right}" y2="${H - bottom}" />
+      <line class="grid" x1="${left}" y1="${top + ih * 0.33}" x2="${W - right}" y2="${top + ih * 0.33}" />
+      <line class="grid" x1="${left}" y1="${top + ih * 0.66}" x2="${W - right}" y2="${top + ih * 0.66}" />
+      ${mode === 'delta' ? `<line class="grid" x1="${left}" y1="${mapY(0)}" x2="${W - right}" y2="${mapY(0)}"></line>` : ''}
+      <text class="lbl" x="${left}" y="${H - 4}">epoch 1</text>
+      <text class="lbl" x="${W - right - 58}" y="${H - 4}">epoch ${Math.max(1, epochMax)}</text>
+      <text class="lbl" x="5" y="${top + 5}">${yLabel}</text>
+      ${chartA.length ? `<path class="series ${mode === 'delta' ? 'delta' : ''}" d="${_seriesPath(chartA, mapX, mapY)}" />` : ''}
+      ${mode === 'overlay' && chartB.length ? `<path class="series compare" d="${_seriesPath(chartB, mapX, mapY)}" />` : ''}
+      ${endA ? `<circle class="series-end ${mode === 'delta' ? 'delta' : 'a'}" cx="${endA.x}" cy="${endA.y}" r="3.5"></circle><text class="end-tag" x="${Math.min(W - right - 62, endA.x + 7)}" y="${endA.y - 6}">${_num(chartA[chartA.length - 1], 0).toFixed(3)}</text>` : ''}
+      ${endB && mode === 'overlay' ? `<circle class="series-end b" cx="${endB.x}" cy="${endB.y}" r="3.5"></circle><text class="end-tag" x="${Math.min(W - right - 62, endB.x + 7)}" y="${endB.y + 13}">${_num(chartB[chartB.length - 1], 0).toFixed(3)}</text>` : ''}
+      ${hoverSvg}
+    </svg>`;
+}
+function wireLossCurveHover(root) {
+  if (!root) return;
+  const zone = root.querySelector('[data-loss-hover-zone]');
+  if (!zone) return;
+  const tip = root.querySelector('.loss-curve-tip');
+  const hoverLine = root.querySelector('[data-hover-line]');
+  const dotA = root.querySelector('[data-hover-a]');
+  const dotB = root.querySelector('[data-hover-b]');
+  const dotD = root.querySelector('[data-hover-delta]');
+  const minX = _num(zone.dataset.minX, 0);
+  const maxX = _num(zone.dataset.maxX, 1);
+  const minY = _num(zone.dataset.minY, 0);
+  const maxY = _num(zone.dataset.maxY, 1);
+  const mode = zone.dataset.mode || 'overlay';
+  const arrA = (zone.dataset.seriesA || '').split(',').filter(Boolean).map(v => _num(v, 0));
+  const arrB = (zone.dataset.seriesB || '').split(',').filter(Boolean).map(v => _num(v, 0));
+  const epochMax = Math.max(1, _num(zone.dataset.epochMax, Math.max(arrA.length, arrB.length)));
+  const valToY = (v) => {
+    const all = [...arrA, ...arrB];
+    const lo = Math.min(...all);
+    const hi = Math.max(...all);
+    return minY + (hi - v) * ((maxY - minY) / Math.max(0.0001, hi - lo));
+  };
+  const setVisible = (on) => {
+    const op = on ? '1' : '0';
+    if (hoverLine) hoverLine.style.opacity = op;
+    if (dotA) dotA.style.opacity = op;
+    if (dotB) dotB.style.opacity = op;
+    if (dotD) dotD.style.opacity = op;
+    if (tip) tip.style.opacity = op;
+  };
+  zone.addEventListener('mouseleave', () => setVisible(false));
+  zone.addEventListener('mousemove', e => {
+    const rect = zone.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width)));
+    const i = Math.min(epochMax - 1, Math.max(0, Math.round(t * (epochMax - 1))));
+    const x = minX + (maxX - minX) * (i / Math.max(1, epochMax - 1));
+    if (hoverLine) { hoverLine.setAttribute('x1', x); hoverLine.setAttribute('x2', x); }
+    if (arrA.length && dotA) {
+      const idx = Math.min(arrA.length - 1, i);
+      dotA.setAttribute('cx', x);
+      dotA.setAttribute('cy', valToY(arrA[idx]));
+    }
+    if (arrB.length && dotB) {
+      const idx = Math.min(arrB.length - 1, i);
+      dotB.setAttribute('cx', x);
+      dotB.setAttribute('cy', valToY(arrB[idx]));
+    }
+    if (arrA.length && dotD && mode === 'delta') {
+      const idx = Math.min(arrA.length - 1, i);
+      dotD.setAttribute('cx', x);
+      dotD.setAttribute('cy', valToY(arrA[idx]));
+    }
+    if (tip) {
+      const aVal = arrA.length ? arrA[Math.min(arrA.length - 1, i)] : null;
+      const bVal = arrB.length ? arrB[Math.min(arrB.length - 1, i)] : null;
+      tip.innerHTML = mode === 'delta'
+        ? `<span class="k">epoch ${i + 1}</span><span class="d">Δ ${(aVal == null ? 0 : aVal).toFixed(3)}</span>`
+        : `<span class="k">epoch ${i + 1}</span>${aVal == null ? '' : `<span class="a">A ${aVal.toFixed(3)}</span>`}${bVal == null ? '' : ` <span class="b">B ${bVal.toFixed(3)}</span>`}`;
+      const hostRect = root.getBoundingClientRect();
+      const tipX = ((e.clientX - hostRect.left) / Math.max(1, hostRect.width)) * root.clientWidth;
+      tip.style.left = `${Math.max(28, Math.min(root.clientWidth - 28, tipX))}px`;
+      tip.style.top = `${Math.max(12, ((e.clientY - hostRect.top) / Math.max(1, hostRect.height)) * root.clientHeight)}px`;
+    }
+    setVisible(true);
+  });
+}
+function renderCompareLossSection(a, b) {
+  const showA = RUN_COMPARE_VISIBLE.a !== false;
+  const showB = RUN_COMPARE_VISIBLE.b !== false;
+  const canDelta = showA && showB;
+  if (RUN_COMPARE_LOSS_MODE === 'delta' && !canDelta) RUN_COMPARE_LOSS_MODE = 'overlay';
+  const overlayHtml = `
+    <div class="loss-curve compare-overlay" data-compare-curve="overlay">
+      ${buildLossCurveSvg(a, b, { mode: 'overlay', showA, showB, includeHover: true })}
+      <div class="loss-curve-tip"></div>
+    </div>`;
+  const splitCols = [];
+  if (showA) splitCols.push(`<div class="loss-curve">${buildLossCurveSvg(a, null, { mode: 'single', showA: true, showB: false })}</div>`);
+  if (showB) splitCols.push(`<div class="loss-curve">${buildLossCurveSvg(b, null, { mode: 'single', showA: true, showB: false })}</div>`);
+  const splitHtml = `
+    <div class="loss-compare-split">
+      ${splitCols.join('')}
+    </div>`;
+  const deltaHtml = `
+    <div class="loss-curve compare-overlay" data-compare-curve="delta">
+      ${buildLossCurveSvg(a, b, { mode: 'delta', showA: true, showB: true, includeHover: true })}
+      <div class="loss-curve-tip"></div>
+    </div>`;
+  return `
+    <div class="loss-compare-controls">
+      <div class="loss-mode-toggle">
+        <button type="button" data-loss-mode="overlay" class="${RUN_COMPARE_LOSS_MODE === 'overlay' ? 'active' : ''}">Overlay</button>
+        <button type="button" data-loss-mode="split" class="${RUN_COMPARE_LOSS_MODE === 'split' ? 'active' : ''}">Split</button>
+        <button type="button" data-loss-mode="delta" ${canDelta ? '' : 'disabled'} class="${RUN_COMPARE_LOSS_MODE === 'delta' ? 'active' : ''}">Delta</button>
+      </div>
+      <div class="loss-legend">
+        <label><span class="swatch a"></span>${esc(a.name)}</label>
+        <label><span class="swatch b"></span>${esc(b.name)}</label>
+      </div>
+    </div>
+    ${RUN_COMPARE_LOSS_MODE === 'overlay' ? overlayHtml : (RUN_COMPARE_LOSS_MODE === 'split' ? splitHtml : deltaHtml)}`;
+}
+function renderConfusion(run) {
+  const labels = run?.classes || [];
+  const mat = run?.confusion || [];
+  if (!labels.length || !mat.length) return '<div style="font-size:12px;color:var(--text-muted);">No confusion matrix.</div>';
+  const head = `<div class="conf-row" style="--conf-cols:${labels.length};"><div>True \\ Pred</div>${labels.map(l => `<div>${esc(l)}</div>`).join('')}</div>`;
+  const rows = labels.map((lbl, i) => {
+    const r = Array.isArray(mat[i]) ? mat[i] : [];
+    return `<div class="conf-row" style="--conf-cols:${labels.length};"><div>${esc(lbl)}</div>${labels.map((_, j) => `<div>${_num(r[j], 0)}</div>`).join('')}</div>`;
+  }).join('');
+  return `<div class="confusion-grid">${head}${rows}</div>`;
+}
+function renderPerClass(run) {
+  const rows = Array.isArray(run?.perClass) ? run.perClass : [];
+  if (!rows.length) return '<div style="font-size:12px;color:var(--text-muted);">No per-class metrics.</div>';
+  return `
+    <table class="per-class-table">
+      <thead><tr><th>Class</th><th style="text-align:right;">Precision</th><th style="text-align:right;">Recall</th><th style="text-align:right;">F1</th><th style="text-align:right;">Support</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr><td>${esc(r.cls)}</td><td class="num">${_num(r.precision, 0).toFixed(2)}</td><td class="num">${_num(r.recall, 0).toFixed(2)}</td><td class="num">${_num(r.f1, 0).toFixed(2)}</td><td class="num">${_num(r.support, 0)}</td></tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function flattenEdgeGroups(groups) {
+  const out = [];
+  (groups || []).forEach(g => (g || []).forEach(e => out.push(e)));
+  return out;
+}
+function buildPathEdgeGroups(pathNodeIds) {
+  const ids = (pathNodeIds || []).filter(Boolean);
+  if (ids.length < 2) return [];
+  const conns = Canvas.getConnections() || [];
+  const groups = [];
+  for (let i = 0; i < ids.length - 1; i++) {
+    const from = ids[i];
+    const to = ids[i + 1];
+    const matches = conns
+      .filter(c => c?.from?.[0] === from && c?.to?.[0] === to)
+      .map(() => ({ from, to }));
+    if (matches.length) groups.push(matches);
+  }
+  return groups;
+}
+function buildGraphEdgeGroups() {
+  const conns = Canvas.getConnections() || [];
+  if (!conns.length) return [];
+  const nodeIds = new Set();
+  const depth = new Map();
+  const edges = conns.map(c => ({ from: c?.from?.[0], to: c?.to?.[0] })).filter(e => e.from && e.to && e.from !== e.to);
+  edges.forEach(e => { nodeIds.add(e.from); nodeIds.add(e.to); });
+  nodeIds.forEach(id => depth.set(id, 0));
+  for (let pass = 0; pass < nodeIds.size; pass++) {
+    let changed = false;
+    edges.forEach(e => {
+      const next = (_num(depth.get(e.from), 0)) + 1;
+      if (next > _num(depth.get(e.to), 0)) {
+        depth.set(e.to, next);
+        changed = true;
+      }
+    });
+    if (!changed) break;
+  }
+  const map = new Map();
+  edges.forEach(e => {
+    const d = _num(depth.get(e.from), 0);
+    if (!map.has(d)) map.set(d, []);
+    map.get(d).push({ from: e.from, to: e.to });
+  });
+  return Array.from(map.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(x => x[1]);
+}
+function getRunEdgeGroups(run) {
+  const pathIds = run?.pathNodeIds || [];
+  if (pathIds.length >= 2) return buildPathEdgeGroups(pathIds);
+  return buildGraphEdgeGroups();
+}
+function applyRunFlowVisual(run) {
+  if (!run || run.status !== 'running') {
+    Canvas.setRunFlowEdges(false);
+    return;
+  }
+  const groups = Array.isArray(run.edgeGroups) ? run.edgeGroups : [];
+  if (!groups.length) {
+    Canvas.setRunFlowEdges(true);
+    return;
+  }
+  const total = groups.length;
+  const pct = Math.max(0, Math.min(100, _num(run.progress, 0)));
+  const activeIdx = Math.min(total - 1, Math.max(0, Math.floor((pct / 100) * total)));
+  Canvas.setRunFlowEdges({
+    enabled: true,
+    targetEdges: flattenEdgeGroups(groups),
+    doneEdges: flattenEdgeGroups(groups.slice(0, activeIdx)),
+    activeEdges: groups[activeIdx] || [],
+  });
+}
 
 function renderRuns() {
   const panel = document.getElementById('bpRuns');
-  const runs = (readJSON(KEY.runs(ACTIVE_VID)) || []).slice().reverse();
+  const runs = (readJSON(KEY.runs(ACTIVE_VID)) || []).slice().sort((a, b) => _num(b.at, 0) - _num(a.at, 0));
+  const runById = new Map(runs.map(r => [r.id, r]));
+  RUN_COMPARE_IDS = RUN_COMPARE_IDS.filter(id => runById.has(id));
+  if (!RUN_DETAIL_ID || !runById.has(RUN_DETAIL_ID)) RUN_DETAIL_ID = runs[0]?.id || null;
   document.getElementById('runsCount').textContent = runs.length;
   if (!runs.length) {
     panel.innerHTML = `<div class="empty-state" style="padding:28px;text-align:center;color:var(--text-muted);font-size:12.5px;">No runs yet. Click <b>Run</b> to kick one off.</div>`;
     return;
   }
-  const activeId = runs[0].id;
   panel.innerHTML = `
     <div class="runs-grid">
       <div class="runs-list">
-        ${runs.map(r => renderRunCard(r, r.id === activeId)).join('')}
+        ${runs.map(r => renderRunCard(r, r.id === RUN_DETAIL_ID, RUN_COMPARE_IDS.includes(r.id))).join('')}
       </div>
       <div class="run-detail" id="runDetail"></div>
     </div>`;
   panel.querySelectorAll('.run-card').forEach(c => c.addEventListener('click', () => {
-    panel.querySelectorAll('.run-card').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-    showRunDetail(c.dataset.id);
+    RUN_DETAIL_ID = c.dataset.id;
+    renderRuns();
   }));
-  showRunDetail(activeId);
+  panel.querySelectorAll('.run-compare-check').forEach(chk => {
+    chk.addEventListener('click', e => {
+      e.stopPropagation();
+      RUN_DETAIL_ID = chk.dataset.id;
+      panel.querySelectorAll('.run-card').forEach(x => x.classList.toggle('active', x.dataset.id === RUN_DETAIL_ID));
+      if (RUN_COMPARE_IDS.length === 2) showRunComparison(RUN_COMPARE_IDS[0], RUN_COMPARE_IDS[1]);
+      else showRunDetail(RUN_DETAIL_ID);
+    });
+    chk.addEventListener('change', e => {
+      e.stopPropagation();
+      const id = chk.dataset.id;
+      RUN_COMPARE_IDS = RUN_COMPARE_IDS.filter(x => x !== id);
+      if (chk.checked) RUN_COMPARE_IDS.push(id);
+      if (RUN_COMPARE_IDS.length > 2) RUN_COMPARE_IDS = RUN_COMPARE_IDS.slice(RUN_COMPARE_IDS.length - 2);
+      renderRuns();
+    });
+  });
+  panel.querySelectorAll('.run-del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      startInlineRunDelete(btn.dataset.id, btn);
+    });
+  });
+  if (RUN_COMPARE_IDS.length === 2) showRunComparison(RUN_COMPARE_IDS[0], RUN_COMPARE_IDS[1]);
+  else showRunDetail(RUN_DETAIL_ID);
 }
 
-function renderRunCard(r, active) {
+function renderRunCard(r, active, compareChecked) {
   const statusClass = r.status === 'failed' ? 'failed' : (r.status === 'running' ? 'running' : '');
   const subtitle = r.status === 'running'
     ? `running · ${Math.round(r.progress || 0)}%`
-    : (r.status === 'failed' ? 'failed' : `${formatRelativeTime(r.at)} · ${r.acc}% acc`);
+    : (r.status === 'failed' ? 'failed' : `${formatRelativeTime(r.at)} · ${_num(r.acc, 0)}% acc`);
+  const pathPill = r.pathName ? `<span class="run-pill path">Path: ${esc(r.pathName)}</span>` : '';
   return `
     <div class="run-card ${active ? 'active' : ''}" data-id="${r.id}">
-      <div class="t"><span class="status ${statusClass}"></span> ${esc(r.name)}</div>
+      <div class="run-card-top">
+        <input class="run-compare-check" type="checkbox" data-id="${r.id}" ${compareChecked ? 'checked' : ''} title="Compare this run" />
+        <div class="t"><span class="status ${statusClass}"></span> ${esc(r.name)}</div>
+        <button class="run-del-btn" data-id="${r.id}" title="Delete run" aria-label="Delete run" style="margin-left:auto;width:22px;height:22px;border:1px solid var(--border-light);background:transparent;border-radius:6px;color:var(--text-muted);display:grid;place-items:center;cursor:pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
       <div class="m">${esc(subtitle)}</div>
+      ${pathPill}
       ${r.status === 'running' ? `<div class="progress-bar"><div class="progress-fill" style="width:${r.progress || 0}%"></div></div>` : ''}
     </div>`;
+}
+
+function startInlineRunDelete(runId, btnEl) {
+  const runs = readJSON(KEY.runs(ACTIVE_VID)) || [];
+  const r = runs.find(x => x.id === runId);
+  if (!r || !btnEl) return;
+  const existing = document.querySelector('.run-confirm-pop');
+  if (existing) {
+    const same = existing.dataset.runId === runId;
+    existing._cleanup?.();
+    if (same) return;
+  }
+  const pop = document.createElement('div');
+  pop.className = 'variant-confirm-pop run-confirm-pop';
+  pop.dataset.runId = runId;
+  pop.innerHTML = `
+    <div class="pop-msg">Delete <strong>${esc(r.name)}</strong>?</div>
+    <div class="pop-actions">
+      <button type="button" class="pop-no">Cancel</button>
+      <button type="button" class="pop-yes">Delete</button>
+    </div>`;
+  document.body.appendChild(pop);
+  const rect = btnEl.getBoundingClientRect();
+  const popW = pop.offsetWidth;
+  let left = rect.right - popW;
+  left = Math.min(Math.max(left, 8), window.innerWidth - popW - 8);
+  pop.style.left = left + 'px';
+  pop.style.top = (rect.bottom + 6) + 'px';
+
+  const cleanup = () => {
+    pop.remove();
+    document.removeEventListener('mousedown', onDoc, true);
+    document.removeEventListener('keydown', onKey);
+  };
+  pop._cleanup = cleanup;
+  const doDelete = () => {
+    const list = readJSON(KEY.runs(ACTIVE_VID)) || [];
+    const next = list.filter(x => x.id !== runId);
+    writeJSON(KEY.runs(ACTIVE_VID), next);
+    RUN_COMPARE_IDS = RUN_COMPARE_IDS.filter(id => id !== runId);
+    if (RUN_DETAIL_ID === runId) RUN_DETAIL_ID = next[0]?.id || null;
+    cleanup();
+    renderRuns();
+  };
+  const onDoc = (e) => {
+    if (pop.contains(e.target) || btnEl.contains(e.target)) return;
+    cleanup();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    if (e.key === 'Enter') { e.preventDefault(); doDelete(); }
+  };
+  pop.querySelector('.pop-yes').addEventListener('click', doDelete);
+  pop.querySelector('.pop-no').addEventListener('click', cleanup);
+  setTimeout(() => document.addEventListener('mousedown', onDoc, true), 0);
+  document.addEventListener('keydown', onKey);
 }
 
 function showRunDetail(id) {
@@ -5157,74 +8128,181 @@ function showRunDetail(id) {
   if (!host) return;
   if (!r) { host.innerHTML = ''; return; }
   if (r.status === 'running') {
+    const pathPill = r.pathName ? `<span class="run-pill path">Path: ${esc(r.pathName)}</span>` : '<span class="run-pill warn">Full graph run</span>';
     host.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:14px;font-weight:600;">${esc(r.name)}</div>
-        <div style="font-size:12px;color:var(--text-muted);">Running · ${Math.round(r.progress || 0)}%</div>
+      <div class="run-detail-head">
+        <div class="title">${esc(r.name)}</div>
+        <div class="sub">Running · ${Math.round(r.progress || 0)}%</div>
+        ${pathPill}
       </div>
       <div style="margin-top:10px;">${'<div class="progress-bar"><div class="progress-fill" style="width:' + (r.progress || 0) + '%"></div></div>'}</div>
-      <div style="margin-top:14px;font-size:12px;color:var(--text-muted);">Metrics stream here once training progresses.</div>`;
+      <div style="margin-top:14px;font-size:12px;color:var(--text-muted);">Run flow is highlighting edge groups as execution advances from start nodes to downstream outputs.</div>`;
     return;
   }
   if (r.status === 'failed') {
+    const pathPill = r.pathName ? `<span class="run-pill path">Path: ${esc(r.pathName)}</span>` : '';
     host.innerHTML = `
-      <div style="font-size:14px;font-weight:600;">${esc(r.name)} — failed</div>
+      <div class="run-detail-head">
+        <div class="title">${esc(r.name)} — failed</div>
+        ${pathPill}
+      </div>
       <div style="font-size:12.5px;color:var(--text-secondary);margin-top:4px;">The run crashed at ${esc(r.iter || 'unknown step')}. See Logs tab for details.</div>`;
     return;
   }
+  const pathPill = r.pathName ? `<span class="run-pill path">Path: ${esc(r.pathName)}</span>` : '<span class="run-pill">Full graph run</span>';
   host.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="font-size:14px;font-weight:600;">${esc(r.name)}</div>
-      <div style="font-size:12px;color:var(--text-muted);">${formatRelativeTime(r.at)} · ${esc(r.iter)} iters</div>
-      <div style="margin-left:auto;display:flex;gap:8px;">
+    <div class="run-detail-head">
+      <div class="title">${esc(r.name)}</div>
+      <div class="sub">${formatRelativeTime(r.at)} · ${esc(r.iter)} iters · wall ${formatWallSec(r.wallSec)}</div>
+      ${pathPill}
+      <div class="run-head-actions">
         <button class="tb-toggle" style="height:28px;" id="rerunBtn">Re-run</button>
-        <button class="tb-toggle" style="height:28px;">Compare…</button>
+        <button class="tb-toggle" style="height:28px;" id="compareWithLatestBtn">Compare…</button>
       </div>
     </div>
     <div class="metric-grid">
-      <div class="metric"><div class="lbl">Accuracy</div><div class="num">${r.acc}%</div><div class="delta">+0.4</div></div>
-      <div class="metric"><div class="lbl">F1</div><div class="num">${r.f1}</div><div class="delta">+0.02</div></div>
-      <div class="metric"><div class="lbl">Loss</div><div class="num">${r.loss}</div><div class="delta" style="color:var(--dot-red);">-0.03</div></div>
-      <div class="metric"><div class="lbl">Wall time</div><div class="num">4m 22s</div><div class="delta" style="color:var(--text-muted);">—</div></div>
+      <div class="metric"><div class="lbl">Accuracy</div><div class="num">${_num(r.acc, 0).toFixed(1)}%</div><div class="delta">run metric</div></div>
+      <div class="metric"><div class="lbl">F1</div><div class="num">${_num(r.f1, 0).toFixed(2)}</div><div class="delta">macro</div></div>
+      <div class="metric"><div class="lbl">Loss</div><div class="num">${_num(r.loss, 0).toFixed(2)}</div><div class="delta" style="color:var(--dot-red);">final</div></div>
+      <div class="metric"><div class="lbl">Wall time</div><div class="num">${formatWallSec(r.wallSec)}</div><div class="delta" style="color:var(--text-muted);">${esc(r.iter || '—')}</div></div>
     </div>
-    <div style="font-size:12px;color:var(--text-muted);">Loss curve, confusion matrix, and per-class metrics would render here.</div>`;
-  document.getElementById('rerunBtn')?.addEventListener('click', startRun);
+    <div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Loss curve</div>
+      <div class="loss-curve">${buildLossCurveSvg(r)}</div>
+    </div>
+    <div class="run-two-col">
+      <div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Confusion matrix</div>
+        ${renderConfusion(r)}
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Per-class metrics</div>
+        ${renderPerClass(r)}
+      </div>
+    </div>`;
+  document.getElementById('rerunBtn')?.addEventListener('click', () => {
+    startRun({
+      pathId: r.pathId || null,
+      pathName: r.pathName || null,
+      pathNodeIds: (r.pathNodeIds || []).slice(),
+    });
+  });
+  document.getElementById('compareWithLatestBtn')?.addEventListener('click', () => {
+    const other = runs.find(x => x.id !== r.id && x.status !== 'running');
+    if (!other) return;
+    RUN_COMPARE_IDS = [r.id, other.id];
+    renderRuns();
+  });
+}
+
+function showRunComparison(aId, bId) {
+  const runs = readJSON(KEY.runs(ACTIVE_VID)) || [];
+  const a = runs.find(x => x.id === aId);
+  const b = runs.find(x => x.id === bId);
+  const host = document.getElementById('runDetail');
+  if (!host) return;
+  if (!a || !b) { host.innerHTML = ''; return; }
+  const dAcc = _round(_num(a.acc, 0) - _num(b.acc, 0), 1);
+  const dF1 = _round(_num(a.f1, 0) - _num(b.f1, 0), 2);
+  const dLoss = _round(_num(a.loss, 0) - _num(b.loss, 0), 2);
+  host.innerHTML = `
+    <div class="run-detail-head">
+      <div class="title">Run comparison</div>
+      <span class="run-pill active">${esc(a.name)}</span>
+      <span class="run-pill active">${esc(b.name)}</span>
+      <div class="run-head-actions">
+        <button class="tb-toggle" style="height:28px;" id="clearRunCompareBtn">Clear compare</button>
+      </div>
+    </div>
+    <div class="compare-delta">
+      Δ Accuracy: ${dAcc >= 0 ? '+' : ''}${dAcc}% · Δ F1: ${dF1 >= 0 ? '+' : ''}${dF1} · Δ Loss: ${dLoss >= 0 ? '+' : ''}${dLoss}
+    </div>
+    ${renderCompareLossSection(a, b)}
+    <div class="compare-grid">
+      ${[a, b].map(r => `
+        <div class="compare-card">
+          <div class="title">${esc(r.name)}${r.pathName ? ` · <span class="run-pill path">Path: ${esc(r.pathName)}</span>` : ''}</div>
+          <div class="compare-metric-list">
+            <div class="compare-metric-item"><div class="k">Accuracy</div><div class="v">${_num(r.acc, 0).toFixed(1)}%</div></div>
+            <div class="compare-metric-item"><div class="k">F1</div><div class="v">${_num(r.f1, 0).toFixed(2)}</div></div>
+            <div class="compare-metric-item"><div class="k">Loss</div><div class="v">${_num(r.loss, 0).toFixed(2)}</div></div>
+            <div class="compare-metric-item"><div class="k">Wall</div><div class="v">${formatWallSec(r.wallSec)}</div></div>
+          </div>
+          ${renderPerClass(r)}
+        </div>`).join('')}
+    </div>`;
+  host.querySelectorAll('[data-loss-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      RUN_COMPARE_LOSS_MODE = btn.dataset.lossMode || 'overlay';
+      showRunComparison(aId, bId);
+    });
+  });
+  host.querySelectorAll('[data-loss-show]').forEach(chk => {
+    chk.addEventListener('change', () => {
+      RUN_COMPARE_VISIBLE[chk.dataset.lossShow] = chk.checked;
+      if (!RUN_COMPARE_VISIBLE.a && !RUN_COMPARE_VISIBLE.b) RUN_COMPARE_VISIBLE.a = true;
+      showRunComparison(aId, bId);
+    });
+  });
+  wireLossCurveHover(host.querySelector('[data-compare-curve="overlay"]'));
+  wireLossCurveHover(host.querySelector('[data-compare-curve="delta"]'));
+  document.getElementById('clearRunCompareBtn')?.addEventListener('click', () => {
+    RUN_COMPARE_IDS = [];
+    RUN_COMPARE_LOSS_MODE = 'overlay';
+    RUN_COMPARE_VISIBLE = { a: true, b: true };
+    renderRuns();
+  });
 }
 
 // Kick off a simulated run. Stored under the *current* variant's key
 // so switching variants mid-run doesn't pollute another variant's feed.
-function startRun() {
+function startRun(opts) {
   if (ACTIVE_RUN) return; // one at a time (wireframe constraint)
+  const cfg = opts || {};
   const vid = ACTIVE_VID;
   const variants = readJSON(KEY.variants) || [];
   const v = variants.find(x => x.id === vid);
   const runs = readJSON(KEY.runs(vid)) || [];
+  const pathNodeIds = Array.isArray(cfg.pathNodeIds) ? cfg.pathNodeIds.filter(Boolean) : [];
+  const pathName = cfg.pathName || '';
   const run = {
     id: 'r_' + Date.now().toString(36),
-    name: (v?.name || 'Variant') + ' · run ' + (runs.length + 1),
+    name: `${(v?.name || 'Variant')} · run ${runs.length + 1}`,
     at: Date.now(),
     status: 'running',
     progress: 0,
     vid,
+    pathId: cfg.pathId || null,
+    pathName: pathName || null,
+    pathNodeIds,
+    edgeGroups: [],
   };
+  run.edgeGroups = getRunEdgeGroups(run);
   runs.push(run);
   writeJSON(KEY.runs(vid), runs);
+  RUN_DETAIL_ID = run.id;
   renderRuns();
+  applyRunFlowVisual(run);
 
   ACTIVE_RUN = setInterval(() => {
     const list = readJSON(KEY.runs(vid)) || [];
     const r = list.find(x => x.id === run.id);
-    if (!r) { clearInterval(ACTIVE_RUN); ACTIVE_RUN = null; return; }
-    r.progress = Math.min(100, (r.progress || 0) + 8 + Math.random() * 6);
+    if (!r) {
+      clearInterval(ACTIVE_RUN);
+      ACTIVE_RUN = null;
+      Canvas.setRunFlowEdges(false);
+      return;
+    }
+    r.progress = Math.min(100, _num(r.progress, 0) + 8 + Math.random() * 6);
     if (r.progress >= 100) {
       r.status = 'ok';
       r.progress = 100;
-      r.acc = +(86 + Math.random() * 4).toFixed(1);
-      r.f1 = +(0.80 + Math.random() * 0.08).toFixed(2);
-      r.loss = +(0.25 + Math.random() * 0.12).toFixed(2);
-      r.iter = '12k';
+      Object.assign(r, makeRunResults(r.at));
       clearInterval(ACTIVE_RUN);
       ACTIVE_RUN = null;
+      Canvas.setRunFlowEdges(false);
+    } else {
+      applyRunFlowVisual(r);
     }
     writeJSON(KEY.runs(vid), list);
     if (vid === ACTIVE_VID) renderRuns();
@@ -5279,6 +8357,7 @@ function initRunButton() {
     document.getElementById('tglRuns')?.classList.add('active');
     panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
     panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
+    syncBpAppShell();
     startRun();
   });
 }
@@ -5309,27 +8388,70 @@ function autoLayoutNodes() {
     LAST_AUTO_LAYOUT_EPOCH = CANVAS_CHANGE_EPOCH;
     return;
   }
-
   const byId = new Map(nodes.map(n => [n.id, n]));
-  const ids = nodes.map(n => n.id);
-  const succ = new Map(ids.map(id => [id, []]));
-  const pred = new Map(ids.map(id => [id, []]));
-  const edges = [];
+  const nodeToGroup = new Map();
+  (SUBGRAPHS.items || []).forEach(g => (g.nodeIds || []).forEach(id => nodeToGroup.set(id, g.id)));
 
+  const blocks = [];
+  const blockById = new Map();
+  const nodeToBlock = new Map();
+
+  (SUBGRAPHS.items || []).forEach(g => {
+    const ids = (g.nodeIds || []).filter(id => byId.has(id));
+    if (!ids.length) return;
+    const boxEl = document.querySelector(`.subgraph-box[data-id="${CSS.escape(g.id)}"]`);
+    const b = _subgraphBounds(g);
+    if (!b && !boxEl) return;
+    const x = boxEl ? (parseFloat(boxEl.style.left) || 0) : b.left;
+    const y = boxEl ? (parseFloat(boxEl.style.top) || 0) : b.top;
+    const width = boxEl ? (parseFloat(boxEl.style.width) || 260) : b.width;
+    const height = boxEl ? (parseFloat(boxEl.style.height) || 180) : b.height;
+    const block = { id: `sg:${g.id}`, kind: 'subgraph', groupId: g.id, nodeIds: ids, x, y, width, height };
+    blocks.push(block);
+    blockById.set(block.id, block);
+    ids.forEach(id => nodeToBlock.set(id, block.id));
+  });
+
+  nodes.forEach(n => {
+    if (nodeToGroup.has(n.id)) return;
+    const el = document.querySelector(`.node[data-node-id="${CSS.escape(n.id)}"]`);
+    const width = Math.max(180, Math.round(el?.offsetWidth || 200));
+    const height = Math.max(120, Math.round(el?.offsetHeight || 170));
+    const block = { id: `n:${n.id}`, kind: 'node', nodeId: n.id, x: Number(n.x) || 0, y: Number(n.y) || 0, width, height };
+    blocks.push(block);
+    blockById.set(block.id, block);
+    nodeToBlock.set(n.id, block.id);
+  });
+
+  if (blocks.length < 2) {
+    LAST_AUTO_LAYOUT_EPOCH = CANVAS_CHANGE_EPOCH;
+    fitAllNodesInView();
+    return;
+  }
+
+  const blockIds = blocks.map(b => b.id);
+  const succ = new Map(blockIds.map(id => [id, []]));
+  const pred = new Map(blockIds.map(id => [id, []]));
+  const edges = [];
   for (const c of Canvas.getConnections()) {
     const fromId = c?.from?.[0];
     const toId = c?.to?.[0];
     if (!fromId || !toId || fromId === toId) continue;
-    if (!byId.has(fromId) || !byId.has(toId)) continue;
-    succ.get(fromId).push(toId);
-    pred.get(toId).push(fromId);
-    edges.push([fromId, toId]);
+    const fromBlock = nodeToBlock.get(fromId);
+    const toBlock = nodeToBlock.get(toId);
+    if (!fromBlock || !toBlock || fromBlock === toBlock) continue;
+    succ.get(fromBlock)?.push(toBlock);
+    pred.get(toBlock)?.push(fromBlock);
+    edges.push([fromBlock, toBlock]);
   }
 
-  const layer = new Map(ids.map(id => [id, 0]));
-  for (let pass = 0; pass < ids.length; pass++) {
+  const orphanIds = blockIds.filter(id => (succ.get(id)?.length || 0) === 0 && (pred.get(id)?.length || 0) === 0);
+  const connectedIds = blockIds.filter(id => !orphanIds.includes(id));
+  const layer = new Map(connectedIds.map(id => [id, 0]));
+  for (let pass = 0; pass < connectedIds.length; pass++) {
     let changed = false;
     for (const [a, b] of edges) {
+      if (!layer.has(a) || !layer.has(b)) continue;
       const next = (layer.get(a) || 0) + 1;
       if (next > (layer.get(b) || 0)) {
         layer.set(b, next);
@@ -5338,60 +8460,91 @@ function autoLayoutNodes() {
     }
     if (!changed) break;
   }
-
   let minLayer = Infinity;
   layer.forEach(v => { if (v < minLayer) minLayer = v; });
-  if (isFinite(minLayer) && minLayer !== 0) {
-    layer.forEach((v, id) => layer.set(id, v - minLayer));
-  }
+  if (layer.size && isFinite(minLayer) && minLayer !== 0) layer.forEach((v, id) => layer.set(id, v - minLayer));
 
   const layers = new Map();
-  for (const id of ids) {
+  connectedIds.forEach(id => {
     const l = layer.get(id) || 0;
     if (!layers.has(l)) layers.set(l, []);
     layers.get(l).push(id);
+  });
+
+  const ROW_GAP = 56;
+  const COL_GAP = 150;
+  const minX = Math.min(...blocks.map(b => Number(b.x) || 0));
+  const avgY = blocks.reduce((sum, b) => sum + (Number(b.y) || 0), 0) / Math.max(1, blocks.length);
+  const startX = Math.max(40, minX);
+  const placedCenterY = new Map();
+  const blockLayout = new Map();
+  const blockHeight = id => blockById.get(id)?.height || 160;
+  const blockWidth = id => blockById.get(id)?.width || 240;
+
+  if (orphanIds.length) {
+    const colIds = [...orphanIds].sort((a, b) => (blockById.get(a)?.y || 0) - (blockById.get(b)?.y || 0));
+    const totalColH = colIds.reduce((sum, id) => sum + blockHeight(id), 0) + Math.max(0, colIds.length - 1) * ROW_GAP;
+    let cursorY = Math.round(avgY - (totalColH / 2));
+    const x = startX;
+    colIds.forEach(id => {
+      const h = blockHeight(id);
+      const y = Math.round(cursorY);
+      blockLayout.set(id, { x, y });
+      placedCenterY.set(id, y + (h / 2));
+      cursorY += h + ROW_GAP;
+    });
   }
 
-  const ROW_GAP = 44;
-  const COL_GAP = 340;
-  const minX = Math.min(...nodes.map(n => Number(n.x) || 0));
-  const avgY = nodes.reduce((sum, n) => sum + (Number(n.y) || 0), 0) / Math.max(1, nodes.length);
-  const startX = Math.max(40, minX);
-  const placedY = new Map();
-  const layout = {};
-  const nodeHeights = new Map();
-  const measuredHeights = nodes.map(n => {
-    const el = document.querySelector(`.node[data-node-id="${CSS.escape(n.id)}"]`);
-    const h = Math.max(120, Math.round(el?.offsetHeight || 170));
-    nodeHeights.set(n.id, h);
-    return h;
-  });
-  const avgNodeH = measuredHeights.reduce((sum, h) => sum + h, 0) / Math.max(1, measuredHeights.length);
-
   const layerKeys = Array.from(layers.keys()).sort((a, b) => a - b);
+  const layerWidths = new Map(layerKeys.map(l => [l, Math.max(...(layers.get(l) || []).map(id => blockWidth(id)), 220)]));
+  let currentX = startX + (orphanIds.length ? (Math.max(...orphanIds.map(id => blockWidth(id)), 220) + COL_GAP) : 0);
+  const layerX = new Map();
+  layerKeys.forEach(l => {
+    layerX.set(l, currentX);
+    currentX += (layerWidths.get(l) || 220) + COL_GAP;
+  });
+
   for (const l of layerKeys) {
     const colIds = layers.get(l) || [];
     colIds.sort((a, b) => {
       const score = (id) => {
-        const ps = (pred.get(id) || []).filter(pid => placedY.has(pid));
-        if (!ps.length) return (Number(byId.get(id)?.y) || 0) + ((nodeHeights.get(id) || avgNodeH) / 2);
-        return ps.reduce((sum, pid) => sum + (placedY.get(pid) || 0), 0) / ps.length;
+        const ps = (pred.get(id) || []).filter(pid => placedCenterY.has(pid));
+        if (!ps.length) return (blockById.get(id)?.y || 0) + (blockHeight(id) / 2);
+        return ps.reduce((sum, pid) => sum + (placedCenterY.get(pid) || 0), 0) / ps.length;
       };
       return score(a) - score(b);
     });
-
-    const totalColH = colIds.reduce((sum, id) => sum + (nodeHeights.get(id) || avgNodeH), 0) +
-      Math.max(0, colIds.length - 1) * ROW_GAP;
+    const totalColH = colIds.reduce((sum, id) => sum + blockHeight(id), 0) + Math.max(0, colIds.length - 1) * ROW_GAP;
     let cursorY = Math.round(avgY - (totalColH / 2));
-    const x = startX + (l * COL_GAP);
-    colIds.forEach((id, idx) => {
-      const h = nodeHeights.get(id) || avgNodeH;
+    const x = layerX.get(l) || startX;
+    colIds.forEach(id => {
+      const h = blockHeight(id);
       const y = Math.round(cursorY);
-      layout[id] = { x, y };
-      placedY.set(id, y + (h / 2));
+      blockLayout.set(id, { x, y });
+      placedCenterY.set(id, y + (h / 2));
       cursorY += h + ROW_GAP;
     });
   }
+
+  const layout = {};
+  blocks.forEach(block => {
+    const target = blockLayout.get(block.id);
+    if (!target) return;
+    const dx = target.x - block.x;
+    const dy = target.y - block.y;
+    if (block.kind === 'node') {
+      layout[block.nodeId] = { x: target.x, y: target.y };
+      return;
+    }
+    (block.nodeIds || []).forEach(id => {
+      const n = byId.get(id);
+      if (!n) return;
+      layout[id] = {
+        x: Math.round((Number(n.x) || 0) + dx),
+        y: Math.round((Number(n.y) || 0) + dy),
+      };
+    });
+  });
 
   const changed = Canvas.applyNodeLayout(layout, {
     animate: true,
@@ -5453,6 +8606,7 @@ function captureCanvasState() {
       views: n.views, downloads: n.downloads,
     })),
     connections: Canvas.getConnections().map(c => ({ from: [...c.from], to: [...c.to] })),
+    subgraphs: getSubgraphSnapshot(),
   };
 }
 
@@ -5463,6 +8617,7 @@ function restoreCanvasState(state) {
     (state.nodes || []).forEach(n => Canvas.addNode({ ...n }));
     (state.connections || []).forEach(c => Canvas.addConnection(c.from, c.to));
     Canvas.drawEdges();
+    initSubgraphFeature(state.subgraphs || []);
   } finally {
     HISTORY_APPLYING = false;
   }
@@ -5502,6 +8657,19 @@ function refreshUndoRedoUI() {
   const r = document.getElementById('redoBtn');
   if (u) u.disabled = UNDO_STACK.length === 0;
   if (r) r.disabled = REDO_STACK.length === 0;
+}
+
+/* Delete key removes the currently selected edge (blue highlight / break-link target). */
+function initActiveEdgeDeleteKey() {
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Delete') return;
+    const t = e.target;
+    if (t && t.matches && t.matches('input, textarea, [contenteditable="true"]')) return;
+    if (t && t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
+    if (typeof Canvas.removeActiveEdgeSelection !== 'function') return;
+    if (!Canvas.removeActiveEdgeSelection()) return;
+    e.preventDefault();
+  });
 }
 
 /* ── Right-click canvas context menu ──────────────────────
@@ -5544,6 +8712,10 @@ function initCanvasContextMenu() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
         Draw a path
       </div>
+      <div class="ctx-item" data-act="sg-marquee">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/><path d="M9 9h6v6H9z"/></svg>
+        Draw subgraph boundary
+      </div>
       <div class="ctx-divider"></div>
       <div class="ctx-item" data-act="fit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/><path d="M4 16v3a1 1 0 0 0 1 1h3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/></svg>
@@ -5551,7 +8723,7 @@ function initCanvasContextMenu() {
       </div>
       <div class="ctx-divider"></div>
       <div class="ctx-item" data-act="undo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a8 8 0 0 0-8-8H3"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
         Undo<span class="ctx-shortcut">⌘Z</span>
       </div>`;
 
@@ -5587,6 +8759,9 @@ function initCanvasContextMenu() {
         openCommentModal({ mode: 'create', x, y, tags: [] });
       } else if (act === 'start-path') {
         pathDrawStart();
+      } else if (act === 'sg-marquee') {
+        if (PATH_DRAW.active) pathDrawCancel();
+        document.getElementById('toolSubgraphMarquee')?.click();
       } else if (act === 'fit') {
         document.getElementById('zoomFit')?.click();
       } else if (act === 'undo') {
@@ -5611,6 +8786,7 @@ function initHistoryStack() {
   // thing I just did").
   let lastState = captureCanvasState();
   Canvas.onChange(() => {
+    renderSubgraphs();
     CANVAS_CHANGE_EPOCH += 1;
     if (HISTORY_APPLYING) { lastState = captureCanvasState(); return; }
     UNDO_STACK.push(lastState);

@@ -14,6 +14,13 @@ window.Canvas = (function () {
 
   // ── Constants + visual assets ────────────────────────
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  /** Edit mode: edges (15005 / 15016) sit above subgraph shell (15015) but below node cards (15100+). */
+  const Z_EDGE_BACK = 15005;
+  const Z_EDGE_FRONT = 15016;
+  const Z_NODE_BASE = 15100;
+  const Z_NODE_RENORM_CEIL = 15240;
+  const Z_SG_MEMBER_BASE = 15250;
+  const Z_SG_MEMBER_CEIL = 15390;
   const ICONS = {
     Dataset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>`,
     Model:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2L21 7L21 17L12 22L3 17L3 7z"/><path d="M12 2L12 12M3 7L12 12M21 7L12 12M12 12L12 22"/></svg>`,
@@ -63,6 +70,73 @@ window.Canvas = (function () {
   let CONNECTIONS = [];
 
   let zoom = 1, panX = 0, panY = 0;
+  // Run-flow visual state: maps edge keys (`fromNode->toNode`) to phases so
+  // hosts can animate only the currently executing path/group during runs.
+  let runFlowEnabled = false;
+  let runFlowTargetKeys = new Set();
+  let runFlowDoneKeys = new Set();
+  let runFlowActiveKeys = new Set();
+
+  let edgeOverlay = null;
+  let edgeOverlayBack = null;
+  let edgeOverlayFront = null;
+
+  function _edgeKeyFromNodes(fromNodeId, toNodeId) {
+    if (!fromNodeId || !toNodeId) return '';
+    return `${String(fromNodeId)}->${String(toNodeId)}`;
+  }
+  function _edgeKeyFromSpec(spec) {
+    if (!spec) return '';
+    if (typeof spec === 'string') return spec;
+    return _edgeKeyFromNodes(spec.from || spec.fromId || spec.a, spec.to || spec.toId || spec.b);
+  }
+  function _edgeKeySet(specs) {
+    const out = new Set();
+    (specs || []).forEach(spec => {
+      const k = _edgeKeyFromSpec(spec);
+      if (k) out.add(k);
+    });
+    return out;
+  }
+  function _edgeLineRoots() {
+    if (opts.editable && edgeOverlayBack && edgeOverlayFront) return [edgeOverlayBack, edgeOverlayFront];
+    if (edgeOverlay) return [edgeOverlay];
+    return [];
+  }
+  function _edgeTouchesSubgraphMember(c) {
+    const fromEl = nodeState.get(c.from[0])?.el;
+    const toEl = nodeState.get(c.to[0])?.el;
+    return !!(fromEl?.classList.contains('sg-member') || toEl?.classList.contains('sg-member'));
+  }
+  function _queryEdgeHitByConnIdx(idx) {
+    const sel = `.edge-hit[data-conn-idx="${idx}"]`;
+    if (opts.editable && edgeOverlayBack && edgeOverlayFront) {
+      return edgeOverlayBack.querySelector(sel) || edgeOverlayFront.querySelector(sel);
+    }
+    return edgeOverlay?.querySelector(sel) || null;
+  }
+  function _applyRunFlowClasses() {
+    const lineRoots = _edgeLineRoots();
+    if (!lineRoots.length) return;
+    const lines = [];
+    lineRoots.forEach(root => {
+      root.querySelectorAll('path.edge-line').forEach(p => lines.push(p));
+    });
+    const hasTargets = runFlowTargetKeys.size > 0;
+    lines.forEach((line) => {
+      line.classList.remove('run-flow-target', 'run-flow-done', 'run-flow-active');
+      if (!runFlowEnabled) return;
+      const key = line.dataset.edgeKey || '';
+      if (!hasTargets) {
+        line.classList.add('run-flow-target', 'run-flow-active');
+        return;
+      }
+      if (!runFlowTargetKeys.has(key)) return;
+      line.classList.add('run-flow-target');
+      if (runFlowDoneKeys.has(key)) line.classList.add('run-flow-done');
+      if (runFlowActiveKeys.has(key)) line.classList.add('run-flow-active');
+    });
+  }
 
   // ── Init ─────────────────────────────────────────────
   function init(options) {
@@ -238,9 +312,17 @@ window.Canvas = (function () {
     nodeState.clear();
     CONNECTIONS = [];
     if (edgeOverlay) { edgeOverlay.remove(); edgeOverlay = null; }
+    if (edgeOverlayBack) { edgeOverlayBack.remove(); edgeOverlayBack = null; }
+    if (edgeOverlayFront) { edgeOverlayFront.remove(); edgeOverlayFront = null; }
     if (ropeOverlay) { ropeOverlay.remove(); ropeOverlay = null; }
     if (dotsOverlay) { dotsOverlay.remove(); dotsOverlay = null; }
-    topNodeZ = 2;
+    runFlowEnabled = false;
+    runFlowTargetKeys = new Set();
+    runFlowDoneKeys = new Set();
+    runFlowActiveKeys = new Set();
+    canvasEl?.classList.remove('running-edges');
+    topNodeZ = Z_NODE_BASE - 1;
+    sgMemberZ = Z_SG_MEMBER_BASE - 1;
   }
 
   // World coordinates at the current viewport center (accounts for pan+zoom).
@@ -251,36 +333,54 @@ window.Canvas = (function () {
   }
 
   // ── Edge drawing ─────────────────────────────────────
-  // Single SVG overlay at z-index 1 (below all nodes at z≥2) so edge paths
-  // never flicker when a node's z-index changes during drag/click.
-  let edgeOverlay = null;
+  // View mode: one low-z overlay. Edit mode: two overlays — back (below the
+  // subgraph shell) for edges that do not touch a subgroup member, front
+  // (above the shell, below `.sg-member` cards) for edges that do.
+  function _onEdgeSvgClick(e) {
+    const hit = e.target.closest('.edge-hit');
+    if (!hit) return;
+    e.stopPropagation();
+    const conn = CONNECTIONS[parseInt(hit.dataset.connIdx, 10)];
+    if (!conn) return;
+    if (edgeBubbleConn === conn && edgeBubbleEl?.classList.contains('show')) {
+      _hideEdgeBubble();
+    } else {
+      _showEdgeBubble(conn);
+    }
+  }
+  function _syncEdgeFrontAfterSubgraph() {
+    if (!edgeOverlayFront || !canvasInner) return;
+    const sg = document.getElementById('subgraphLayer');
+    if (sg && sg.parentElement === canvasInner) {
+      canvasInner.insertBefore(edgeOverlayFront, sg.nextSibling);
+    }
+  }
+  function _ensureEdgeOverlaysEdit() {
+    if (!edgeOverlayBack) {
+      edgeOverlayBack = document.createElementNS(SVG_NS, 'svg');
+      edgeOverlayBack.setAttribute('class', 'node-overlay edge-overlay-back');
+      edgeOverlayBack.style.zIndex = String(Z_EDGE_BACK);
+      edgeOverlayBack.style.pointerEvents = 'none';
+      edgeOverlayBack.addEventListener('click', _onEdgeSvgClick);
+      canvasInner.insertBefore(edgeOverlayBack, canvasInner.firstChild);
+    }
+    if (!edgeOverlayFront) {
+      edgeOverlayFront = document.createElementNS(SVG_NS, 'svg');
+      edgeOverlayFront.setAttribute('class', 'node-overlay edge-overlay-front');
+      edgeOverlayFront.style.zIndex = String(Z_EDGE_FRONT);
+      edgeOverlayFront.style.pointerEvents = 'none';
+      edgeOverlayFront.addEventListener('click', _onEdgeSvgClick);
+      canvasInner.appendChild(edgeOverlayFront);
+    }
+    _syncEdgeFrontAfterSubgraph();
+    return { back: edgeOverlayBack, front: edgeOverlayFront };
+  }
   function _ensureEdgeOverlay() {
     if (edgeOverlay) return edgeOverlay;
     edgeOverlay = document.createElementNS(SVG_NS, 'svg');
     edgeOverlay.setAttribute('class', 'node-overlay');
     edgeOverlay.style.zIndex = '1';
     edgeOverlay.style.pointerEvents = 'none';
-    // Edit mode only: a wide transparent hit-path is drawn under each edge.
-    // Hovering it simply restyles the line blue (CSS rule on `.edge-hit:hover
-    // + path`). Clicking it opens the break-link bubble anchored at the edge
-    // midpoint; a second click on the bubble removes the connection. Any
-    // click outside the bubble dismisses it (see document mousedown listener
-    // attached from init()).
-    if (opts.editable) {
-      edgeOverlay.addEventListener('click', e => {
-        const hit = e.target.closest('.edge-hit');
-        if (!hit) return;
-        e.stopPropagation();
-        const conn = CONNECTIONS[parseInt(hit.dataset.connIdx, 10)];
-        if (!conn) return;
-        // Toggle: clicking the same edge again hides the bubble.
-        if (edgeBubbleConn === conn && edgeBubbleEl?.classList.contains('show')) {
-          _hideEdgeBubble();
-        } else {
-          _showEdgeBubble(conn);
-        }
-      });
-    }
     canvasInner.insertBefore(edgeOverlay, canvasInner.firstChild);
     return edgeOverlay;
   }
@@ -360,13 +460,25 @@ window.Canvas = (function () {
     edgeBubbleConn = null;
     _refreshActiveEdge();
   }
+  /** Remove the edge currently selected (blue highlight / break-link bubble). */
+  function removeActiveEdgeSelection() {
+    if (!opts.editable) return false;
+    if (!edgeBubbleConn) return false;
+    const conn = edgeBubbleConn;
+    CONNECTIONS = CONNECTIONS.filter(c => c !== conn);
+    _hideEdgeBubble();
+    drawEdges();
+    _fireChange('remove-connection');
+    return true;
+  }
   function _refreshActiveEdge() {
-    if (!edgeOverlay) return;
-    edgeOverlay.querySelectorAll('.edge-active').forEach(p => p.classList.remove('edge-active'));
+    _edgeLineRoots().forEach(root => {
+      root.querySelectorAll('.edge-active').forEach(p => p.classList.remove('edge-active'));
+    });
     if (!edgeBubbleConn) return;
     const idx = CONNECTIONS.indexOf(edgeBubbleConn);
     if (idx < 0) return;
-    const hit = edgeOverlay.querySelector(`.edge-hit[data-conn-idx="${idx}"]`);
+    const hit = _queryEdgeHitByConnIdx(idx);
     if (hit) {
       hit.classList.add('edge-active');
       if (hit.nextElementSibling) hit.nextElementSibling.classList.add('edge-active');
@@ -377,6 +489,10 @@ window.Canvas = (function () {
     const s = nodeState.get(nodeId);
     if (!s) return null;
     const el  = s.el;
+    if (opts.editable && el.classList.contains('sg-hidden') && typeof window.getSubgraphCollapsedPortWorld === 'function') {
+      const alt = window.getSubgraphCollapsedPortWorld(nodeId, dir, ioName, canvasRect);
+      if (alt) return alt;
+    }
     const row = el.querySelector(`[data-io="${dir}:${ioName}"]`);
     if (row && row.offsetParent !== null) {
       if (opts.editable) {
@@ -411,38 +527,70 @@ window.Canvas = (function () {
     };
   }
 
+  function _isInternalCollapsedSubgraphEdge(c) {
+    if (typeof window.isInternalCollapsedSubgraphEdge === 'function') {
+      try { return !!window.isInternalCollapsedSubgraphEdge(c); } catch (_) { /* host shell */ }
+    }
+    return false;
+  }
+  function _pushCollapsedInternalEdgePlaceholder(c, i, parts) {
+    const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
+    parts.push(`<path class="edge-hit edge--collapsed-internal" data-conn-idx="${i}" d="M0 0" style="pointer-events:none;display:none"/>`);
+    parts.push(`<path class="edge-line edge--collapsed-internal" data-edge-key="${edgeKey}" d="M0 0" style="display:none"/>`);
+  }
   function drawEdges() {
-    const svg = _ensureEdgeOverlay();
-    // Edge paths live in `edgeOverlay` (below nodes, z=1) so lines never draw
-    // on top of a card body. In view mode endpoint circles are split into
-    // `dotsOverlay` (above nodes) so the dots appear on top of the card edge
-    // they attach to — a requested visual detail.
     // Cache canvas rect once per redraw so N edges cost 1 DOM read instead of 2N.
     const canvasRect = opts.editable ? canvasEl.getBoundingClientRect() : null;
-    const parts = [];
     const dotParts = [];
-    CONNECTIONS.forEach((c, i) => {
+    const pushConn = (c, i, parts) => {
       const a = getPortPos(c.from[0], c.from[1], c.from[2], canvasRect);
       const b = getPortPos(c.to[0],   c.to[1],   c.to[2],   canvasRect);
       if (!a || !b) return;
       const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
       const d = `M ${a.x} ${a.y} C ${a.x+dx} ${a.y}, ${b.x-dx} ${b.y}, ${b.x} ${b.y}`;
       if (opts.editable) parts.push(`<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>`);
-      parts.push(`<path d="${d}"/>`);
-      // Edit-mode uses .port-anchor DOM pips inside each node for the endpoint
-      // visual; view-mode draws circles here and renders them above cards.
+      const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
+      parts.push(`<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>`);
       if (!opts.editable) {
         dotParts.push(`<circle cx="${a.x}" cy="${a.y}" r="4"/>`);
         dotParts.push(`<circle cx="${b.x}" cy="${b.y}" r="4"/>`);
       }
-    });
-    svg.innerHTML = parts.join('');
-    if (!opts.editable) _ensureDotsOverlay().innerHTML = dotParts.join('');
+    };
+    if (opts.editable) {
+      const { back, front } = _ensureEdgeOverlaysEdit();
+      const backParts = [];
+      const frontParts = [];
+      CONNECTIONS.forEach((c, i) => {
+        const parts = _edgeTouchesSubgraphMember(c) ? frontParts : backParts;
+        if (_isInternalCollapsedSubgraphEdge(c)) {
+          _pushCollapsedInternalEdgePlaceholder(c, i, parts);
+        } else {
+          pushConn(c, i, parts);
+        }
+      });
+      back.innerHTML = backParts.join('');
+      front.innerHTML = frontParts.join('');
+    } else {
+      const svg = _ensureEdgeOverlay();
+      const parts = [];
+      CONNECTIONS.forEach((c, i) => {
+        if (_isInternalCollapsedSubgraphEdge(c)) {
+          _pushCollapsedInternalEdgePlaceholder(c, i, parts);
+        } else {
+          pushConn(c, i, parts);
+        }
+      });
+      svg.innerHTML = parts.join('');
+      _ensureDotsOverlay().innerHTML = dotParts.join('');
+    }
     _updateConnectedPorts();
+    if (typeof window.syncSubgraphCollapsedPortConnectedState === 'function') {
+      try { window.syncSubgraphCollapsedPortConnectedState(CONNECTIONS); } catch (_) { /* host shell */ }
+    }
     _wireEdgeHoverPips();
-    // If the bubble was open for an edge that no longer exists, dismiss it.
     if (edgeBubbleConn && !CONNECTIONS.includes(edgeBubbleConn)) _hideEdgeBubble();
     else _refreshActiveEdge();
+    _applyRunFlowClasses();
   }
 
   // Sync endpoint pips to edge hover: when the user mouses over an edge's
@@ -451,14 +599,30 @@ window.Canvas = (function () {
   // Without this the line changes color on hover but the pips stay grey,
   // which visually disconnects the line from the ports it attaches to.
   function _wireEdgeHoverPips() {
-    if (!opts.editable || !edgeOverlay) return;
-    edgeOverlay.querySelectorAll('.edge-hit').forEach(hit => {
+    if (!opts.editable) return;
+    const hits = [];
+    if (edgeOverlayBack) hits.push(...edgeOverlayBack.querySelectorAll('.edge-hit'));
+    if (edgeOverlayFront) hits.push(...edgeOverlayFront.querySelectorAll('.edge-hit'));
+    if (!hits.length) return;
+    hits.forEach(hit => {
       const idx = parseInt(hit.dataset.connIdx, 10);
       const c = CONNECTIONS[idx];
       if (!c) return;
       const getAnchor = (end) => {
         const s = nodeState.get(end[0]);
-        return s?.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
+        if (!s) return null;
+        if (s.el.classList.contains('sg-hidden')) {
+          if (typeof window.getSubgraphCollapsedPortAnchorEl === 'function') {
+            try {
+              const el = window.getSubgraphCollapsedPortAnchorEl(end[0], end[1]);
+              if (el) return el;
+            } catch (_) { /* host shell */ }
+          }
+          const dir = end[1];
+          const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
+          return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
+        }
+        return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
       };
       const a = getAnchor(c.from);
       const b = getAnchor(c.to);
@@ -485,18 +649,26 @@ window.Canvas = (function () {
   }
 
   // ── Drag (nodes) ─────────────────────────────────────
-  let dragState = null, topNodeZ = 2;
+  let dragState = null, topNodeZ = Z_NODE_BASE - 1;
+  /* Subgraph members stack above edge front (15016) and regular nodes. */
+  let sgMemberZ = Z_SG_MEMBER_BASE - 1;
   function _setNodeZ(node, z) {
     node.style.zIndex = z;
     const s = nodeState.get(node.dataset.nodeId);
     if (s) s.overlayEl.style.zIndex = z;
   }
   function _bringToFront(node) {
-    if (++topNodeZ >= 9999) {
+    if (node.classList && node.classList.contains('sg-member')) {
+      if (++sgMemberZ > Z_SG_MEMBER_CEIL) sgMemberZ = Z_SG_MEMBER_BASE;
+      _setNodeZ(node, sgMemberZ);
+      drawEdges();
+      return;
+    }
+    if (++topNodeZ >= Z_NODE_RENORM_CEIL) {
       const all = [...nodeState.values()].map(s => s.el)
-        .sort((a,b) => (parseInt(a.style.zIndex)||2) - (parseInt(b.style.zIndex)||2));
-      all.forEach((n, i) => _setNodeZ(n, 3 + i));
-      topNodeZ = 3 + all.length;
+        .sort((a,b) => (parseInt(a.style.zIndex)||Z_NODE_BASE) - (parseInt(b.style.zIndex)||Z_NODE_BASE));
+      all.forEach((n, i) => _setNodeZ(n, Z_NODE_BASE + i));
+      topNodeZ = Z_NODE_BASE + all.length;
     }
     _setNodeZ(node, topNodeZ);
     drawEdges();
@@ -1041,6 +1213,32 @@ window.Canvas = (function () {
     drawEdges();
   }
 
+  /**
+   * Run-edge flow styling.
+   * - `setRunFlowEdges(true|false)` keeps backwards compatibility (all edges).
+   * - `setRunFlowEdges({ enabled, targetEdges, doneEdges, activeEdges })`
+   *   scopes animation to specific edge groups as a run advances.
+   */
+  function setRunFlowEdges(config) {
+    if (!canvasEl) return;
+    if (typeof config === 'boolean') {
+      runFlowEnabled = !!config;
+      runFlowTargetKeys = new Set();
+      runFlowDoneKeys = new Set();
+      runFlowActiveKeys = new Set();
+      canvasEl.classList.toggle('running-edges', runFlowEnabled);
+      _applyRunFlowClasses();
+      return;
+    }
+    const cfg = config || {};
+    runFlowEnabled = !!cfg.enabled;
+    runFlowTargetKeys = _edgeKeySet(cfg.targetEdges);
+    runFlowDoneKeys = _edgeKeySet(cfg.doneEdges);
+    runFlowActiveKeys = _edgeKeySet(cfg.activeEdges);
+    canvasEl.classList.toggle('running-edges', runFlowEnabled);
+    _applyRunFlowClasses();
+  }
+
   // ── Public API ───────────────────────────────────────
   return {
     init, build, clear,
@@ -1054,6 +1252,8 @@ window.Canvas = (function () {
     isEditable, getViewportCenter, getTransform, clientToWorld, panToWorld, focusWorld, getCanvasInner, getCanvasEl,
     fitToNodes,
     applyNodeLayout,
+    setRunFlowEdges,
+    removeActiveEdgeSelection,
     // Interaction
     onNodeClick(cb)          { onNodeClickCb          = cb; },
     onKebabClick(cb)         { onKebabClickCb         = cb; },

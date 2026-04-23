@@ -157,6 +157,7 @@
     .ip-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
     .ip-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
     .ip-btn svg { width: 14px; height: 14px; }
+    .ip-btn img { width: 14px; height: 14px; object-fit: contain; }
 
     /* ── Topbar (mirrors editing-mode-new, minus run + comments) ── */
     .topbar {
@@ -647,7 +648,7 @@
       </button>
       <!-- Fork — visual only for now. Standard git branch/fork icon. -->
       <button class="ip-btn" id="forkBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="3" r="3"/><circle cx="6" cy="21" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 6v9a6 6 0 0 0 6 6h0"/><path d="M6 6v1a6 6 0 0 0 6 6h3"/></svg>
+        <img src="icons/fork.png" alt="Fork project" />
         Fork this graph
       </button>
     </div>

@@ -97,6 +97,12 @@
     .app:not(.leftnav-expanded) .leftnav a {
       justify-content: center; padding: 0; width: 32px; align-self: center; gap: 0;
     }
+    .leftnav .leftnav-group-label {
+      display: none;
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-muted); padding: 10px 8px 4px; margin: 0; flex-shrink: 0;
+    }
+    .app.leftnav-expanded .leftnav .leftnav-group-label { display: block; }
 
     /* ── Info panel (left side, always visible) ───────────
        Dedicated real-estate for project identity in view mode:
@@ -110,6 +116,7 @@
     .ip-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; padding-bottom: 4px; color: var(--text-primary); }
     .ip-author { font-size: 12.5px; color: var(--text-muted); }
     .ip-tagrow { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ip-top-actions { display: flex; gap: 8px; margin-top: 8px; }
     .ip-tag {
       font-size: 11px; padding: 3px 9px; border-radius: 999px;
       background: var(--tag-bg); color: var(--tag-text); font-weight: 500;
@@ -145,19 +152,34 @@
     .ip-desc-toggle svg { width: 12px; height: 12px; transition: transform .15s; }
     .ip-desc-toggle.expanded svg { transform: rotate(180deg); }
 
-    .ip-actions { display: flex; flex-direction: column; gap: 8px; }
     .ip-btn {
-      height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      height: 34px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--surface); color: var(--text-primary);
       font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center; gap: 7px;
       transition: background .12s, border-color .12s;
+      padding: 0 12px;
     }
     .ip-btn:hover { background: var(--bg); }
     .ip-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
     .ip-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
     .ip-btn svg { width: 14px; height: 14px; }
     .ip-btn img { width: 14px; height: 14px; object-fit: contain; }
+    html[data-theme="dark"] #forkBtn img {
+      filter: brightness(0) invert(1);
+    }
+    .ip-run-summary {
+      margin-top: 10px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      background: var(--bg);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .ip-run-summary .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .ip-run-summary .k { color: var(--text-secondary); }
+    .ip-run-summary .v { color: var(--text-primary); font-weight: 600; }
 
     /* ── Topbar (mirrors editing-mode-new, minus run + comments) ── */
     .topbar {
@@ -165,6 +187,7 @@
       display: flex; align-items: center; gap: 16px;
       padding: 0 16px; position: relative; z-index: 20;
     }
+    .topbar > .theme-toggle + .avatar-dropdown { margin-left: 4px; }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; color: var(--text-primary); text-decoration: none; flex-shrink: 0; }
     .brand-logo { width: 26px; height: 26px; border-radius: 6px; background: var(--primary); display: grid; place-items: center; color: #fff; }
     .brand-logo svg { width: 15px; height: 15px; }
@@ -541,7 +564,7 @@
        (per spec). Role pill has view-mode options (Switch to Edit Mode /
        Request Contributor / Request Admin). -->
   <header class="topbar">
-    <a href="index.html" class="brand">
+    <a href="graphs-hub.html?tab=dashboard" class="brand">
       <div class="brand-logo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/>
@@ -599,26 +622,28 @@
   <!-- ══ VARIANT TAB STRIP (read-only) ══ -->
   <nav class="variant-strip" id="variantStrip"></nav>
 
-  <!-- ══ LEFT NAV RAIL (same as editing-mode-new) ══ -->
+  <!-- ══ LEFT NAV RAIL (same workspace/browse links as graphs-hub) ══ -->
   <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
     <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </button>
-    <a href="index.html" title="Dashboard">
+    <div class="leftnav-group-label">Workspace</div>
+    <a href="graphs-hub.html?tab=dashboard" title="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
       <span class="nav-label">Dashboard</span>
     </a>
-    <a href="#" title="Create new">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    <a href="graphs-hub.html?tab=my-team" title="My Team">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="nav-label">My Team</span>
+    </a>
+    <a href="graphs-hub.html?tab=dashboard" title="Create graph">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
       <span class="nav-label">Create</span>
     </a>
-    <a href="#" class="active" title="View">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span class="nav-label">View</span>
-    </a>
-    <a href="#" title="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span class="nav-label">Settings</span>
+    <div class="leftnav-group-label">Browse</div>
+    <a href="graphs-hub.html?tab=community" title="Community">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+      <span class="nav-label">Community</span>
     </a>
   </aside>
 
@@ -627,6 +652,16 @@
     <div>
       <div class="ip-title" id="ipTitle">—</div>
       <div class="ip-author" id="ipAuthor">—</div>
+      <div class="ip-top-actions">
+        <button class="ip-btn primary" id="contributeBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+          contribute
+        </button>
+        <button class="ip-btn" id="forkBtn" type="button">
+          <img src="icons/fork.png" alt="Fork project" />
+          fork
+        </button>
+      </div>
     </div>
     <div class="ip-tagrow" id="ipTagRow"></div>
     <div class="ip-section">
@@ -640,17 +675,7 @@
         <span class="ip-desc-toggle-label">Read more</span>
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
       </button>
-    </div>
-    <div class="ip-actions">
-      <button class="ip-btn primary" id="contributeBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
-        Become a contributor
-      </button>
-      <!-- Fork — visual only for now. Standard git branch/fork icon. -->
-      <button class="ip-btn" id="forkBtn" type="button">
-        <img src="icons/fork.png" alt="Fork project" />
-        Fork this graph
-      </button>
+      <div class="ip-run-summary" id="ipRunSummary"></div>
     </div>
   </aside>
 
@@ -758,20 +783,62 @@
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug = new URLSearchParams(location.search).get('project');
 
-if (!slug) {
-  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="index.html">Go to dashboard</a></p>';
-} else {
-  const s = document.createElement('script');
-  s.src = slug + '/data.js';
-  s.onload = initApp;
-  s.onerror = () => {
-    document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}".</p>`;
+function _readJSONStore(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function _readCustomProjectBySlug(targetSlug) {
+  try {
+    const rows = _readJSONStore('cfg.customProjects', []);
+    const hit = Array.isArray(rows) ? rows.find(r => r && r.slug === targetSlug) : null;
+    return hit && hit.project ? hit.project : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Merge saved variant state (same keys as edit mode) so view matches last edit session. */
+function _buildCanvasProjectFromVariantBase(slug, baseP) {
+  const variants = _readJSONStore('cfg.variants.' + slug, null);
+  if (!variants || !variants.length) return baseP;
+  const activeId = localStorage.getItem('cfg.activeVariant.' + slug) || variants[0].id;
+  const v = variants.find(x => x.id === activeId) || variants[0];
+  if (!v) return baseP;
+  return {
+    ...baseP,
+    canvasWidth: v.canvasWidth || baseP.canvasWidth,
+    canvasHeight: v.canvasHeight || baseP.canvasHeight,
+    nodes: v.nodes || [],
+    connections: v.connections || [],
   };
-  document.head.appendChild(s);
+}
+
+if (!slug) {
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>';
+} else {
+  const custom = _readCustomProjectBySlug(slug);
+  if (custom) {
+    window.PROJECT = Object.assign({ slug }, custom, { slug });
+    initApp();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'graphs/' + slug + '/data.js';
+    s.onload = initApp;
+    s.onerror = () => {
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
+    };
+    document.head.appendChild(s);
+  }
 }
 
 function initApp() {
-  const P = window.PROJECT;
+  const P0 = window.PROJECT;
+  const P = _buildCanvasProjectFromVariantBase(slug, P0);
   document.title = 'ConnectifyAI — ' + P.title;
   document.getElementById('bcOrg').textContent = P.org;
   document.getElementById('bcProject').textContent = P.title;
@@ -791,6 +858,18 @@ function initApp() {
   initLeftNav();
   initRolePill();
   initContribModal(P);
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!Canvas.getAllNodes().length) {
+      const inner = Canvas.getCanvasInner();
+      const cw = parseFloat(inner?.style.width) || P.canvasWidth || 2200;
+      const ch = parseFloat(inner?.style.height) || P.canvasHeight || 1400;
+      Canvas.focusWorld(cw / 2, ch / 2, {
+        zoom: (P.viewZoom != null && P.viewZoom > 0) ? P.viewZoom : 0.5,
+        reserve: { top: 10, bottom: 10, left: 0, right: 0 },
+      });
+    }
+  }));
 }
 
 /* ── Info panel ───────────────────────────────────────────
@@ -820,17 +899,39 @@ function initInfoPanel(P) {
   const descEl = document.getElementById('ipDesc');
   const toggleEl = document.getElementById('ipDescToggle');
   descEl.textContent = desc;
-  // Only show the Read-more affordance if the content actually overflows the
-  // clamp. Defer the check one frame so layout has settled.
+  descEl.classList.add('clamp');
+  toggleEl.classList.remove('expanded');
+  toggleEl.querySelector('.ip-desc-toggle-label').textContent = 'Read more';
+
+  if (!toggleEl.dataset.bound) {
+    toggleEl.dataset.bound = '1';
+    toggleEl.addEventListener('click', () => {
+      const expanded = toggleEl.classList.toggle('expanded');
+      descEl.classList.toggle('clamp', !expanded);
+      toggleEl.querySelector('.ip-desc-toggle-label').textContent = expanded ? 'Read less' : 'Read more';
+    });
+  }
+
+  // Remove the Read-more affordance if content does not overflow.
   requestAnimationFrame(() => {
     const overflowing = descEl.scrollHeight > descEl.clientHeight + 2;
     toggleEl.hidden = !overflowing;
+    toggleEl.style.display = overflowing ? 'inline-flex' : 'none';
   });
-  toggleEl.addEventListener('click', () => {
-    const expanded = toggleEl.classList.toggle('expanded');
-    descEl.classList.toggle('clamp', !expanded);
-    toggleEl.querySelector('.ip-desc-toggle-label').textContent = expanded ? 'Read less' : 'Read more';
-  });
+
+  const latestRuns = (typeof MOCK_RUNS !== 'undefined' ? MOCK_RUNS : []).slice(0, 3);
+  const successRate = latestRuns.length
+    ? Math.round((latestRuns.filter(r => String(r.status).toLowerCase() === 'success').length / latestRuns.length) * 100)
+    : 0;
+  const avgRuntime = latestRuns.length
+    ? Math.round(latestRuns.reduce((sum, r) => sum + Number(r.runtimeMin || 0), 0) / latestRuns.length)
+    : 0;
+  const summaryEl = document.getElementById('ipRunSummary');
+  summaryEl.innerHTML = `
+    <div class="row"><span class="k">Run Results Summary</span><span class="v">${latestRuns.length} recent runs</span></div>
+    <div class="row"><span class="k">Success rate</span><span class="v">${successRate}%</span></div>
+    <div class="row"><span class="k">Avg runtime</span><span class="v">${avgRuntime} min</span></div>
+  `;
 }
 
 /* ── Variants (read-only — switch but no add/rename/delete) ── */

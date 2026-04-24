@@ -14,7 +14,9 @@ window.Canvas = (function () {
 
   // ── Constants + visual assets ────────────────────────
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  /** Edit mode: edges (15005 / 15016) sit above subgraph shell (15015) but below node cards (15100+). */
+  /** Edit mode: back (15005) draws blurred under-pass for member edges + all low edges.
+   *  Front (15016) draws sharp member edges above `#subgraphLayer` (15015), masked so
+   *  strokes skip unrelated subgroup shells; still below heads (15017) and nodes (15100+). */
   const Z_EDGE_BACK = 15005;
   const Z_EDGE_FRONT = 15016;
   const Z_NODE_BASE = 15100;
@@ -108,6 +110,38 @@ window.Canvas = (function () {
     const toEl = nodeState.get(c.to[0])?.el;
     return !!(fromEl?.classList.contains('sg-member') || toEl?.classList.contains('sg-member'));
   }
+  function _getSubgraphGroupIdForNode(nodeId) {
+    if (typeof window.getSubgraphGroupIdForNode !== 'function') return null;
+    try {
+      const v = window.getSubgraphGroupIdForNode(nodeId);
+      return v ? String(v) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  /** Black rects (luminance mask) over subgraph shells that are *not* endpoints of this edge. */
+  function _subgraphOccluderMaskRects(excludeGroupIds) {
+    const layer = document.getElementById('subgraphLayer');
+    if (!layer) return '';
+    const pad = 8;
+    const parts = [];
+    layer.querySelectorAll('.subgraph-box[data-id]').forEach((el) => {
+      if (el.classList.contains('preview')) return;
+      const gid = el.dataset.id;
+      if (!gid || excludeGroupIds.has(gid)) return;
+      let x = parseFloat(el.style.left) || 0;
+      let y = parseFloat(el.style.top) || 0;
+      let w = parseFloat(el.style.width) || 0;
+      let h = parseFloat(el.style.height) || 0;
+      if (w < 4 || h < 4) return;
+      x -= pad;
+      y -= pad;
+      w += pad * 2;
+      h += pad * 2;
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>`);
+    });
+    return parts.join('');
+  }
   function _queryEdgeHitByConnIdx(idx) {
     const sel = `.edge-hit[data-conn-idx="${idx}"]`;
     if (opts.editable && edgeOverlayBack && edgeOverlayFront) {
@@ -120,7 +154,7 @@ window.Canvas = (function () {
     if (!lineRoots.length) return;
     const lines = [];
     lineRoots.forEach(root => {
-      root.querySelectorAll('path.edge-line').forEach(p => lines.push(p));
+      root.querySelectorAll('path.edge-line:not(.edge-line--underflow)').forEach(p => lines.push(p));
     });
     const hasTargets = runFlowTargetKeys.size > 0;
     lines.forEach((line) => {
@@ -253,6 +287,7 @@ window.Canvas = (function () {
     }
   }
 
+  let suppressNodeFocus = null;
   function _attachNodeListeners(id) {
     const { el } = nodeState.get(id);
     el.querySelectorAll('.node-section').forEach(sec => {
@@ -265,6 +300,11 @@ window.Canvas = (function () {
     });
     el.querySelector('.node-item')?.addEventListener('click', e => {
       e.stopPropagation();
+      if (suppressNodeFocus
+        && suppressNodeFocus.id === id
+        && Date.now() <= suppressNodeFocus.until) {
+        return;
+      }
       const { data } = nodeState.get(id);
       if (data && onNodeClickCb) onNodeClickCb(data);
     });
@@ -292,10 +332,14 @@ window.Canvas = (function () {
   function build(P) {
     canvasInner.style.width  = P.canvasWidth  + 'px';
     canvasInner.style.height = P.canvasHeight + 'px';
-    CONNECTIONS = [...P.connections];
-    P.nodes.forEach(n => addNode({ ...n, x: n.x + opts.offset, y: n.y }));
+    CONNECTIONS = [...(P.connections || [])];
+    (P.nodes || []).forEach(n => addNode({ ...n, x: n.x + opts.offset, y: n.y }));
     applyTransform();
-    requestAnimationFrame(() => { drawEdges(); _refreshOverlaps(); });
+    requestAnimationFrame(() => {
+      drawEdges();
+      _refreshOverlaps();
+      requestAnimationFrame(() => drawEdges());
+    });
   }
 
   // Wipe the canvas to an empty state so the caller can rebuild a different
@@ -333,9 +377,8 @@ window.Canvas = (function () {
   }
 
   // ── Edge drawing ─────────────────────────────────────
-  // View mode: one low-z overlay. Edit mode: two overlays — back (below the
-  // subgraph shell) for edges that do not touch a subgroup member, front
-  // (above the shell, below `.sg-member` cards) for edges that do.
+  // View mode: one low-z overlay. Edit mode: back holds non-member edges + blurred
+  // under-pass for member edges; front (above subgraph shell) holds masked sharp member edges.
   function _onEdgeSvgClick(e) {
     const hit = e.target.closest('.edge-hit');
     if (!hit) return;
@@ -558,18 +601,60 @@ window.Canvas = (function () {
     };
     if (opts.editable) {
       const { back, front } = _ensureEdgeOverlaysEdit();
-      const backParts = [];
+      const EDGE_FLOW_BLUR_DEFS =
+        '<defs><filter id="edgeFlowBlur" filterUnits="userSpaceOnUse" x="-800000" y="-800000" width="1600000" height="1600000">' +
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="1.25"/></filter></defs>';
+      const backParts = [EDGE_FLOW_BLUR_DEFS];
+      const frontDefs = [];
       const frontParts = [];
       CONNECTIONS.forEach((c, i) => {
-        const parts = _edgeTouchesSubgraphMember(c) ? frontParts : backParts;
         if (_isInternalCollapsedSubgraphEdge(c)) {
-          _pushCollapsedInternalEdgePlaceholder(c, i, parts);
+          _pushCollapsedInternalEdgePlaceholder(c, i, backParts);
+          return;
+        }
+        if (!_edgeTouchesSubgraphMember(c)) {
+          pushConn(c, i, backParts);
+          return;
+        }
+        const a = getPortPos(c.from[0], c.from[1], c.from[2], canvasRect);
+        const b = getPortPos(c.to[0],   c.to[1],   c.to[2], canvasRect);
+        if (!a || !b) return;
+        const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
+        const d = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+        const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
+        backParts.push(
+          `<g filter="url(#edgeFlowBlur)" opacity="0.5" pointer-events="none">` +
+          `<path class="edge-line edge-line--underflow" data-edge-key="${edgeKey}" d="${d}"/>` +
+          `</g>`
+        );
+        const gf = _getSubgraphGroupIdForNode(c.from[0]);
+        const gt = _getSubgraphGroupIdForNode(c.to[0]);
+        const ex = new Set([gf, gt].filter(Boolean));
+        const maskOk = typeof window.getSubgraphGroupIdForNode === 'function' && ex.size > 0;
+        const maskId = `sg-edge-m-${i}`;
+        if (maskOk) {
+          const occluders = _subgraphOccluderMaskRects(ex);
+          frontDefs.push(
+            `<mask id="${maskId}" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" ` +
+            `x="-600000" y="-600000" width="1200000" height="1200000">` +
+            `<rect x="-600000" y="-600000" width="1200000" height="1200000" fill="white"/>` +
+            `${occluders}</mask>`
+          );
+          frontParts.push(
+            `<g mask="url(#${maskId})">` +
+            `<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>` +
+            `<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>` +
+            `</g>`
+          );
         } else {
-          pushConn(c, i, parts);
+          frontParts.push(
+            `<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>` +
+            `<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>`
+          );
         }
       });
       back.innerHTML = backParts.join('');
-      front.innerHTML = frontParts.join('');
+      front.innerHTML = (frontDefs.length ? `<defs>${frontDefs.join('')}</defs>` : '') + frontParts.join('');
     } else {
       const svg = _ensureEdgeOverlay();
       const parts = [];
@@ -680,7 +765,14 @@ window.Canvas = (function () {
       if (!head || e.target.closest('.menu-dots')) return;
       e.preventDefault(); e.stopPropagation();
       const node = head.parentElement;
-      dragState = { node, startX: e.clientX, startY: e.clientY, startLeft: parseFloat(node.style.left)||0, startTop: parseFloat(node.style.top)||0 };
+      dragState = {
+        node,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: parseFloat(node.style.left)||0,
+        startTop: parseFloat(node.style.top)||0,
+        moved: false,
+      };
       _bringToFront(node); node.classList.add('dragging');
       document.addEventListener('mousemove', _onDragMove);
       document.addEventListener('mouseup', _onDragEnd, { once: true });
@@ -688,6 +780,9 @@ window.Canvas = (function () {
   }
   function _onDragMove(e) {
     if (!dragState) return;
+    if (!dragState.moved && Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY) > 2) {
+      dragState.moved = true;
+    }
     dragState.node.style.left = (dragState.startLeft + (e.clientX - dragState.startX) / zoom) + 'px';
     dragState.node.style.top  = (dragState.startTop  + (e.clientY - dragState.startY) / zoom) + 'px';
     drawEdges();
@@ -704,6 +799,12 @@ window.Canvas = (function () {
       if (s) {
         s.data.x = parseFloat(nodeEl.style.left) || 0;
         s.data.y = parseFloat(nodeEl.style.top)  || 0;
+      }
+      if (dragState.moved) {
+        suppressNodeFocus = {
+          id,
+          until: Date.now() + 250,
+        };
       }
       dragState.node.classList.remove('dragging');
       dragState = null;

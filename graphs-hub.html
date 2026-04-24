@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConnectifyAI — Graphs Hub</title>
+  <script>
+    try {
+      if (localStorage.getItem('cfg.theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f7fa; --surface: #ffffff; --border: #e4e8ee; --border-light: #eef1f6;
+      --primary: #2563eb; --primary-hover: #1d4ed8; --primary-soft: #eff4ff;
+      --text-primary: #0f172a; --text-secondary: #475569; --text-muted: #94a3b8;
+      --tag-bg: #f1f5f9; --tag-text: #475569;
+      --avatar-1: #8b5cf6; --avatar-2: #f59e0b; --avatar-3: #ec4899;
+      --avatar-4: #10b981; --avatar-5: #3b82f6; --avatar-6: #ef4444;
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text-primary); font-size: 14px; -webkit-font-smoothing: antialiased;
+    }
+    .topbar {
+      height: 56px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px;
+      text-decoration: none; color: inherit;
+    }
+    .brand-logo {
+      width: 28px; height: 28px; border-radius: 7px; background: var(--primary);
+      display: grid; place-items: center; color: #fff;
+    }
+    .brand-logo svg { width: 16px; height: 16px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .avatar-dropdown {
+      display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px 4px 4px;
+      border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+    }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 600; }
+    .chev { width: 14px; height: 14px; color: var(--text-muted); }
+
+    body.sidebar-expanded { --nav-w: 220px; }
+    .layout { display: grid; grid-template-columns: var(--nav-w, 56px) 1fr; min-height: calc(100vh - 56px); transition: grid-template-columns .18s ease; }
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--border); padding: 16px 12px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .nav-toggle {
+      width: 36px; height: 36px; margin: 0 0 6px auto; border-radius: 8px; border: none; background: transparent;
+      display: grid; place-items: center; cursor: pointer; color: var(--text-muted);
+    }
+    .nav-toggle:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-toggle svg { width: 16px; height: 16px; transition: transform .18s ease; }
+    body.sidebar-expanded .nav-toggle svg { transform: rotate(180deg); }
+    .nav-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted);
+      margin: 8px 10px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px;
+      color: var(--text-secondary); text-decoration: none; cursor: pointer; font-size: 13.5px; font-weight: 500;
+      white-space: nowrap; overflow: hidden;
+    }
+    .nav-item:hover { background: var(--bg); color: var(--text-primary); }
+    .nav-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    body:not(.sidebar-expanded) .sidebar { padding: 16px 10px; }
+    body:not(.sidebar-expanded) .nav-item { justify-content: center; padding: 8px; gap: 0; font-size: 0; }
+    body:not(.sidebar-expanded) .nav-label { display: none; }
+
+    .main { padding: 26px 30px 36px; overflow: auto; }
+    .header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+    .header p { margin-top: 4px; color: var(--text-secondary); max-width: 760px; }
+    .header-actions { display: flex; gap: 10px; }
+    .btn {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); border-radius: 8px;
+      height: 36px; padding: 0 14px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+    .community-search-row {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 8px;
+    }
+    .community-search-row input, .community-search-row select {
+      height: 36px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; background: var(--surface);
+      color: var(--text-primary); font-family: inherit; font-size: 13px;
+    }
+    .topic-pills {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+    }
+    .topic-pill {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
+      border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .topic-pill.active {
+      background: #0f172a; border-color: #0f172a; color: #fff;
+    }
+
+    .dashboard-switcher {
+      display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden;
+      background: var(--surface);
+    }
+    .dashboard-switcher button {
+      border: none; background: transparent; color: var(--text-secondary); font-family: inherit;
+      font-size: 12px; font-weight: 600; padding: 7px 10px; cursor: pointer;
+    }
+    .dashboard-switcher button.active { background: var(--primary-soft); color: var(--primary); }
+    .status-filter {
+      height: 34px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px;
+      background: var(--surface); color: var(--text-primary); font-family: inherit; font-size: 12px;
+    }
+    /* Use a custom caret so right spacing is reliable across browsers. */
+    #sortFilter, #contribFilter, #teamSelect, #roleFilter {
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 8l5 5 5-5' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px 12px;
+      padding-right: 34px;
+    }
+    #sortFilter::-ms-expand, #contribFilter::-ms-expand, #teamSelect::-ms-expand, #roleFilter::-ms-expand { display: none; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+      margin-bottom: 12px;
+    }
+    .panel h2 { font-size: 15px; margin-bottom: 10px; }
+    .section { margin-bottom: 20px; }
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;
+    }
+    .section-title { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+    .subtle { color: var(--text-muted); font-size: 12px; }
+    .cards {
+      display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px;
+      scroll-snap-type: x mandatory; scrollbar-width: thin;
+    }
+    .graph-card {
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px;
+      display: flex; flex-direction: column; gap: 8px; width: 332px; flex-shrink: 0; scroll-snap-align: start;
+    }
+    .graph-card[data-graph-slug] { cursor: pointer; }
+    .graph-card[data-graph-slug]:hover { border-color: var(--primary); box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12); }
+    .graph-thumb {
+      position: relative; width: 100%; height: 124px; border: 1px solid var(--border-light); border-radius: 8px; overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 30%, #dbeafe 0%, transparent 45%),
+        radial-gradient(circle at 80% 70%, #e0e7ff 0%, transparent 50%),
+        #f8fafc;
+      background-image:
+        linear-gradient(var(--border-light) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
+      background-size: 16px 16px;
+      margin-bottom: 2px;
+    }
+    .graph-viz {
+      position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px); opacity: .9;
+    }
+    .role-badge {
+      position: absolute; top: 8px; right: 8px; border-radius: 7px; padding: 3px 8px; font-size: 11px; font-weight: 700;
+      color: #fff;
+    }
+    .role-admin { background: #0f172a; }
+    .role-view { background: #64748b; }
+    .role-contrib { background: #d97706; }
+    .role-public { background: #16a34a; }
+    .star-btn {
+      width: 20px; height: 20px; border: none;
+      background: transparent; cursor: pointer; color: #94a3b8;
+      display: grid; place-items: center; flex-shrink: 0; padding: 0;
+    }
+    .star-btn:hover { color: var(--text-primary); }
+    .star-btn.active { color: #f59e0b; }
+    .star-btn svg { width: 14px; height: 14px; }
+    .graph-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .graph-title { font-size: 14px; font-weight: 700; line-height: 1.3; }
+    .graph-meta { color: var(--text-muted); font-size: 12px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { background: var(--tag-bg); color: var(--tag-text); font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--text-secondary); }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .push-meta { font-size: 11.5px; color: var(--text-muted); }
+    .push-meta strong { color: var(--text-secondary); font-weight: 600; }
+    .avatar-stack { display: flex; align-items: center; justify-content: flex-end; }
+    .avatar-stack .mini {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 2px solid var(--surface);
+      margin-left: -6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .avatar-stack .mini:first-child { margin-left: 0; }
+    .avatar-stack .more {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      height: 22px;
+      min-width: 26px;
+      padding: 0 5px;
+      margin-left: -6px;
+      display: grid;
+      place-items: center;
+    }
+    .open-list { display: grid; gap: 8px; }
+    .open-item[data-graph-slug] { cursor: pointer; }
+    .open-item[data-graph-slug]:hover { background: var(--bg); }
+    .open-item {
+      border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+      padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+    }
+    .open-item .title { font-size: 13.5px; font-weight: 700; }
+    .open-item .meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .open-item .signals { font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; }
+    .open-chart { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow: hidden; }
+    .open-chart .open-item { border: none; border-radius: 0; }
+    .open-chart .open-sep { height: 1px; background: var(--border-light); margin: 0 12px; }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    .category-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      cursor: pointer;
+    }
+    .category-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 18px rgba(37, 99, 235, 0.08);
+      transform: translateY(-1px);
+    }
+    .category-icon {
+      width: 44px; height: 44px; display: grid; place-items: center; color: var(--primary); margin-bottom: 12px;
+    }
+    .category-icon svg { width: 36px; height: 36px; }
+    .category-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+    .category-count { font-size: 12px; color: var(--text-muted); }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .queue-item { border: 1px solid var(--border-light); border-radius: 9px; padding: 9px; margin-bottom: 8px; }
+
+    @media (max-width: 1200px) {
+      .split { grid-template-columns: 1fr; }
+      .category-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main { padding: 16px; }
+      .header { flex-direction: column; }
+      .community-search-row { grid-template-columns: 1fr; }
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="graphs-hub.html?tab=dashboard">
+      <div class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/>
+          <path d="M7.5 7.5 L10.8 16.5"/><path d="M16.5 7.5 L13.2 16.5"/><path d="M8 6 L16 6"/>
+        </svg>
+      </div>
+      ConnectifyAI
+    </a>
+    <div class="topbar-right">
+      <button class="avatar-dropdown" aria-label="Account">
+        <span class="avatar">JS</span>
+        <svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <div class="nav-label">Workspace</div>
+      <a class="nav-item active" href="graphs-hub.html?tab=dashboard" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="graphs-hub.html?tab=my-team" data-tab="my-team">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        My Team
+      </a>
+      <a class="nav-item" href="graphs-hub.html?tab=dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
+        Create
+      </a>
+      <div class="nav-label">Browse</div>
+      <a class="nav-item" href="graphs-hub.html?tab=community" data-tab="community">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+        Community
+      </a>
+    </aside>
+
+    <main class="main">
+      <div class="header">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageDesc">Your graph workspace with quick switching for recent, all, and starred projects.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn primary" id="newGraphBtn">New Graph</button>
+        </div>
+      </div>
+
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="section">
+          <div class="section-head">
+            <h2 class="section-title">Recent Graphs</h2>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div class="dashboard-switcher" id="dashboardSwitcher">
+                <button class="active" data-view="recent" type="button">Recent</button>
+                <button data-view="all" type="button">All</button>
+                <button data-view="starred" type="button">Starred</button>
+              </div>
+              <select class="status-filter" id="roleFilter">
+                <option value="">All roles</option>
+                <option value="View Only">View Only</option>
+                <option value="Contributor">Contributor</option>
+                <option value="Admin">Admin</option>
+                <option value="Owner">Owner</option>
+              </select>
+            </div>
+          </div>
+          <div class="cards" id="dashboardCards"></div>
+        </div>
+      </section>
+
+      <section id="tab-community" class="tab-pane">
+        <div class="community-search-row">
+          <input type="search" id="searchInput" placeholder="Search community graphs, models, datasets..." />
+          <select id="contribFilter">
+            <option value="">Filter</option>
+            <option value="open">Open to contributions</option>
+            <option value="restricted">Restricted</option>
+          </select>
+          <select id="sortFilter">
+            <option value="relevance">Sort</option>
+            <option value="relevance">Sort: Relevance</option>
+            <option value="updated">Sort: Recently updated</option>
+            <option value="forks">Sort: Most forked</option>
+            <option value="activity">Sort: Most active</option>
+          </select>
+        </div>
+        <div class="topic-pills" id="topicPills">
+          <button class="topic-pill active" type="button" data-topic="">All</button>
+        </div>
+        <div class="section">
+          <div class="section-head">
+            <h2 class="section-title">Trending graphs</h2>
+            <span class="subtle" id="communityCount"></span>
+          </div>
+          <div id="communityTrending" class="cards"></div>
+        </div>
+        <div class="section">
+          <div class="section-head">
+            <h2 class="section-title">Open to contributions</h2>
+            <span class="subtle">Community-maintained graphs</span>
+          </div>
+          <div id="communityOpenList" class="open-chart"></div>
+        </div>
+        <div class="section">
+          <div class="section-head">
+            <h2 class="section-title">Popular Graph Categories</h2>
+          </div>
+          <div class="category-grid">
+            <div class="category-card"><div class="category-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 8c0 8 20 8 20 16s-20 8-20 16"/><path d="M34 8c0 8-20 8-20 16s20 8 20 16"/></svg></div><div class="category-name">Bioinformatics</div><div class="category-count">80 Graphs</div></div>
+            <div class="category-card"><div class="category-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 30h28M10 30l3-9c.5-1.5 2-3 4-3h14c2 0 3.5 1.5 4 3l3 9"/></svg></div><div class="category-name">Computer Vision</div><div class="category-count">119 Graphs</div></div>
+            <div class="category-card"><div class="category-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"><circle cx="24" cy="24" r="14"/><path d="M24 10v28M10 24h28"/></svg></div><div class="category-name">Climate</div><div class="category-count">37 Graphs</div></div>
+            <div class="category-card"><div class="category-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 36l8-10 6 6 10-14 8 10"/></svg></div><div class="category-name">NLP</div><div class="category-count">68 Graphs</div></div>
+            <div class="category-card"><div class="category-icon"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h12l-2 10c3 2 5 5 5 9 0 6-5 11-11 11s-11-5-11-11c0-4 2-7 5-9L18 8z"/></svg></div><div class="category-name">Drug Discovery</div><div class="category-count">51 Graphs</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-my-team" class="tab-pane">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <h2 style="margin:0;">Team Workspace</h2>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="subtle">Current team:</span>
+              <select id="teamSelect" style="height:34px;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--surface);"></select>
+            </div>
+          </div>
+          <p class="subtle" style="margin:6px 0 10px;">Shared graphs, pending contribution requests, and collaboration opportunities.</p>
+          <div id="teamGraphs" class="cards"></div>
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h2>Pending Requests</h2>
+            <div id="teamRequests"></div>
+          </div>
+          <div class="panel">
+            <h2>Contribution Opportunities</h2>
+            <div id="teamOpportunities"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function() {
+      const KEY = 'cfg.sidebarExpanded';
+      function apply() {
+        const stored = localStorage.getItem(KEY);
+        const on = stored === null ? true : stored === '1';
+        document.body.classList.toggle('sidebar-expanded', on);
+      }
+      apply();
+      document.getElementById('navToggle')?.addEventListener('click', () => {
+        const on = !document.body.classList.contains('sidebar-expanded');
+        localStorage.setItem(KEY, on ? '1' : '0');
+        apply();
+      });
+    })();
+
+    const KNOWN_PROJECTS = {
+      'Public Health Monitoring': 'public-health-monitoring',
+      'Neurological Disease Analysis': 'neurological-disease-analysis',
+      'Autonomous Vehicle Navigation': 'autonomous-vehicle-navigation',
+      'Human Genome Analysis': 'human-genome-analysis'
+    };
+    const TAB_META = {
+      'dashboard': {
+        title: 'Dashboard',
+        desc: 'Your graph workspace with quick switching for recent, all, and starred projects.'
+      },
+      'community': {
+        title: 'Community',
+        desc: 'Discover public graphs with trust signals, reproducibility indicators, and contribution pathways.'
+      },
+      'my-team': {
+        title: 'My Team',
+        desc: 'Track team-shared graphs, pending requests, and collaboration opportunities.'
+      }
+    };
+
+    const GRAPHS = [
+      { title:'Neurological Disease Analysis', owner:'RazLab', shortOwner:'you · RazLab', domain:'Neuroscience', modality:'MRI', method:'Disease Detection', role:'Admin', status:'Experimental', license:'MIT', updatedHours:6, forks:38, stars:214, downloads:12000, activity:57, openContrib:true, team:'Neuron Forge', abstract:'MRI/PET workflow for lesion segmentation and progression scoring.', starred:true, recentRank:1, editedAgo:'2 hours ago', editedBy:'Jesh B.', collaborators:['LR','MK','SP'], collaboratorExtra:38 },
+      { title:'Human Genome Analysis', owner:'Broad Institute', shortOwner:'you · Broad Institute', domain:'Genomics', modality:'Sequence', method:'Bioinformatics', role:'Admin', status:'Stable', license:'CC-BY-4.0', updatedHours:14, forks:14, stars:88, downloads:0, activity:66, openContrib:true, team:'Genome Guild', abstract:'Population-scale variant analysis with explainable ranking stages.', starred:false, recentRank:2, editedAgo:'6 hours ago', editedBy:'Mina K.', collaborators:['AM','TP','JW'], collaboratorExtra:12 },
+      { title:'Autonomous Vehicle Navigation', owner:'Waymo', shortOwner:'Waymo', domain:'Autonomous Driving', modality:'LiDAR+Vision', method:'Perception', role:'View Only', status:'Stable', license:'Apache-2.0', updatedHours:2, forks:200, stars:1200, downloads:0, activity:98, openContrib:false, team:'Vector Lab', abstract:'Perception-to-planning graph with branch-level ablation tracing.', starred:true, recentRank:3, editedAgo:'1 day ago', editedBy:'Ria S.', collaborators:['RC','DN','YK'], collaboratorExtra:22 },
+      { title:'Public Health Monitoring', owner:'UCLA', shortOwner:'UCLA', domain:'Public Health', modality:'Multimodal', method:'Forecasting', role:'Contributor', status:'Stable', license:'CC-BY-4.0', updatedHours:55, forks:55, stars:310, downloads:0, activity:91, openContrib:true, team:'Vector Lab', abstract:'County-level outbreak warning with EHR + wastewater + mobility inputs.', starred:false, recentRank:4, editedAgo:'2 days ago', editedBy:'Lana R.', collaborators:['LR','SP','AQ'], collaboratorExtra:9 }
+    ];
+    const CUSTOM_PROJECTS_KEY = 'cfg.customProjects';
+    const AVATAR_COLORS = ['var(--avatar-1)', 'var(--avatar-2)', 'var(--avatar-3)', 'var(--avatar-4)', 'var(--avatar-5)', 'var(--avatar-6)'];
+
+    const TEAM_DATA = {
+      'Vector Lab': {
+        graphs:['Public Health Monitoring', 'Autonomous Vehicle Navigation'],
+        requests:[
+          'A. Chen requested contributor access to Public Health Monitoring.',
+          'N. Patel requested write access to Autonomous Vehicle Navigation.'
+        ],
+        opportunities:[
+          'Public Health Monitoring needs review on intervention policy branch.',
+          'Autonomous Vehicle Navigation has an open issue: uncertainty calibration.'
+        ]
+      },
+      'Neuron Forge': {
+        graphs:['Neurological Disease Analysis'],
+        requests:['K. Yu requested permission to run private imaging benchmark set.'],
+        opportunities:['Neurological Disease Analysis has 3 open tasks in segmentation QA lane.']
+      },
+      'Genome Guild': {
+        graphs:['Human Genome Analysis'],
+        requests:['R. Singh requested maintainer role for variant-ranking module.'],
+        opportunities:['Human Genome Analysis seeks contributor for reproducibility docs refresh.']
+      }
+    };
+
+    let activeTab = 'dashboard';
+    let dashboardView = 'recent';
+    let activeTopic = '';
+
+    const q = (s) => document.querySelector(s);
+    const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const byTitle = new Map(GRAPHS.map(g => [g.title, g]));
+
+    function readCustomProjects() {
+      try {
+        const raw = localStorage.getItem(CUSTOM_PROJECTS_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function writeCustomProjects(list) {
+      try { localStorage.setItem(CUSTOM_PROJECTS_KEY, JSON.stringify(list || [])); } catch (_) {}
+    }
+
+    function hydrateCustomProjects() {
+      const rows = readCustomProjects();
+      rows.forEach((p, idx) => {
+        if (!p || !p.slug || !p.title) return;
+        if (GRAPHS.some(g => g.slug === p.slug)) return;
+        const g = {
+          title: p.title,
+          slug: p.slug,
+          owner: 'You',
+          shortOwner: 'you',
+          domain: 'General',
+          modality: 'Multimodal',
+          method: 'Custom',
+          role: 'Admin',
+          status: 'Draft',
+          license: 'Private',
+          updatedHours: 0,
+          forks: 0,
+          stars: 0,
+          downloads: 0,
+          activity: 0,
+          openContrib: false,
+          team: 'Personal',
+          abstract: 'Newly created graph project.',
+          starred: false,
+          recentRank: idx + 1,
+          editedAgo: 'just now',
+          editedBy: 'You',
+          collaborators: ['JS'],
+          collaboratorExtra: 0,
+        };
+        GRAPHS.unshift(g);
+        byTitle.set(g.title, g);
+      });
+      GRAPHS.forEach((g, i) => { g.recentRank = i + 1; });
+    }
+
+    function graphSlug(g) {
+      if (!g) return '';
+      return g.slug || KNOWN_PROJECTS[g.title] || '';
+    }
+
+    function openGraph(title) {
+      const row = byTitle.get(title);
+      const slug = graphSlug(row);
+      if (slug) window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+      else alert(`Open graph: ${title}`);
+    }
+
+    function roleBadgeClass(role) {
+      const v = String(role || '').toLowerCase();
+      if (v === 'admin' || v === 'owner') return 'background:#0f172a;color:#fff;';
+      if (v === 'contributor') return 'background:#d97706;color:#fff;';
+      return 'background:#64748b;color:#fff;';
+    }
+
+    function roleBadgeToken(role) {
+      const v = String(role || '').toLowerCase();
+      if (v === 'admin' || v === 'owner') return 'role-admin';
+      if (v === 'contributor') return 'role-contrib';
+      if (v === 'public') return 'role-public';
+      return 'role-view';
+    }
+
+    function graphVizFor(title) {
+      if (title === 'Public Health Monitoring') return `
+        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 30 L90 30"/><path d="M90 30 L150 60"/><path d="M150 60 L210 35"/><path d="M150 60 L210 85"/><path d="M90 30 L40 75"/></g>
+          <g><rect x="20" y="22" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="70" y="22" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="130" y="52" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="190" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="190" y="77" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="20" y="67" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/></g>
+        </svg>`;
+      if (title === 'Neurological Disease Analysis') return `
+        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 30 L100 60"/><path d="M100 60 L160 30"/><path d="M160 30 L220 60"/><path d="M100 60 L160 90"/><path d="M220 60 L160 90"/></g>
+          <g><rect x="20" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="80" y="52" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="140" y="22" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="200" y="52" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="140" y="82" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/></g>
+        </svg>`;
+      if (title === 'Autonomous Vehicle Navigation') return `
+        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M35 40 L95 25"/><path d="M95 25 L155 55"/><path d="M95 25 L95 80"/><path d="M155 55 L215 30"/><path d="M155 55 L215 80"/><path d="M95 80 L155 55"/></g>
+          <g><rect x="15" y="32" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="75" y="17" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="75" y="72" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="135" y="47" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="195" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="195" y="72" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/></g>
+        </svg>`;
+      return `
+        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
+          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 35 L100 35"/><path d="M100 35 L160 65"/><path d="M160 65 L220 35"/><path d="M160 65 L220 90"/></g>
+          <g><rect x="20" y="27" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="80" y="27" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="140" y="57" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="200" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="200" y="82" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/></g>
+        </svg>`;
+    }
+
+    function renderCard(g) {
+      const slug = graphSlug(g);
+      const slugAttr = slug ? ` data-graph-slug="${esc(slug)}"` : '';
+      const avatars = (g.collaborators || []).slice(0, 3).map((ini, i) =>
+        `<span class="mini" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]};">${esc(ini)}</span>`
+      ).join('');
+      const extra = Number(g.collaboratorExtra || 0);
+      return `<article class="graph-card"${slugAttr}>
+        <div class="graph-thumb">
+          <span class="role-badge ${roleBadgeToken(g.role)}">${esc(g.role)}</span>
+          ${graphVizFor(g.title)}
+        </div>
+        <div class="graph-head">
+          <div>
+            <div class="graph-title">${esc(g.title)}</div>
+            <div class="graph-meta">${esc(g.shortOwner || g.owner)}</div>
+          </div>
+          <button class="star-btn ${g.starred ? 'active' : ''}" type="button" onclick="event.stopPropagation(); toggleStar(${JSON.stringify(g.title)})" title="Star graph">
+            <svg viewBox="0 0 24 24" fill="${g.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
+          </button>
+        </div>
+        <div class="chip-row">
+          <span class="chip">${esc(g.domain)}</span>
+          <span class="chip">${esc(g.method)}</span>
+        </div>
+        <div class="stats">
+          <span>★ ${g.stars}</span>
+          <span>↯ ${g.forks}</span>
+          <span>↓ ${g.downloads > 0 ? `${Math.round(g.downloads / 1000)}k` : '—'}</span>
+        </div>
+        <div class="card-footer">
+          <span class="push-meta">Last edited: <strong>${esc(g.editedAgo || 'recently')}</strong> by ${esc(g.editedBy || 'Unknown')}</span>
+          <div class="avatar-stack">${avatars}${extra > 0 ? `<span class="more">+${extra}</span>` : ''}</div>
+        </div>
+      </article>`;
+    }
+
+    function filteredCommunity() {
+      const search = q('#searchInput').value.trim().toLowerCase();
+      const contrib = q('#contribFilter').value;
+      const sort = q('#sortFilter').value;
+
+      let rows = GRAPHS.filter(g => {
+        if (activeTopic && ![g.domain, g.method, g.modality].includes(activeTopic)) return false;
+        if (contrib === 'open' && !g.openContrib) return false;
+        if (contrib === 'restricted' && g.openContrib) return false;
+        if (search) {
+          const hay = `${g.title} ${g.owner} ${g.domain} ${g.method} ${g.abstract}`.toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      });
+
+      rows.sort((a, b) => {
+        if (sort === 'updated') return a.updatedHours - b.updatedHours;
+        if (sort === 'forks') return b.forks - a.forks;
+        if (sort === 'activity') return b.activity - a.activity;
+        const score = (g) => (g.reproducible ? 10 : 0) + (g.openContrib ? 8 : 0) + g.activity + g.forks * 0.2;
+        return score(b) - score(a);
+      });
+      return rows;
+    }
+
+    function renderCommunity() {
+      const rows = filteredCommunity();
+      q('#communityCount').textContent = `${rows.length} public graphs`;
+      const trending = [...rows].sort((a,b) => (b.stars + b.forks * 1.5) - (a.stars + a.forks * 1.5)).slice(0, 8);
+      const open = rows.filter(g => g.openContrib);
+      q('#communityTrending').innerHTML = trending.map(g => renderCard({ ...g, role: 'Public', shortOwner: `${g.owner}` })).join('') || '<div class="panel">No matching community graphs.</div>';
+      q('#communityOpenList').innerHTML = open.map((g, idx) => {
+        const s = graphSlug(g);
+        const sAttr = s ? ` data-graph-slug="${esc(s)}"` : '';
+        return `
+        <article class="open-item"${sAttr}>
+          <div>
+            <div class="title">${esc(g.title)}</div>
+            <div class="meta">${esc(g.owner)} · ${esc(g.domain)} · ${esc(g.method)} · ${esc(g.status)}</div>
+            <div class="signals">★ ${g.stars} · ↯ ${g.forks} · Updated ${g.updatedHours}h ago</div>
+          </div>
+          <button class="star-btn ${g.starred ? 'active' : ''}" type="button" onclick="event.stopPropagation(); toggleStar(${JSON.stringify(g.title)})" title="Star graph">
+            <svg viewBox="0 0 24 24" fill="${g.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
+          </button>
+        </article>${idx < open.length - 1 ? '<div class="open-sep"></div>' : ''}`;
+      }).join('') || '<div class="panel">No open-contribution graphs.</div>';
+    }
+
+    function renderDashboard() {
+      const role = q('#roleFilter').value;
+      let rows = [...GRAPHS];
+      if (dashboardView === 'recent') rows.sort((a, b) => a.recentRank - b.recentRank);
+      if (dashboardView === 'all') rows.sort((a, b) => a.title.localeCompare(b.title));
+      if (dashboardView === 'starred') rows = rows.filter(g => g.starred);
+      if (role) rows = rows.filter(g => g.role === role);
+      q('#dashboardCards').innerHTML = rows.map(renderCard).join('') || '<div class="panel">No graphs match this filter.</div>';
+    }
+
+    function initTopicPills() {
+      const topics = ['Neuroscience', 'Genomics', 'Autonomous Driving', 'NLP', 'Drug Discovery', 'Climate', 'Bioinformatics', 'Public Health'];
+      const host = q('#topicPills');
+      topics.forEach(t => host.insertAdjacentHTML('beforeend', `<button class="topic-pill" type="button" data-topic="${esc(t)}">${esc(t)}</button>`));
+      host.querySelectorAll('.topic-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          host.querySelectorAll('.topic-pill').forEach(x => x.classList.remove('active'));
+          btn.classList.add('active');
+          activeTopic = btn.dataset.topic || '';
+          renderCommunity();
+        });
+      });
+    }
+
+    function renderTeam(teamName) {
+      const data = TEAM_DATA[teamName];
+      if (!data) return;
+      q('#teamGraphs').innerHTML = data.graphs.map(name => renderCard(byTitle.get(name))).join('');
+      q('#teamRequests').innerHTML = data.requests.map(r => `<div class="queue-item">${esc(r)}</div>`).join('');
+      q('#teamOpportunities').innerHTML = data.opportunities.map(o => `<div class="queue-item">${esc(o)}</div>`).join('');
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      q(`#tab-${tab}`)?.classList.add('active');
+      document.querySelectorAll('.nav-item[data-tab]').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+      q('#pageTitle').textContent = TAB_META[tab].title;
+      q('#pageDesc').textContent = TAB_META[tab].desc;
+    }
+
+    function initFilters() {
+      ['#searchInput','#sortFilter','#contribFilter']
+        .forEach(sel => q(sel).addEventListener('input', renderCommunity));
+      ['#sortFilter','#contribFilter']
+        .forEach(sel => q(sel).addEventListener('change', renderCommunity));
+    }
+
+    function initTeamSelector() {
+      const select = q('#teamSelect');
+      Object.keys(TEAM_DATA).forEach(name => select.insertAdjacentHTML('beforeend', `<option value="${esc(name)}">${esc(name)}</option>`));
+      select.addEventListener('change', () => renderTeam(select.value));
+      renderTeam(select.value || Object.keys(TEAM_DATA)[0]);
+    }
+
+    function initDashboardControls() {
+      q('#dashboardSwitcher')?.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          q('#dashboardSwitcher').querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+          dashboardView = btn.dataset.view;
+          renderDashboard();
+        });
+      });
+      q('#roleFilter')?.addEventListener('change', renderDashboard);
+    }
+
+    function initGraphCardNavigation() {
+      function go(e) {
+        if (e.target.closest('.star-btn')) return;
+        const card = e.target.closest('.graph-card[data-graph-slug], .open-item[data-graph-slug]');
+        if (!card) return;
+        const slug = card.getAttribute('data-graph-slug');
+        if (!slug) return;
+        window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+      }
+      ['dashboardCards', 'communityTrending', 'teamGraphs', 'communityOpenList'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el._graphNavBound) {
+          el._graphNavBound = true;
+          el.addEventListener('click', go);
+        }
+      });
+    }
+
+    q('#newGraphBtn').addEventListener('click', () => {
+      const slug = `new-graph-${Date.now().toString(36)}`;
+      const existing = readCustomProjects();
+      const taken = new Set([...GRAPHS.map(g => g.title), ...existing.map(r => r && r.title).filter(Boolean)]);
+      let title = 'New Graph';
+      let n = 2;
+      while (taken.has(title)) title = `New Graph (${n++})`;
+      existing.unshift({
+        slug,
+        title,
+        createdAt: Date.now(),
+        project: {
+          slug,
+          title,
+          org: 'Personal Workspace',
+          tags: ['Draft', 'Custom'],
+          description: 'New graph project.',
+          contributors: [{ name: 'You', role: 'Owner', letter: 'JS', bg: 'var(--avatar-5)', pushes: 0 }],
+          contributorCount: 1,
+          othersCount: 0,
+          othersPreview: '',
+          others: [],
+          nodes: [],
+          connections: [],
+          subgraphs: [],
+          canvasWidth: 2400,
+          canvasHeight: 1600,
+          viewZoom: 0.52
+        }
+      });
+      writeCustomProjects(existing);
+      window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+    });
+    const tabFromUrl = new URLSearchParams(window.location.search).get('tab');
+    window.toggleStar = (title) => {
+      const g = byTitle.get(title);
+      if (!g) return;
+      g.starred = !g.starred;
+      renderDashboard();
+      renderCommunity();
+      const teamSel = q('#teamSelect');
+      if (teamSel) renderTeam(teamSel.value);
+    };
+    hydrateCustomProjects();
+    window.openGraph = openGraph;
+    renderDashboard();
+    renderCommunity();
+    initFilters();
+    initTopicPills();
+    initTeamSelector();
+    initDashboardControls();
+    initGraphCardNavigation();
+    switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
+  </script>
+  <script src="theme.js"></script>
+</body>
+</html>

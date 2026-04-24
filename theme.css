@@ -283,3 +283,8 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #2d3b5a; }
 .theme-toggle .ico-moon { display: block; }
 html[data-theme="dark"] .theme-toggle .ico-sun  { display: block; }
 html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
+
+/* Breathing room between the theme control and the account pill. */
+.topbar .theme-toggle {
+  margin-inline-end: 10px;
+}

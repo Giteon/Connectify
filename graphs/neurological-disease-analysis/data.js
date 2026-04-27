@@ -11,9 +11,9 @@ window.PROJECT = {
     { letter: 'M', bg: 'var(--avatar-1)',   name: 'Mansi Saini',                        pushes: 2  },
   ],
   othersCount: 17,
-  othersPreview: 'Gideon Fox, Ish Khandelwal…',
+  othersPreview: 'Gideon F., Ish Khandelwal…',
   others: [
-    { letter: 'G', bg: 'var(--avatar-4)', name: 'Gideon Fox' },
+    { letter: 'G', bg: 'var(--avatar-4)', name: 'Gideon F.' },
     { letter: 'I', bg: 'var(--avatar-3)', name: 'Ish Khandelwal' },
     { letter: 'A', bg: 'var(--avatar-7)', name: 'Aarav Patel' },
     { letter: 'L', bg: 'var(--avatar-5)', name: 'Leo Nakamura' },

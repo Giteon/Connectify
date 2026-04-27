@@ -1,0 +1,290 @@
+/* ============================================================
+   Landing page — marketing surface, NOT the app shell.
+   Standalone styles; theme.css is loaded for the Poppins
+   wordmark + dark-mode tokens, but this file owns layout.
+   ============================================================ */
+
+:root {
+  --lp-bg: #ffffff;
+  --lp-bg-soft: #f7f8fa;
+  --lp-text: #0f172a;
+  --lp-text-soft: #64748b;
+  --lp-text-muted: #94a3b8;
+  --lp-border: #e6e8ee;
+  --lp-primary: #1e6fbf;
+  --lp-primary-hover: #1a5fa3;
+  --lp-eyebrow-bg: #e8f3ff;
+  --lp-eyebrow-text: #1e6fbf;
+  --lp-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --lp-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --lp-shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.10);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── Top nav ────────────────────────────────────────────── */
+.lp-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 32px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(8px);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--lp-border);
+}
+
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--lp-text);
+  justify-self: start;
+}
+.lp-brand img { display: block; }
+.lp-brand-wordmark { letter-spacing: 0.005em; }
+
+.lp-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: center;
+}
+.lp-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--lp-text);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+.lp-nav-link:hover { background: var(--lp-bg-soft); }
+.lp-nav-link svg { width: 14px; height: 14px; opacity: 0.7; }
+
+.lp-nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid transparent;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
+}
+.lp-btn-ghost {
+  background: transparent;
+  color: var(--lp-text);
+}
+.lp-btn-ghost:hover { background: var(--lp-bg-soft); }
+.lp-btn-primary {
+  background: var(--lp-primary);
+  color: #ffffff;
+  box-shadow: var(--lp-shadow-sm);
+}
+.lp-btn-primary:hover { background: var(--lp-primary-hover); }
+.lp-btn-outline {
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  border-color: var(--lp-border);
+  box-shadow: var(--lp-shadow-sm);
+}
+.lp-btn-outline:hover { background: var(--lp-bg-soft); }
+.lp-btn-lg {
+  padding: 13px 22px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+/* ── Main / hero ────────────────────────────────────────── */
+.lp-main {
+  position: relative;
+  padding: 72px 32px 0;
+  max-width: 1280px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.lp-main::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 720px;
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 0%, rgba(30, 111, 191, 0.06), transparent 70%),
+    radial-gradient(ellipse 80% 40% at 50% 30%, rgba(15, 23, 42, 0.025), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.lp-hero {
+  text-align: center;
+  max-width: 880px;
+  margin: 0 auto;
+}
+.lp-eyebrow {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--lp-eyebrow-bg);
+  color: var(--lp-eyebrow-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.lp-headline {
+  margin: 22px 0 0;
+  font-size: 76px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--lp-text);
+}
+.lp-headline-soft {
+  color: var(--lp-text-muted);
+  font-weight: 600;
+}
+.lp-subhead {
+  margin: 22px auto 0;
+  max-width: 620px;
+  color: var(--lp-text-soft);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.lp-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+/* ── Tab switcher ───────────────────────────────────────── */
+.lp-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 56px auto 0;
+  padding: 6px;
+  background: var(--lp-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  box-shadow: var(--lp-shadow-md);
+  /* center horizontally inside the main */
+}
+.lp-tabs-row { display: flex; justify-content: center; }
+.lp-main > .lp-tabs {
+  display: flex;
+  width: max-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--lp-text-soft);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+.lp-tab svg { width: 16px; height: 16px; }
+.lp-tab:hover { color: var(--lp-text); }
+.lp-tab.active {
+  background: var(--lp-bg-soft);
+  color: var(--lp-text);
+  box-shadow: inset 0 0 0 1px var(--lp-border);
+}
+
+/* ── Mock placeholders (solid color rectangles) ─────────── */
+.lp-mock-wrap {
+  position: relative;
+  margin: 36px auto 96px;
+  max-width: 1180px;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--lp-shadow-lg);
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-soft);
+}
+.lp-mock {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.lp-mock.active { display: block; }
+.lp-mock-graphs    { background: #4f46e5; }
+.lp-mock-wiki      { background: #059669; }
+.lp-mock-pi        { background: #d97706; }
+.lp-mock-intake    { background: #db2777; }
+.lp-mock-workflows { background: #0891b2; }
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .lp-headline { font-size: 52px; }
+  .lp-nav-links { display: none; }
+  .lp-topnav { grid-template-columns: 1fr auto; }
+  .lp-tabs { width: 100%; overflow-x: auto; }
+}
+@media (max-width: 600px) {
+  .lp-main { padding: 48px 20px 0; }
+  .lp-headline { font-size: 40px; }
+  .lp-subhead { font-size: 15px; }
+  .lp-hero-cta { flex-direction: column; width: 100%; }
+  .lp-hero-cta .lp-btn { width: 100%; }
+}
+
+/* ── Dark mode ──────────────────────────────────────────── */
+html[data-theme="dark"] {
+  --lp-bg: #0b1220;
+  --lp-bg-soft: #131d32;
+  --lp-text: #edf1f8;
+  --lp-text-soft: #a3b0c2;
+  --lp-text-muted: #6b7a92;
+  --lp-border: #2b3754;
+  --lp-eyebrow-bg: rgba(59, 130, 246, 0.16);
+  --lp-eyebrow-text: #93c5fd;
+  --lp-primary: #3b82f6;
+  --lp-primary-hover: #60a5fa;
+}
+html[data-theme="dark"] .lp-topnav {
+  background: rgba(11, 18, 32, 0.85);
+}

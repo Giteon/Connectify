@@ -16,7 +16,7 @@ window.PROJECT = {
     { letter: 'E', bg: 'var(--avatar-2)', name: 'Elisa De Martel' },
     { letter: 'J', bg: 'var(--avatar-5)', name: 'John Kahfcik' },
     { letter: 'A', bg: 'var(--avatar-3)', name: 'Aarav Patel' },
-    { letter: 'G', bg: 'var(--avatar-4)', name: 'Gideon Fox' },
+    { letter: 'G', bg: 'var(--avatar-4)', name: 'Gideon F.' },
     { letter: 'I', bg: 'var(--avatar-1)', name: 'Ish Khandelwal' },
     { letter: 'K', bg: 'var(--avatar-6)', name: 'Kai Johansson' },
     { letter: 'L', bg: 'var(--avatar-7)', name: 'Leo Nakamura' },

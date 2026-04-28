@@ -29,7 +29,7 @@
     const BUNDLED_GRAPH_COUNTS = Object.assign({}, DEMO_NODE_COUNT_BY_SLUG);
     const TAB_META = {
       'dashboard': {
-        title: 'Dashboard',
+        title: 'My Graphs',
         desc: "Explore and manage the graphs you've created or have contributed to."
       },
       'community': {
@@ -189,6 +189,12 @@
         return new Set(Array.isArray(parsed) ? parsed : []);
       } catch (_) { return new Set(); }
     }
+    function readJSON(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (_) { return fallback; }
+    }
     function writeSet(key, set) {
       try { localStorage.setItem(key, JSON.stringify([...set])); } catch (_) {}
     }
@@ -267,6 +273,15 @@
       const n = BUNDLED_GRAPH_COUNTS[slug];
       if (n != null) return n;
       return 0;
+    }
+    function variantCountForGraph(g) {
+      const direct = Number(g && g.variantCount);
+      if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
+      const slug = graphSlug(g);
+      if (!slug) return 1;
+      const variants = readJSON(`cfg.variants.${slug}`, null);
+      if (Array.isArray(variants) && variants.length) return variants.length;
+      return 1;
     }
 
     function openGraph(title) {
@@ -438,9 +453,10 @@
             <button class="card-icon-btn danger" type="button" data-action="delete" data-title="${esc(g.title)}" title="Delete graph" aria-label="Delete graph">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>` : '';
+      const variantCount = variantCountForGraph(g);
       const footerHtml = hideFooter ? '' : `
         <div class="card-footer">
-          <span class="push-meta">Last edited: <strong>${esc(g.editedAgo || 'recently')}</strong> by ${esc(g.editedBy || 'Unknown')}</span>
+          <span class="push-meta">Last edited <strong>${esc(g.editedAgo || 'recently')}</strong></span>
           <div class="avatar-stack">${avatars}${extra > 0 ? `<span class="more">+${extra}</span>` : ''}</div>
         </div>`;
       return `<article class="graph-card"${slugAttr}${dummyAttr}>
@@ -464,6 +480,7 @@
           <span class="chip">${esc(g.domain)}</span>
           <span class="chip">${esc(g.method)}</span>
           <span class="chip chip-nodes" title="Nodes on canvas">${nNodes} ${nNodes === 1 ? 'node' : 'nodes'}</span>
+          <span class="chip chip-variants" title="Number of variants">${variantCount} ${variantCount === 1 ? 'variant' : 'variants'}</span>
         </div>
         <div class="stats">
           <span>★ ${g.stars}</span>
@@ -544,9 +561,25 @@
     }
 
     function initTopicPills() {
-      const topics = ['Neuroscience', 'Genomics', 'Autonomous Driving', 'NLP', 'Drug Discovery', 'Climate', 'Bioinformatics', 'Public Health'];
+      const topics = [
+        ['Neuroscience', 'icons/neuroscience.svg'],
+        ['Genomics', 'icons/genomics.svg'],
+        ['Autonomous Driving', 'icons/autonomous-driving.svg'],
+        ['NLP', 'icons/nlp.svg'],
+        ['Drug Discovery', 'icons/drug-discovery.svg'],
+        ['Climate', 'icons/climate.svg'],
+        ['Bioinformatics', 'icons/bioinformatics.svg'],
+        ['Public Health', 'icons/public-health.svg'],
+        ['Oncology', 'icons/oncology.svg'],
+        ['Ophthalmology', 'icons/ophthalmology.svg'],
+        ['Cardiology', 'icons/cardiology.svg'],
+        ['Synthetic Biology', 'icons/synthetic-biology.svg'],
+        ['Behavioral Science', 'icons/behavioral-science.svg'],
+        ['Agriculture', 'icons/agriculture.svg'],
+        ['Geophysics', 'icons/geophysics.svg'],
+      ];
       const host = q('#topicPills');
-      topics.forEach(t => host.insertAdjacentHTML('beforeend', `<button class="topic-pill" type="button" data-topic="${esc(t)}">${esc(t)}</button>`));
+      topics.forEach(([topic, icon]) => host.insertAdjacentHTML('beforeend', `<button class="topic-pill" type="button" data-topic="${esc(topic)}"><img class="topic-pill-icon" src="${esc(icon)}" alt="" aria-hidden="true" /><span>${esc(topic)}</span></button>`));
       host.querySelectorAll('.topic-pill').forEach(btn => {
         btn.addEventListener('click', () => {
           host.querySelectorAll('.topic-pill').forEach(x => x.classList.remove('active'));
@@ -555,6 +588,31 @@
           renderCommunity();
         });
       });
+      const rail = q('#topicRail');
+      const prev = q('#topicRailPrev');
+      const next = q('#topicRailNext');
+      const fadeLeft = q('#topicRailFadeLeft');
+      const fadeRight = q('#topicRailFadeRight');
+      if (!rail || !prev || !next || !fadeLeft || !fadeRight) return;
+      const syncRail = () => {
+        const max = Math.max(0, host.scrollWidth - host.clientWidth);
+        const x = host.scrollLeft;
+        const canLeft = x > 2;
+        const canRight = x < max - 2;
+        prev.hidden = !canLeft;
+        next.hidden = !canRight;
+        fadeLeft.hidden = !canLeft;
+        fadeRight.hidden = !canRight;
+      };
+      prev.addEventListener('click', () => {
+        host.scrollBy({ left: -260, behavior: 'smooth' });
+      });
+      next.addEventListener('click', () => {
+        host.scrollBy({ left: 260, behavior: 'smooth' });
+      });
+      host.addEventListener('scroll', syncRail, { passive: true });
+      window.addEventListener('resize', syncRail);
+      requestAnimationFrame(syncRail);
     }
 
     function renderTeam(teamName) {
@@ -1080,7 +1138,7 @@
               Preview
             </button>
             <button type="button" class="ng-overlay-btn ng-overlay-btn--fork" data-ng-action="fork" data-graph-slug="${esc(slug)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v4a2 2 0 0 0 2 2h6"/><path d="M18 10v2"/></svg>
+              <img src="icons/fork.png" alt="" aria-hidden="true" />
               Fork
             </button>
           </div>
@@ -1152,6 +1210,7 @@
     }
 
     async function loadBundledCatalog() {
+      if (location.protocol === 'file:') return;
       try {
         const r = await fetch('graphs/catalog.json', { credentials: 'same-origin' });
         if (!r.ok) return;
@@ -1204,6 +1263,11 @@
     }
 
     q('#newGraphBtn').addEventListener('click', openNewGraphModal);
+    q('#leftNavNewGraphBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openNewGraphModal();
+    });
     const tabFromUrl = new URLSearchParams(window.location.search).get('tab');
     (async () => {
       await loadBundledCatalog();

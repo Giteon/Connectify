@@ -17,6 +17,9 @@
    * @param {string} [documentName] default graph.json
    */
   function loadBundledGraphJson(slug, documentName) {
+    if (location.protocol === 'file:') {
+      return Promise.reject(new Error('graph.json fetch blocked on file://'));
+    }
     var file = documentName || 'graph.json';
     return fetch(graphBasePath(slug) + file, { credentials: 'same-origin' })
       .then(function (res) {

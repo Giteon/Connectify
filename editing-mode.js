@@ -254,7 +254,7 @@ function _readCustomProjectBySlug(targetSlug) {
   }
 }
 if (!slug) {
-  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>';
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>';
 } else {
   const customProject = _readCustomProjectBySlug(slug);
   if (customProject) {
@@ -265,7 +265,7 @@ if (!slug) {
     queueMicrotask(() => initApp());
   } else {
     const fail = () => {
-      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>`;
     };
     if (typeof bootstrapBundledProject !== 'function') {
       fail();
@@ -3837,6 +3837,14 @@ function initLeftNav(P) {
       if (last) editLink.href = `editing-mode-new.html?project=${encodeURIComponent(last)}`;
     } catch (_) {}
   }
+  document.querySelectorAll('.nav-item-plus[data-new-graph-link]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = btn.getAttribute('data-new-graph-link');
+      if (href) window.location.assign(href);
+    });
+  });
 }
 
 /* ── Role pill + dropdown (ported from old build) ──────────

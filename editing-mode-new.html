@@ -111,7 +111,8 @@
        Workspace / Create / Browse groups (mirrors graphs-hub). Collapsed by default. -->
   <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
     <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
+      <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
     </button>
     <button class="leftnav-avatar" type="button" aria-label="Account">
       <span class="la-av">GF</span>
@@ -122,9 +123,12 @@
       <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
     </button>
     <div class="leftnav-group-label">Workspace</div>
-    <a href="graphs-hub.html?tab=dashboard" title="Dashboard">
+    <a class="nav-item-dashboard" href="graphs-hub.html?tab=dashboard" title="My Graphs">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-      <span class="nav-label">Dashboard</span>
+      <span class="nav-label">My Graphs</span>
+      <button type="button" class="nav-item-plus" data-new-graph-link="graphs-hub.html?tab=dashboard&amp;new=1" aria-label="Create new graph" title="New Graph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
     </a>
     <a href="graphs-hub.html?tab=my-team" title="My Team">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -149,7 +153,7 @@
       <span class="nav-label">Community</span>
     </a>
     <a class="nav-item-settings" href="#" aria-label="Settings">
-      <svg class="nav-item-settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.3l.06.06A1.65 1.65 0 0 0 8.92 4a1.65 1.65 0 0 0 1-1.51V2a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 19.63 7l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.6.55 1.28.55 2s-.19 1.4-.55 2z"/></svg>
+      <img class="nav-item-settings-icon" src="icons/settings.png" alt="" aria-hidden="true" />
       <span class="nav-label">Settings</span>
     </a>
   </aside>

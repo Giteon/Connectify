@@ -1,0 +1,300 @@
+:root {
+--info-w: 360px;
+}
+
+  /* ── App shell ─────────────────────────────────────────
+     View mode mirrors the edit-mode grid so users can switch between
+     the two without the chrome shifting around. Differences:
+     - Column 2 is a *persistent* info panel (project details + CTAs)
+       instead of a collapsible left drawer. In view mode you can't
+       add content, so there's nothing to hide here.
+     - No "add" tools, no run button, no comments button in topbar. */
+
+  .leftnav       { grid-column: 1; grid-row: 3; width: var(--leftnav-w); transition: width .18s ease; }
+  .info-panel    { grid-column: 2; grid-row: 3; width: var(--info-w); }
+  .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; }
+  .drawer-right  { grid-column: 4; grid-row: 3; }
+
+  /* ── Leftnav (identical to editing-mode-new) ───────────── */
+
+  .leftnav .nav-toggle {
+    width: 32px; height: 28px; align-self: center;
+    border-radius: 6px; background: transparent; border: none; cursor: pointer;
+    display: grid; place-items: center; color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .leftnav .leftnav-avatar {
+    display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 20px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-primary); text-decoration: none;
+    cursor: pointer; margin-bottom: 2px; font: inherit;
+  }
+
+  /* ── Info panel (left side, always visible) ───────────
+     Dedicated real-estate for project identity in view mode:
+     title, author, tags, contributors, description, and the two
+     primary CTAs for a visitor — Become a contributor, Fork. */
+  .info-panel {
+    background: var(--surface); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .ip-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; padding-bottom: 4px; color: var(--text-primary); }
+  .ip-author { font-size: 12.5px; color: var(--text-muted); padding-bottom: 8px;}
+  .ip-tagrow { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ip-top-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .ip-tag {
+    font-size: 11px; padding: 3px 9px; border-radius: 999px;
+    background: var(--tag-bg); color: var(--tag-text); font-weight: 500;
+  }
+  .ip-section h3 {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+  .ip-contribs { display: flex; flex-direction: column; gap: 8px; }
+  .ip-contrib {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ip-contrib .av {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .ip-contrib .body { display: flex; flex-direction: column; line-height: 1.15; flex: 1; min-width: 0; }
+  .ip-contrib .name { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+  .ip-contrib .name .role { color: var(--text-muted); font-weight: 400; }
+  .ip-contrib .meta { font-size: 11.5px; color: var(--text-muted); }
+
+  .ip-desc {
+    font-size: 13px; line-height: 1.55; color: var(--text-secondary);
+    overflow: hidden;
+  }
+  .ip-desc.clamp { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
+  .ip-desc-toggle {
+    margin-top: 6px; display: inline-flex; align-items: center; gap: 4px;
+    background: transparent; border: none; color: var(--primary);
+    font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
+  }
+  .ip-desc-toggle svg { width: 12px; height: 12px; transition: transform .15s; }
+  .ip-desc-toggle.expanded svg { transform: rotate(180deg); }
+
+  .ip-btn {
+    height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary);
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: background .12s, border-color .12s;
+    padding: 0 12px;
+  }
+  .ip-btn:hover { background: var(--bg); }
+  .ip-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .ip-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .ip-btn svg { width: 14px; height: 14px; }
+  .ip-btn img { width: 14px; height: 14px; object-fit: contain; }
+  html[data-theme="dark"] #forkBtn img {
+    filter: brightness(0) invert(1);
+  }
+  .ip-run-summary {
+    margin-top: 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg);
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+  }
+  .ip-run-summary .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .ip-run-summary .k { color: var(--text-secondary); }
+  .ip-run-summary .v { color: var(--text-primary); font-weight: 600; }
+
+  /* ── Topbar (mirrors editing-mode-new, minus run + comments) ── */
+
+  .tb-icon-toggle {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 7px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--text-secondary); cursor: pointer; flex-shrink: 0;
+    transition: background .12s, color .12s;
+  }
+
+  .tb-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 10px; border-radius: 7px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--text-secondary); font-family: inherit; font-size: 12.5px;
+    font-weight: 500; cursor: pointer; transition: background .12s, color .12s;
+  }
+
+  #tglPaths.tb-toggle {
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .tb-toggle.active { background: var(--primary-soft); color: var(--primary); }
+
+  /* Role pill + dropdown (view-mode variant) */
+
+  .role-opt .role-badge {
+    font-size: 10.5px; font-weight: 600; padding: 2px 7px;
+    border-radius: 20px; background: var(--tag-bg); color: var(--text-muted);
+  }
+
+  /* Presence */
+
+  /* Share graph modal (match editing-mode-new) */
+  .modal-backdrop .modal-card.share-modal-card {
+    width: 540px; max-width: min(92vw, 540px); padding: 0; gap: 0;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.18);
+  }
+
+  .share-link-btn {
+    height: 34px; border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+    background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+    color: var(--primary); font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; font-family: inherit;
+  }
+
+  .share-collabs-title { margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .share-collabs-list { border: 1px solid var(--border-light); border-radius: 10px; overflow: auto; max-height: 220px; background: var(--surface); }
+
+  .share-collab-meta .sub { font-size: 11px; color: var(--text-muted); }
+
+  .share-switch { width: 34px; height: 20px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); position: relative; cursor: pointer; flex-shrink: 0; }
+
+  /* ── Variant strip (read-only — switch allowed, can't add/edit) ── */
+  .variant-strip {
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-end; padding-left: 4px; gap: 2px; overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .variant-tab {
+    height: 100%; padding: 0 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+    background: transparent; border: none; cursor: pointer; font-family: inherit;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    white-space: nowrap;
+  }
+  .variant-tab:hover { color: var(--text-primary); background: var(--surface); }
+  .variant-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--surface); font-weight: 600; }
+
+  /* ── Right drawer (Paths, Inspector — no Comments in view mode) ── */
+
+  .drawer-right { border-left: 1px solid var(--border); }
+  .drawer.open { width: var(--drawer-right-w); }
+  .drawer-head {
+    display: flex; align-items: center;
+    border-bottom: 1px solid var(--border); padding: 0 4px 0 0; flex-shrink: 0;
+  }
+  .drawer-tabs { display: flex; flex: 1; padding: 0 4px; }
+  .drawer-tab {
+    flex: 1; padding: 11px 10px;
+    background: transparent; border: none; cursor: pointer; font-family: inherit;
+    font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+
+  .drawer-close {
+    width: 30px; height: 30px; border-radius: 6px; background: transparent;
+    border: none; color: var(--text-muted); cursor: pointer;
+    display: grid; place-items: center; margin-right: 4px;
+  }
+
+  .path-item {
+    border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 12px; background: var(--surface); cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .12s;
+  }
+  .path-item:hover { border-color: var(--primary); }
+
+  /* Inspector */
+
+  .inspector-hd .dot { width: 11px; height: 11px; border-radius: 50%; }
+
+  /* ── Bottom panel (Results — read-only Runs) ─────────── */
+  .bottom-panel {
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 0; overflow: hidden; transition: height .18s ease;
+  }
+  .bottom-panel.open { height: var(--bottom-h); }
+
+  .bp-body { flex: 1; overflow: auto; padding: 12px 16px 16px; }
+
+  .runs-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; height: 100%; }
+  .runs-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; }
+
+  .run-detail { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+  /* ── Canvas ─────────────────────────────────────────── */
+
+  .node-overlay path.edge-hit { stroke: transparent; stroke-width: 14; }
+  .node-overlay path.edge-highlight { stroke: var(--primary); stroke-width: 2.2; }
+  /* Adaptor chip — edge midpoint; clicks open read-only details. */
+
+  .adaptor-chip .adaptor-chip-text {
+    font-family: inherit; font-size: 10px; font-weight: 600;
+    fill: var(--text-primary); stroke: none; pointer-events: none;
+  }
+
+  .adp-pop-params { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+  .adp-pop-actions { display: flex; justify-content: flex-end; }
+
+  .node {
+    position: absolute; width: 200px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; font-size: 12.5px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04); z-index: 2;
+    user-select: none; transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s;
+  }
+
+  .node.path-dim { opacity: 0.25; }
+  .node.path-highlight { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.22); }
+
+  .node-head .menu-dots { display: none; }
+
+  .node-item { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 500; color: var(--text-primary); padding: 4px 6px; margin: -2px -6px; border-radius: 6px; }
+
+  .io-list { display: flex; flex-direction: column; }
+
+  .io-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; font-size: 11.5px; position: relative; }
+
+  .port-anchor { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translateY(-50%); z-index: 4; background: transparent; pointer-events: none; }
+
+  /* Floating UI */
+  .zoom-ctrls {
+    position: absolute; bottom: 16px; left: 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 5px;
+    display: flex; align-items: center; gap: 2px;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.06); z-index: 5;
+  }
+
+  .zoom-ctrls .zoom-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+
+  /* Path drop-in flash used by Find for dance animation. */
+  @keyframes node-flash {
+    0%   { box-shadow: 0 0 0 0    rgba(37,99,235,0.55); }
+    50%  { box-shadow: 0 0 0 8px  rgba(37,99,235,0.25); }
+    100% { box-shadow: 0 0 0 0    rgba(37,99,235,0);    }
+  }
+  .node.find-flash { animation: node-flash .7s ease-out 2; }
+
+  /* Modal backdrop (Become-a-Contributor modal) */
+
+  .modal-backdrop .modal-card {
+    background: var(--surface); border-radius: 14px;
+    padding: 22px 24px; box-shadow: 0 20px 50px rgba(15,23,42,0.18);
+    max-width: 92vw; width: 460px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .confirm-ok {
+    padding: 7px 16px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: var(--primary); color: #fff;
+  }
+  .confirm-ok:hover { background: var(--primary-hover); }

@@ -75,7 +75,7 @@ window.PROJECT = {
     { letter: 'O', bg: 'var(--avatar-2)', name: 'Omar Haddad' },
     { letter: 'Z', bg: 'var(--avatar-1)', name: 'Zara Malik' },
     { letter: 'B', bg: 'var(--avatar-5)', name: 'Bella Conti' },
-    { letter: 'G', bg: 'var(--avatar-7)', name: 'Gideon Fox' },
+    { letter: 'G', bg: 'var(--avatar-7)', name: 'Gideon F.' },
     { letter: 'I', bg: 'var(--avatar-3)', name: 'Ish Khandelwal' },
     { letter: 'C', bg: 'var(--avatar-4)', name: 'Charlie Jatt' },
     { letter: 'F', bg: 'var(--avatar-6)', name: 'Farah Suleiman' },

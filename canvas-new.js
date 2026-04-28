@@ -15,14 +15,12 @@ window.Canvas = (function () {
   // ── Constants + visual assets ────────────────────────
   const SVG_NS = 'http://www.w3.org/2000/svg';
   /** Edit mode: back (15005) draws blurred under-pass for member edges + all low edges.
-   *  Front (15016) draws sharp member edges above `#subgraphLayer` (15015), masked so
-   *  strokes skip unrelated subgroup shells; still below heads (15017) and nodes (15100+). */
+   *  Front draws sharp member edges and must sit above subgroup shells (expanded + collapsed)
+   *  so in-group connections stay visible while still using subgroup masking. */
   const Z_EDGE_BACK = 15005;
-  const Z_EDGE_FRONT = 15016;
+  const Z_EDGE_FRONT = 15240;
   const Z_NODE_BASE = 15100;
   const Z_NODE_RENORM_CEIL = 15240;
-  const Z_SG_MEMBER_BASE = 15250;
-  const Z_SG_MEMBER_CEIL = 15390;
   const ICONS = {
     Dataset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>`,
     Model:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2L21 7L21 17L12 22L3 17L3 7z"/><path d="M12 2L12 12M3 7L12 12M21 7L12 12M12 12L12 22"/></svg>`,
@@ -42,6 +40,187 @@ window.Canvas = (function () {
     const key = raw === 'label' ? 'lbl' : raw;   // avoid clash with .type-label header class
     return `<span class="type-pill type-${key}">${LABELS[key] || raw.toUpperCase()}</span>`;
   }
+  // ── Adaptor table ────────────────────────────────────
+  // Curated set of known type→type bridges. Keeping the table hand-authored
+  // (rather than inferring from names) gives us human-readable chip labels
+  // and lets us refuse absurd conversions (e.g. audio→float) instead of
+  // silently lying about what's possible. Direction matters: an entry is
+  // one-way unless a mirror entry is also declared.
+  const ADAPTOR_MAP = (function () {
+    const codecParams = [
+      { key: 'quality', label: 'Quality', type: 'range', min: 60, max: 100, step: 1 },
+      {
+        key: 'colorspace', label: 'Colorspace', type: 'select',
+        options: [
+          { value: 'sRGB', label: 'sRGB' },
+          { value: 'display-p3', label: 'Display P3' },
+          { value: 'rec709', label: 'Rec. 709' },
+        ],
+      },
+      {
+        key: 'resample', label: 'Resampling', type: 'select',
+        options: [
+          { value: 'lanczos3', label: 'Lanczos' },
+          { value: 'bicubic', label: 'Bicubic' },
+          { value: 'box', label: 'Box' },
+        ],
+      },
+    ];
+    const codecDefaults = { quality: 92, colorspace: 'sRGB', resample: 'lanczos3' };
+    const raw = [
+      {
+        from: 'jpg', to: 'png', label: 'JPG→PNG',
+        desc: 'Re-encodes the JPG bytes as a PNG. Lossless recompression; file size can grow slightly depending on quality and resampling.',
+        defaultSettings: { ...codecDefaults },
+        params: codecParams,
+        preview: (s) => {
+          const q = s?.quality ?? codecDefaults.quality;
+          const pct = q >= 95 ? '+4% size' : '+12% size';
+          return `JPG 1920×1080 → PNG 1920×1080, ${pct}`;
+        },
+      },
+      {
+        from: 'png', to: 'jpg', label: 'PNG→JPG',
+        desc: 'Re-encodes PNG bytes as JPG. Lossy; drops alpha channel if present.',
+        defaultSettings: { quality: 88, colorspace: 'sRGB', resample: 'lanczos3' },
+        params: codecParams,
+        preview: (s) => {
+          const q = s?.quality ?? 88;
+          const pct = q >= 92 ? '−18% size' : '−32% size';
+          return `PNG 1920×1080 → JPG 1920×1080, ${pct}`;
+        },
+      },
+      {
+        from: 'image', to: 'jpg', label: 'Image→JPG',
+        desc: 'Exports the generic image tensor as a JPG file.',
+        defaultSettings: { ...codecDefaults, quality: 90 },
+        params: codecParams,
+        preview: (s) => `Image tensor 1920×1080 RGB → JPG file, ${(s?.quality ?? 90) >= 93 ? '−8% size' : '−22% size'}`,
+      },
+      {
+        from: 'image', to: 'png', label: 'Image→PNG',
+        desc: 'Exports the generic image tensor as a PNG file.',
+        defaultSettings: { ...codecDefaults },
+        params: codecParams,
+        preview: (s) => `Image tensor 1920×1080 RGB → PNG file, ${(s?.quality ?? 92) >= 95 ? '+2% size' : '+9% size'}`,
+      },
+      {
+        from: 'jpg', to: 'image', label: 'JPG→Image',
+        desc: 'Decodes JPG bytes into an image tensor.',
+        defaultSettings: { ...codecDefaults },
+        params: codecParams,
+        preview: (s) => `JPG file 2.4 MB → float image [1×3×1080×1920], ${s?.colorspace || 'sRGB'} decode`,
+      },
+      {
+        from: 'png', to: 'image', label: 'PNG→Image',
+        desc: 'Decodes PNG bytes into an image tensor.',
+        defaultSettings: { ...codecDefaults },
+        params: codecParams,
+        preview: (s) => `PNG file 1.1 MB → float image [1×4×1080×1920] (alpha kept), ${s?.colorspace || 'sRGB'}`,
+      },
+      { from: 'jpg', to: 'binary', label: 'JPG→Binary', desc: 'Passes raw JPG bytes downstream as a binary blob.', preview: () => 'JPG container 2.4 MB → identical binary blob 2.4 MB' },
+      { from: 'png', to: 'binary', label: 'PNG→Binary', desc: 'Passes raw PNG bytes downstream as a binary blob.', preview: () => 'PNG container 1.1 MB → identical binary blob 1.1 MB' },
+      {
+        from: 'binary', to: 'float', label: 'Binary→Float',
+        desc: 'Interprets the binary payload as a float tensor.',
+        defaultSettings: { endian: 'le', dtype: 'f32' },
+        params: [
+          { key: 'endian', label: 'Endianness', type: 'select', options: [{ value: 'le', label: 'Little-endian' }, { value: 'be', label: 'Big-endian' }] },
+          { key: 'dtype', label: 'DType', type: 'select', options: [{ value: 'f32', label: 'float32' }, { value: 'f64', label: 'float64' }] },
+        ],
+        preview: (s) => `Binary blob 2.1 MB → float tensor [1×512], ${String(s?.dtype || 'f32').toUpperCase()} · ${s?.endian === 'be' ? 'BE' : 'LE'}`,
+      },
+      { from: 'float', to: 'float32', label: 'Float→F32', desc: 'Casts float values to 32-bit precision.', preview: () => 'Float tensor [1024] → float32 tensor [1024], same shape' },
+      { from: 'float32', to: 'float', label: 'F32→Float', desc: 'Promotes 32-bit floats to the generic float type.', preview: () => 'float32 tensor [1024] → float tensor [1024], same shape' },
+      {
+        from: 'float', to: 'string', label: 'Float→Str',
+        desc: 'Formats float values as strings.',
+        defaultSettings: { decimals: 4, notation: 'plain' },
+        params: [
+          { key: 'decimals', label: 'Decimals', type: 'range', min: 0, max: 8, step: 1 },
+          {
+            key: 'notation', label: 'Notation', type: 'select',
+            options: [{ value: 'plain', label: 'Plain' }, { value: 'scientific', label: 'Scientific' }],
+          },
+        ],
+        preview: (s) => `Float vector [N] → UTF-8 strings (${(s?.notation === 'scientific' ? 'scientific' : 'fixed')}, ${s?.decimals ?? 4} dp)`,
+      },
+      {
+        from: 'label', to: 'string', label: 'Label→Str',
+        desc: 'Renders a classification label as its string form.',
+        defaultSettings: { style: 'human' },
+        params: [{ key: 'style', label: 'Label style', type: 'select', options: [{ value: 'human', label: 'Human-readable' }, { value: 'slug', label: 'Slug' }] }],
+        preview: (s) => (s?.style === 'slug' ? 'Label id 42 → string "class_42"' : 'Label id 42 → string "Aircraft"'),
+      },
+      { from: 'string', to: 'text', label: 'Str→Text', desc: 'Wraps the string in a text payload.', preview: () => 'Plain string 1.2 KB → rich text document (UTF-8)' },
+      { from: 'text', to: 'string', label: 'Text→Str', desc: 'Flattens text into a plain string.', preview: () => 'Rich text 4 KB → flat string 3.6 KB (markup stripped)' },
+    ];
+    const map = new Map();
+    raw.forEach(r => {
+      const id = `${r.from}-to-${r.to}`;
+      map.set(`${r.from}>${r.to}`, {
+        id,
+        fromType: r.from,
+        toType: r.to,
+        label: r.label,
+        desc: r.desc,
+        preview: r.preview || null,
+        params: r.params || null,
+        defaultSettings: r.defaultSettings ? { ...r.defaultSettings } : null,
+      });
+    });
+    return map;
+  })();
+  function _getAdaptor(fromType, toType) {
+    if (!fromType || !toType) return null;
+    if (fromType === toType) return null;
+    return ADAPTOR_MAP.get(`${fromType.toLowerCase()}>${toType.toLowerCase()}`) || null;
+  }
+  function _persistableAdaptor(adaptor) {
+    if (!adaptor) return null;
+    return {
+      id: adaptor.id,
+      fromType: adaptor.fromType,
+      toType: adaptor.toType,
+      label: adaptor.label,
+      desc: adaptor.desc,
+    };
+  }
+  function snapshotConnection(c) {
+    const o = { from: [...c.from], to: [...c.to] };
+    if (c.adaptor) o.adaptor = _persistableAdaptor(c.adaptor);
+    if (c.adaptorSettings && typeof c.adaptorSettings === 'object') o.adaptorSettings = { ...c.adaptorSettings };
+    return o;
+  }
+  function getAdaptorUiModel(conn) {
+    if (!conn || !conn.adaptor) return null;
+    const cat = _getAdaptor(conn.adaptor.fromType, conn.adaptor.toType);
+    const defaults = (cat && cat.defaultSettings) ? { ...cat.defaultSettings } : {};
+    const settings = { ...defaults, ...(conn.adaptorSettings || {}) };
+    let previewText = '';
+    if (cat && typeof cat.preview === 'function') {
+      try { previewText = String(cat.preview(settings) || ''); } catch (_) { previewText = ''; }
+    }
+    if (!previewText) {
+      previewText = `${String(conn.adaptor.fromType || '').toUpperCase()} → ${String(conn.adaptor.toType || '').toUpperCase()} data preview`;
+    }
+    return {
+      adaptor: _persistableAdaptor(conn.adaptor),
+      desc: (cat && cat.desc) || conn.adaptor.desc || '',
+      params: (cat && cat.params) || [],
+      settings,
+      previewText,
+    };
+  }
+  function updateConnectionAdaptorSettings(idx, patch) {
+    const c = CONNECTIONS[idx];
+    if (!c || !c.adaptor) return false;
+    c.adaptorSettings = Object.assign({}, c.adaptorSettings || {}, patch);
+    drawEdges();
+    _fireChange('adaptor-settings');
+    return true;
+  }
+
   function renderIoRows(rows, dir) {
     return (rows || []).map(r =>
       `<div class="io-row" data-io="${dir}:${r.name}" data-dir="${dir}" data-type="${(r.type||'').toLowerCase()}">` +
@@ -58,6 +237,8 @@ window.Canvas = (function () {
   let onNodeClickCb = null;
   let onKebabClickCb = null;
   let onConnectionConflictCb = null;
+  let onAdaptorRequiredCb = null;
+  let onAdaptorChipClickCb = null;
   // Fired after any mutation that changes the graph structure or node
   // positions. Hosts can hook this for undo/redo, autosave, dirty flags.
   let onChangeCb = null;
@@ -101,7 +282,11 @@ window.Canvas = (function () {
     return out;
   }
   function _edgeLineRoots() {
-    if (opts.editable && edgeOverlayBack && edgeOverlayFront) return [edgeOverlayBack, edgeOverlayFront];
+    if (opts.editable && edgeOverlayBack && edgeOverlayFront) {
+      const roots = [edgeOverlayBack, edgeOverlayFront];
+      document.querySelectorAll('.sg-internal-edges').forEach((el) => roots.push(el));
+      return roots;
+    }
     if (edgeOverlay) return [edgeOverlay];
     return [];
   }
@@ -119,33 +304,143 @@ window.Canvas = (function () {
       return null;
     }
   }
-  /** Black rects (luminance mask) over subgraph shells that are *not* endpoints of this edge. */
-  function _subgraphOccluderMaskRects(excludeGroupIds) {
-    const layer = document.getElementById('subgraphLayer');
-    if (!layer) return '';
-    const pad = 8;
-    const parts = [];
-    layer.querySelectorAll('.subgraph-box[data-id]').forEach((el) => {
-      if (el.classList.contains('preview')) return;
-      const gid = el.dataset.id;
-      if (!gid || excludeGroupIds.has(gid)) return;
-      let x = parseFloat(el.style.left) || 0;
-      let y = parseFloat(el.style.top) || 0;
-      let w = parseFloat(el.style.width) || 0;
-      let h = parseFloat(el.style.height) || 0;
-      if (w < 4 || h < 4) return;
-      x -= pad;
-      y -= pad;
-      w += pad * 2;
-      h += pad * 2;
-      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>`);
+  /** Expanded `.subgraph-box` for a group id, or null (used for in-group edge layering). */
+  function _expandedSubgraphBoxForGroupId(groupId) {
+    if (!groupId) return null;
+    try {
+      return document.querySelector(`.subgraph-box.expanded[data-id="${CSS.escape(String(groupId))}"]`);
+    } catch (_) {
+      return null;
+    }
+  }
+  /**
+   * Sharp member↔member edges inside one expanded subgroup: render into an SVG child of
+   * `.subgraph-box` so they paint above the dashed shell background but below member cards
+   * (siblings at shell z+1), instead of on `edgeOverlayFront` above every node.
+   */
+  function _renderInternalSubgraphEdgeSvgs(byGroup) {
+    document.querySelectorAll('.subgraph-box.expanded > .sg-internal-edges').forEach((svg) => {
+      const gid = svg.closest('.subgraph-box')?.dataset?.id;
+      if (!gid || !byGroup.has(gid)) svg.innerHTML = '';
     });
-    return parts.join('');
+    byGroup.forEach((items, gid) => {
+      if (!items || !items.length) return;
+      const box = _expandedSubgraphBoxForGroupId(gid);
+      if (!box) return;
+      let svg = box.querySelector(':scope > .sg-internal-edges');
+      if (!svg) {
+        svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('class', 'node-overlay sg-internal-edges');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.style.pointerEvents = 'auto';
+        svg.addEventListener('mousedown', _onEdgeSvgPointerDown, true);
+        svg.addEventListener('click', _onEdgeSvgClick);
+        const head = box.querySelector(':scope > .sg-head');
+        if (head) box.insertBefore(svg, head);
+        else box.appendChild(svg);
+      }
+      const left = parseFloat(box.style.left) || 0;
+      const top = parseFloat(box.style.top) || 0;
+      const body = items.map((it) => {
+        const conn = it.c;
+        const chip = conn && conn.adaptor ? _adaptorChipSvg(it.a, it.b, conn, it.i) : '';
+        return (
+          `<path class="edge-hit" data-conn-idx="${it.i}" d="${it.d}"/>` +
+          `<path class="edge-line" data-edge-key="${it.edgeKey}" d="${it.d}"/>` +
+          chip
+        );
+      }).join('');
+      svg.innerHTML = `<g transform="translate(${-left} ${-top})">${body}</g>`;
+    });
+  }
+  /** Black rects (luminance mask) over things that should hide this edge:
+   *   - subgraph shells that are *not* endpoints of this edge
+   *   - all nodes that are *not* endpoints of this edge (so edge appears behind nodes)
+   * Result: subgroup-touching edges sit visually above the dashed shell but
+   * behind every loose / member card. */
+  let _occluderCache = null;
+  function _buildOccluderCache() {
+    const pad = 8;
+    const groups = [];
+    const nodes = [];
+    const layer = document.getElementById('subgraphLayer');
+    if (layer) {
+      layer.querySelectorAll('.subgraph-box[data-id]').forEach((el) => {
+        if (el.classList.contains('preview')) return;
+        const gid = el.dataset.id;
+        if (!gid) return;
+        const x = parseFloat(el.style.left) || 0;
+        const y = parseFloat(el.style.top) || 0;
+        const w = parseFloat(el.style.width) || 0;
+        const h = parseFloat(el.style.height) || 0;
+        if (w < 4 || h < 4) return;
+        groups.push({
+          id: gid,
+          x, y, w, h,
+          rect: `<rect x="${x - pad}" y="${y - pad}" width="${w + pad * 2}" height="${h + pad * 2}" fill="black"/>`,
+        });
+      });
+    }
+    nodeState.forEach((s, id) => {
+      const el = s.el;
+      if (!el || el.classList.contains('sg-hidden')) return;
+      const x = parseFloat(el.style.left) || 0;
+      const y = parseFloat(el.style.top) || 0;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (w < 4 || h < 4) return;
+      nodes.push({ id, rect: `<rect x="${x - 2}" y="${y - 2}" width="${w + 4}" height="${h + 4}" rx="10" ry="10" fill="black"/>` });
+    });
+    return { groups, nodes };
+  }
+  /* Build occluder rects for a masked subgroup-touching edge.
+   * endpointGroupIds: Set of group IDs whose boxes are endpoint subgroups.
+   * For each endpoint group, non-member nodes inside its box should not occlude
+   * the edge (they're visually behind the box). We cancel them with a white rect
+   * then re-add blacks only for member nodes (minus the two endpoints). */
+  function _subgraphOccluderMaskRects(excludeGroupIds, excludeNodeIds, endpointGroupIds) {
+    const cache = _occluderCache || _buildOccluderCache();
+    const skipN = excludeNodeIds || new Set();
+    const skipG = excludeGroupIds || new Set();
+    let out = '';
+    // Non-endpoint group shells
+    for (let i = 0; i < cache.groups.length; i++) {
+      if (!skipG.has(cache.groups[i].id)) out += cache.groups[i].rect;
+    }
+    // All non-endpoint nodes (black)
+    for (let i = 0; i < cache.nodes.length; i++) {
+      if (!skipN.has(cache.nodes[i].id)) out += cache.nodes[i].rect;
+    }
+    // For each endpoint group: white-cancel the interior so non-member nodes
+    // can't occlude the edge inside the box, then re-add member node blacks.
+    if (endpointGroupIds && endpointGroupIds.size > 0 && typeof window.getSubgraphMemberNodeIds === 'function') {
+      const nodeMap = new Map();
+      for (let i = 0; i < cache.nodes.length; i++) nodeMap.set(cache.nodes[i].id, cache.nodes[i].rect);
+      endpointGroupIds.forEach(gid => {
+        const g = cache.groups.find(e => e.id === gid);
+        if (!g) return;
+        // White rect cancels all node blacks inside this box
+        out += `<rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" fill="white"/>`;
+        // Re-add member nodes (except the two endpoints) so they still occlude
+        const members = window.getSubgraphMemberNodeIds(gid) || [];
+        for (let j = 0; j < members.length; j++) {
+          const mid = members[j];
+          if (skipN.has(mid)) continue;
+          const r = nodeMap.get(mid);
+          if (r) out += r;
+        }
+      });
+    }
+    return out;
   }
   function _queryEdgeHitByConnIdx(idx) {
     const sel = `.edge-hit[data-conn-idx="${idx}"]`;
     if (opts.editable && edgeOverlayBack && edgeOverlayFront) {
-      return edgeOverlayBack.querySelector(sel) || edgeOverlayFront.querySelector(sel);
+      return (
+        edgeOverlayBack.querySelector(sel) ||
+        edgeOverlayFront.querySelector(sel) ||
+        document.querySelector(`.sg-internal-edges ${sel}`)
+      );
     }
     return edgeOverlay?.querySelector(sel) || null;
   }
@@ -180,7 +475,9 @@ window.Canvas = (function () {
       zoomValueId: 'zoomValue',
       offset: 0,
       editable: false,
-      initialZoom: 1.0
+      initialZoom: 1.0,
+      /** When true, single-click on `.node-head` opens the inspector (same as node title). Edit mode handles this on canvas-inner capture; view mode sets this. */
+      isNodeHeadSingleInspectOpen: null
     }, options || {});
     canvasEl    = document.getElementById(opts.canvasId);
     canvasInner = document.getElementById(opts.innerId);
@@ -217,7 +514,7 @@ window.Canvas = (function () {
     el.dataset.nodeId = data.id;
     el.style.left = data.x + 'px';
     el.style.top  = data.y + 'px';
-    const newZ = ++topNodeZ;
+    const newZ = ++surfaceZSeq;
     el.style.zIndex = newZ;
 
     const overlayEl = document.createElementNS(SVG_NS, 'svg');
@@ -230,8 +527,13 @@ window.Canvas = (function () {
 
     canvasInner.appendChild(el);
     canvasInner.appendChild(overlayEl);
-    requestAnimationFrame(_refreshOverlaps);
     _fireChange('add-node');
+    /* Edges use port centroids; double-rAF after host onChange (subgraph shell, etc.) matches build() and removes one-frame glitches. */
+    requestAnimationFrame(() => {
+      drawEdges();
+      _refreshOverlaps();
+      requestAnimationFrame(() => drawEdges());
+    });
     return el;
   }
 
@@ -288,6 +590,11 @@ window.Canvas = (function () {
   }
 
   let suppressNodeFocus = null;
+  /** True shortly after a committed node drag — host should skip inspector + head-driven selection. */
+  function shouldSuppressPostDragActivation(nodeId) {
+    if (!nodeId || !suppressNodeFocus) return false;
+    return suppressNodeFocus.id === nodeId && Date.now() <= suppressNodeFocus.until;
+  }
   function _attachNodeListeners(id) {
     const { el } = nodeState.get(id);
     el.querySelectorAll('.node-section').forEach(sec => {
@@ -312,6 +619,36 @@ window.Canvas = (function () {
       e.stopPropagation();
       if (onKebabClickCb) onKebabClickCb(id, e.currentTarget);
     });
+    const head = el.querySelector('.node-head');
+    if (head) {
+      const headInspectSingleEnabled = () =>
+        typeof opts.isNodeHeadSingleInspectOpen === 'function' && opts.isNodeHeadSingleInspectOpen();
+      head.addEventListener('click', (e) => {
+        if (e.target.closest('.menu-dots')) return;
+        if (suppressNodeFocus
+          && suppressNodeFocus.id === id
+          && Date.now() <= suppressNodeFocus.until) {
+          return;
+        }
+        if (!headInspectSingleEnabled()) return;
+        e.stopPropagation();
+        const { data } = nodeState.get(id);
+        if (data && onNodeClickCb) onNodeClickCb(data);
+      }, true);
+      head.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.menu-dots')) return;
+        if (suppressNodeFocus
+          && suppressNodeFocus.id === id
+          && Date.now() <= suppressNodeFocus.until) {
+          return;
+        }
+        if (headInspectSingleEnabled()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const { data } = nodeState.get(id);
+        if (data && onNodeClickCb) onNodeClickCb(data);
+      });
+    }
   }
 
   function addConnection(from, to) {
@@ -360,13 +697,13 @@ window.Canvas = (function () {
     if (edgeOverlayFront) { edgeOverlayFront.remove(); edgeOverlayFront = null; }
     if (ropeOverlay) { ropeOverlay.remove(); ropeOverlay = null; }
     if (dotsOverlay) { dotsOverlay.remove(); dotsOverlay = null; }
+    document.querySelectorAll('.sg-internal-edges').forEach((svg) => { svg.innerHTML = ''; });
     runFlowEnabled = false;
     runFlowTargetKeys = new Set();
     runFlowDoneKeys = new Set();
     runFlowActiveKeys = new Set();
     canvasEl?.classList.remove('running-edges');
-    topNodeZ = Z_NODE_BASE - 1;
-    sgMemberZ = Z_SG_MEMBER_BASE - 1;
+    surfaceZSeq = Z_NODE_BASE - 1;
   }
 
   // World coordinates at the current viewport center (accounts for pan+zoom).
@@ -380,7 +717,35 @@ window.Canvas = (function () {
   // View mode: one low-z overlay. Edit mode: back holds non-member edges + blurred
   // under-pass for member edges; front (above subgraph shell) holds masked sharp member edges.
   function _onEdgeSvgClick(e) {
+    const chip = e.target.closest && e.target.closest('.adaptor-chip');
+    if (chip && onAdaptorChipClickCb) {
+      const idx = parseInt(chip.dataset.connIdx, 10);
+      if (Number.isFinite(idx) && CONNECTIONS[idx]) {
+        e.stopPropagation();
+        onAdaptorChipClickCb({
+          connIndex: idx,
+          connection: CONNECTIONS[idx],
+          clientX: e.clientX,
+          clientY: e.clientY,
+        });
+      }
+      return;
+    }
+    if (!opts.editable) return;
     const hit = e.target.closest('.edge-hit');
+    if (!hit) return;
+    e.stopPropagation();
+    const conn = CONNECTIONS[parseInt(hit.dataset.connIdx, 10)];
+    if (!conn) return;
+    if (edgeBubbleConn === conn && edgeBubbleEl?.classList.contains('show')) {
+      _hideEdgeBubble();
+    } else {
+      _showEdgeBubble(conn);
+    }
+  }
+  function _onEdgeSvgPointerDown(e) {
+    if (!opts.editable) return;
+    const hit = e.target.closest && e.target.closest('.edge-hit');
     if (!hit) return;
     e.stopPropagation();
     const conn = CONNECTIONS[parseInt(hit.dataset.connIdx, 10)];
@@ -424,6 +789,7 @@ window.Canvas = (function () {
     edgeOverlay.setAttribute('class', 'node-overlay');
     edgeOverlay.style.zIndex = '1';
     edgeOverlay.style.pointerEvents = 'none';
+    edgeOverlay.addEventListener('click', _onEdgeSvgClick);
     canvasInner.insertBefore(edgeOverlay, canvasInner.firstChild);
     return edgeOverlay;
   }
@@ -518,14 +884,39 @@ window.Canvas = (function () {
     _edgeLineRoots().forEach(root => {
       root.querySelectorAll('.edge-active').forEach(p => p.classList.remove('edge-active'));
     });
+    document.querySelectorAll('.port-anchor.edge-hovered, .sg-row-port.edge-hovered')
+      .forEach(a => a.classList.remove('edge-hovered'));
     if (!edgeBubbleConn) return;
     const idx = CONNECTIONS.indexOf(edgeBubbleConn);
     if (idx < 0) return;
+    const conn = CONNECTIONS[idx];
     const hit = _queryEdgeHitByConnIdx(idx);
     if (hit) {
       hit.classList.add('edge-active');
       if (hit.nextElementSibling) hit.nextElementSibling.classList.add('edge-active');
     }
+    const a = _getAnchorForEdgeEnd(conn?.from);
+    const b = _getAnchorForEdgeEnd(conn?.to);
+    a?.classList.add('edge-hovered');
+    b?.classList.add('edge-hovered');
+  }
+
+  function _getAnchorForEdgeEnd(end) {
+    if (!end || !end[0]) return null;
+    const s = nodeState.get(end[0]);
+    if (!s) return null;
+    if (s.el.classList.contains('sg-hidden')) {
+      if (typeof window.getSubgraphCollapsedPortAnchorEl === 'function') {
+        try {
+          const el = window.getSubgraphCollapsedPortAnchorEl(end[0], end[1]);
+          if (el) return el;
+        } catch (_) { /* host shell */ }
+      }
+      const dir = end[1];
+      const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
+      return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
+    }
+    return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
   }
 
   function getPortPos(nodeId, dir, ioName, canvasRect) {
@@ -581,9 +972,60 @@ window.Canvas = (function () {
     parts.push(`<path class="edge-hit edge--collapsed-internal" data-conn-idx="${i}" d="M0 0" style="pointer-events:none;display:none"/>`);
     parts.push(`<path class="edge-line edge--collapsed-internal" data-edge-key="${edgeKey}" d="M0 0" style="display:none"/>`);
   }
+  function _escSvg(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+    ));
+  }
+  // Render an "adaptor inserted here" chip at the bezier midpoint. The
+  // cubic we draw is Y-symmetric in its control points, so t=0.5 lands
+  // exactly on the endpoint midpoint — no curve evaluation required.
+  function _adaptorChipSvg(a, b, conn, i) {
+    const adaptor = conn && conn.adaptor;
+    if (!adaptor) return '';
+    const dotMode = zoom < 0.5;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const label = adaptor.label || `${adaptor.fromType || ''}→${adaptor.toType || ''}`;
+    const title = _escSvg(adaptor.desc || label);
+    const haloPad = 4;
+    if (dotMode) {
+      const r = Math.max(3.5, 4 / Math.max(0.25, zoom));
+      return (
+        `<g class="adaptor-chip adaptor-chip--dot" data-conn-idx="${i}" data-adaptor-id="${_escSvg(adaptor.id || '')}">` +
+          `<title>${title}</title>` +
+          `<circle class="adaptor-chip-halo" cx="${mx}" cy="${my}" r="${r + haloPad}" fill="var(--canvas-bg)" stroke="none"/>` +
+          `<circle class="adaptor-chip-bg adaptor-chip-dot-body" cx="${mx}" cy="${my}" r="${r}"/>` +
+        `</g>`
+      );
+    }
+    const padX = 20;
+    const w = Math.max(44, Math.round(label.length * 6.4) + padX);
+    const h = 18;
+    const x = Math.round(mx - w / 2);
+    const y = Math.round(my - h / 2);
+    const hx = x - haloPad;
+    const hy = y - haloPad;
+    const hw = w + haloPad * 2;
+    const hh = h + haloPad * 2;
+    return (
+      `<g class="adaptor-chip" data-conn-idx="${i}" data-adaptor-id="${_escSvg(adaptor.id || '')}">` +
+        `<title>${title}</title>` +
+        `<rect class="adaptor-chip-halo" x="${hx}" y="${hy}" width="${hw}" height="${hh}" rx="11" ry="11"/>` +
+        `<rect class="adaptor-chip-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="9" ry="9"/>` +
+        `<text class="adaptor-chip-text" x="${mx}" y="${my + 0.5}" text-anchor="middle" dominant-baseline="central">${_escSvg(label)}</text>` +
+      `</g>`
+    );
+  }
   function drawEdges() {
+    // During animated fit-to-view, canvas transform is tweening in CSS while
+    // pan/zoom state is already at the destination. Reprojecting ports against
+    // the destination transform mid-tween causes visible edge jumps; wait for
+    // fit completion, then do one authoritative redraw.
+    if (fitToNodes._transitioning) return;
     // Cache canvas rect once per redraw so N edges cost 1 DOM read instead of 2N.
     const canvasRect = opts.editable ? canvasEl.getBoundingClientRect() : null;
+    _occluderCache = opts.editable ? _buildOccluderCache() : null;
     const dotParts = [];
     const pushConn = (c, i, parts) => {
       const a = getPortPos(c.from[0], c.from[1], c.from[2], canvasRect);
@@ -594,6 +1036,7 @@ window.Canvas = (function () {
       if (opts.editable) parts.push(`<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>`);
       const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
       parts.push(`<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>`);
+      if (c.adaptor) parts.push(_adaptorChipSvg(a, b, c, i));
       if (!opts.editable) {
         dotParts.push(`<circle cx="${a.x}" cy="${a.y}" r="4"/>`);
         dotParts.push(`<circle cx="${b.x}" cy="${b.y}" r="4"/>`);
@@ -607,9 +1050,23 @@ window.Canvas = (function () {
       const backParts = [EDGE_FLOW_BLUR_DEFS];
       const frontDefs = [];
       const frontParts = [];
+      const internalByGroup = new Map();
       CONNECTIONS.forEach((c, i) => {
         if (_isInternalCollapsedSubgraphEdge(c)) {
           _pushCollapsedInternalEdgePlaceholder(c, i, backParts);
+          return;
+        }
+        const gf0 = _getSubgraphGroupIdForNode(c.from[0]);
+        const gt0 = _getSubgraphGroupIdForNode(c.to[0]);
+        if (gf0 && gf0 === gt0 && _expandedSubgraphBoxForGroupId(gf0)) {
+          const a = getPortPos(c.from[0], c.from[1], c.from[2], canvasRect);
+          const b = getPortPos(c.to[0], c.to[1], c.to[2], canvasRect);
+          if (!a || !b) return;
+          const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
+          const d = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+          const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
+          if (!internalByGroup.has(gf0)) internalByGroup.set(gf0, []);
+          internalByGroup.get(gf0).push({ i, d, edgeKey, c, a, b });
           return;
         }
         if (!_edgeTouchesSubgraphMember(c)) {
@@ -630,10 +1087,11 @@ window.Canvas = (function () {
         const gf = _getSubgraphGroupIdForNode(c.from[0]);
         const gt = _getSubgraphGroupIdForNode(c.to[0]);
         const ex = new Set([gf, gt].filter(Boolean));
+        const exNodes = new Set([c.from[0], c.to[0]]);
         const maskOk = typeof window.getSubgraphGroupIdForNode === 'function' && ex.size > 0;
         const maskId = `sg-edge-m-${i}`;
         if (maskOk) {
-          const occluders = _subgraphOccluderMaskRects(ex);
+          const occluders = _subgraphOccluderMaskRects(ex, exNodes, ex);
           frontDefs.push(
             `<mask id="${maskId}" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" ` +
             `x="-600000" y="-600000" width="1200000" height="1200000">` +
@@ -644,17 +1102,20 @@ window.Canvas = (function () {
             `<g mask="url(#${maskId})">` +
             `<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>` +
             `<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>` +
+            (c.adaptor ? _adaptorChipSvg(a, b, c, i) : '') +
             `</g>`
           );
         } else {
           frontParts.push(
             `<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>` +
-            `<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>`
+            `<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>` +
+            (c.adaptor ? _adaptorChipSvg(a, b, c, i) : '')
           );
         }
       });
       back.innerHTML = backParts.join('');
       front.innerHTML = (frontDefs.length ? `<defs>${frontDefs.join('')}</defs>` : '') + frontParts.join('');
+      _renderInternalSubgraphEdgeSvgs(internalByGroup);
     } else {
       const svg = _ensureEdgeOverlay();
       const parts = [];
@@ -685,32 +1146,21 @@ window.Canvas = (function () {
   // which visually disconnects the line from the ports it attaches to.
   function _wireEdgeHoverPips() {
     if (!opts.editable) return;
+    // Clear stale `.edge-hovered` from any anchor — re-rendering edges destroys
+    // the hit path mid-hover, so its mouseleave never fires and the dot stays blue.
+    document.querySelectorAll('.port-anchor.edge-hovered, .sg-row-port.edge-hovered')
+      .forEach(a => a.classList.remove('edge-hovered'));
     const hits = [];
     if (edgeOverlayBack) hits.push(...edgeOverlayBack.querySelectorAll('.edge-hit'));
     if (edgeOverlayFront) hits.push(...edgeOverlayFront.querySelectorAll('.edge-hit'));
+    document.querySelectorAll('.sg-internal-edges .edge-hit').forEach((h) => hits.push(h));
     if (!hits.length) return;
     hits.forEach(hit => {
       const idx = parseInt(hit.dataset.connIdx, 10);
       const c = CONNECTIONS[idx];
       if (!c) return;
-      const getAnchor = (end) => {
-        const s = nodeState.get(end[0]);
-        if (!s) return null;
-        if (s.el.classList.contains('sg-hidden')) {
-          if (typeof window.getSubgraphCollapsedPortAnchorEl === 'function') {
-            try {
-              const el = window.getSubgraphCollapsedPortAnchorEl(end[0], end[1]);
-              if (el) return el;
-            } catch (_) { /* host shell */ }
-          }
-          const dir = end[1];
-          const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
-          return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
-        }
-        return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
-      };
-      const a = getAnchor(c.from);
-      const b = getAnchor(c.to);
+      const a = _getAnchorForEdgeEnd(c.from);
+      const b = _getAnchorForEdgeEnd(c.to);
       const on  = () => { a?.classList.add('edge-hovered');    b?.classList.add('edge-hovered'); };
       const off = () => { a?.classList.remove('edge-hovered'); b?.classList.remove('edge-hovered'); };
       hit.addEventListener('mouseenter', on);
@@ -733,29 +1183,61 @@ window.Canvas = (function () {
     });
   }
 
-  // ── Drag (nodes) ─────────────────────────────────────
-  let dragState = null, topNodeZ = Z_NODE_BASE - 1;
-  /* Subgraph members stack above edge front (15016) and regular nodes. */
-  let sgMemberZ = Z_SG_MEMBER_BASE - 1;
+  // ── Drag (nodes) + unified surface stack (nodes share one z band with host shells) ──
+  let dragState = null;
+  /** Next z-index for interactive "bring to front" (loose nodes, subgraph shells, etc.). */
+  let surfaceZSeq = Z_NODE_BASE - 1;
   function _setNodeZ(node, z) {
     node.style.zIndex = z;
     const s = nodeState.get(node.dataset.nodeId);
     if (s) s.overlayEl.style.zIndex = z;
   }
+  function _renormSurfaceZStack() {
+    const all = [...nodeState.values()].map(s => s.el)
+      .sort((a, b) => (parseInt(a.style.zIndex, 10) || Z_NODE_BASE) - (parseInt(b.style.zIndex, 10) || Z_NODE_BASE));
+    all.forEach((n, i) => _setNodeZ(n, Z_NODE_BASE + i));
+    surfaceZSeq = Z_NODE_BASE + all.length;
+    if (typeof window.__connectifyAfterSurfaceRenorm === 'function') {
+      try { window.__connectifyAfterSurfaceRenorm(); } catch (_) { /* host shell */ }
+    }
+  }
+  /** Reserve `count` consecutive z-indices at the top of the interactive stack (e.g. shell / members / head). */
+  function allocSurfaceZSlots(count) {
+    const n = Math.max(1, Number(count) || 1);
+    surfaceZSeq += n;
+    if (surfaceZSeq >= Z_NODE_RENORM_CEIL) {
+      _renormSurfaceZStack();
+      return allocSurfaceZSlots(n);
+    }
+    return surfaceZSeq - n + 1;
+  }
+  /** Assign z to a node + overlay without advancing the global counter (host keeps subgraph members aligned). */
+  function setNodeSurfaceZ(nodeId, z, options) {
+    const s = nodeState.get(nodeId);
+    if (!s) return;
+    const zi = Math.round(Number(z)) || Z_NODE_BASE;
+    const prev = parseInt(s.el.style.zIndex, 10) || Z_NODE_BASE;
+    if (prev === zi) return;
+    _setNodeZ(s.el, zi);
+    surfaceZSeq = Math.max(surfaceZSeq, zi);
+    if (!options || options.redraw !== false) drawEdges();
+  }
+  function bumpNodeSurfaceFront(nodeId) {
+    const s = nodeState.get(nodeId);
+    if (!s) return;
+    _bringToFront(s.el);
+  }
   function _bringToFront(node) {
-    if (node.classList && node.classList.contains('sg-member')) {
-      if (++sgMemberZ > Z_SG_MEMBER_CEIL) sgMemberZ = Z_SG_MEMBER_BASE;
-      _setNodeZ(node, sgMemberZ);
-      drawEdges();
-      return;
+    const id = node.dataset.nodeId;
+    if (id && typeof window.__connectifySurfaceBumpNode === 'function') {
+      try {
+        if (window.__connectifySurfaceBumpNode(id, node)) return;
+      } catch (_) { /* host shell */ }
     }
-    if (++topNodeZ >= Z_NODE_RENORM_CEIL) {
-      const all = [...nodeState.values()].map(s => s.el)
-        .sort((a,b) => (parseInt(a.style.zIndex)||Z_NODE_BASE) - (parseInt(b.style.zIndex)||Z_NODE_BASE));
-      all.forEach((n, i) => _setNodeZ(n, Z_NODE_BASE + i));
-      topNodeZ = Z_NODE_BASE + all.length;
+    if (++surfaceZSeq >= Z_NODE_RENORM_CEIL) {
+      _renormSurfaceZStack();
     }
-    _setNodeZ(node, topNodeZ);
+    _setNodeZ(node, surfaceZSeq);
     drawEdges();
   }
   function _attachCanvasDrag() {
@@ -800,15 +1282,18 @@ window.Canvas = (function () {
         s.data.x = parseFloat(nodeEl.style.left) || 0;
         s.data.y = parseFloat(nodeEl.style.top)  || 0;
       }
-      if (dragState.moved) {
+      const didMove = !!dragState.moved;
+      if (didMove) {
         suppressNodeFocus = {
           id,
-          until: Date.now() + 250,
+          until: Date.now() + 480,
         };
       }
       dragState.node.classList.remove('dragging');
       dragState = null;
-      _fireChange('move-node');
+      // A plain click on a node head should not emit a move mutation; this
+      // avoids unnecessary host re-layout work (and tiny subgroup reflow nudges).
+      if (didMove) _fireChange('move-node');
     }
     document.removeEventListener('mousemove', _onDragMove);
     _refreshOverlaps();
@@ -824,6 +1309,7 @@ window.Canvas = (function () {
       animate: false,
       duration: 460,
       easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
+      onFrame: null,
       onComplete: null,
     }, options || {});
 
@@ -856,6 +1342,9 @@ window.Canvas = (function () {
         m.s.el.style.top  = m.ny + 'px';
       });
       drawEdges();
+      if (typeof cfg.onFrame === 'function') {
+        try { cfg.onFrame(1); } catch (_) { /* non-fatal host callback */ }
+      }
       complete();
       return true;
     }
@@ -880,6 +1369,10 @@ window.Canvas = (function () {
     const tick = () => {
       drawEdges();
       const elapsed = performance.now() - startedAt;
+      if (typeof cfg.onFrame === 'function') {
+        const progress = Math.max(0, Math.min(1, elapsed / duration));
+        try { cfg.onFrame(progress); } catch (_) { /* non-fatal host callback */ }
+      }
       if (elapsed < duration + 32) {
         layoutAnimRaf = requestAnimationFrame(tick);
         return;
@@ -1020,8 +1513,10 @@ window.Canvas = (function () {
       ropeState.startPos = getPortPos(ropeState.origin.nodeId, ropeState.origin.dir, ropeState.origin.ioName) || ropeState.startPos;
     }
 
-    // Track hovered compatible row so it can light up grey
-    const hoveredRow = elUnder?.closest?.('.io-row.compatible') || null;
+    // Track hovered droppable row so it can light up. Adaptable rows count
+    // as a drop target too (they just route through the adaptor modal on
+    // release instead of committing silently).
+    const hoveredRow = elUnder?.closest?.('.io-row.compatible, .io-row.adaptable') || null;
     _setDropHover(hoveredRow);
 
     _drawRope();
@@ -1043,10 +1538,15 @@ window.Canvas = (function () {
     if (!ropeState) return;
     const { origin, committed } = ropeState;
 
-    // Capture target BEFORE clearing compatibility classes (which removes .compatible).
+    // Capture target BEFORE clearing compatibility classes (which removes the marks).
     const under     = document.elementFromPoint(e.clientX, e.clientY);
     const targetRow = committed ? under?.closest?.('.io-row') : null;
-    const isValid   = targetRow?.classList.contains('compatible') ?? false;
+    const isCompat  = targetRow?.classList.contains('compatible') ?? false;
+    const isAdapt   = targetRow?.classList.contains('adaptable')  ?? false;
+    const isValid   = isCompat || isAdapt;
+    // Snapshot the target row's type BEFORE _clearCompatibility strips classes,
+    // so we can resolve the adaptor after the overlay teardown.
+    const targetType = targetRow?.dataset?.type || '';
 
     _clearCompatibility();
     canvasInner.classList.remove('dragging-rope');
@@ -1058,6 +1558,7 @@ window.Canvas = (function () {
     const targetNodeEl = targetRow.closest('.node');
     const targetNodeId = targetNodeEl.dataset.nodeId;
     const targetIoName = targetRow.dataset.io.split(':').slice(1).join(':');
+    const targetDir    = targetRow.dataset.dir;
     const from = origin.dir === 'out'
       ? [origin.nodeId, 'out', origin.ioName]
       : [targetNodeId,  'out', targetIoName];
@@ -1065,23 +1566,48 @@ window.Canvas = (function () {
       ? [targetNodeId,  'in', targetIoName]
       : [origin.nodeId, 'in', origin.ioName];
 
+    const pair = _ropeTypePair(origin, targetDir, targetType);
+    const adaptor = isAdapt ? _getAdaptor(pair.fromType, pair.toType) : null;
     const existingOnInput = CONNECTIONS.find(c => c.to[0] === to[0] && c.to[2] === to[2]);
-    if (existingOnInput) {
-      if (onConnectionConflictCb) {
-        drawEdges();
-        onConnectionConflictCb(existingOnInput, { from, to }, () => {
-          CONNECTIONS = CONNECTIONS.filter(c => c !== existingOnInput);
-          CONNECTIONS.push({ from, to });
-          drawEdges();
-          _fireChange('add-connection');
-        });
-        return;
+
+    // Commit helper — applied by every resolution path below so semantics
+    // stay identical whether we went through a modal or not.
+    const commit = (extra) => {
+      if (existingOnInput) {
+        CONNECTIONS = CONNECTIONS.filter(c => c !== existingOnInput);
       }
-      CONNECTIONS = CONNECTIONS.filter(c => c !== existingOnInput);
+      const next = { from, to };
+      if (adaptor) {
+        next.adaptor = _persistableAdaptor(adaptor);
+        const xs = extra && extra.adaptorSettings;
+        if (xs && typeof xs === 'object' && Object.keys(xs).length) {
+          next.adaptorSettings = { ...xs };
+        }
+      }
+      CONNECTIONS.push(next);
+      drawEdges();
+      _fireChange('add-connection');
+    };
+
+    // If an adaptor is needed, surface it first (a single modal can describe
+    // both "insert adaptor" and "replace existing"). Hosts that haven't
+    // registered a callback fall through to the silent path, preserving
+    // backward compatibility.
+    if (adaptor && onAdaptorRequiredCb) {
+      drawEdges();
+      onAdaptorRequiredCb({
+        pending: { from, to },
+        adaptor: { ...adaptor },
+        existing: existingOnInput || null,
+      }, commit);
+      return;
     }
-    CONNECTIONS.push({ from, to });
-    drawEdges();
-    _fireChange('add-connection');
+    if (existingOnInput && onConnectionConflictCb) {
+      drawEdges();
+      onConnectionConflictCb(existingOnInput, { from, to, adaptor: adaptor ? { ...adaptor } : undefined }, commit);
+      return;
+    }
+    commit();
   }
   function _alreadyConnected(origin, targetNodeId, targetDir, targetIoName) {
     return CONNECTIONS.some(c => {
@@ -1093,10 +1619,19 @@ window.Canvas = (function () {
              c.from[0] === targetNodeId  && c.from[2] === targetIoName;
     });
   }
+  // Resolve the source/target types for an in-progress rope landing on `row`.
+  // The source is always the output end, regardless of which direction the
+  // user grabbed the rope from — so flipping drag direction doesn't flip the
+  // adaptor table lookup.
+  function _ropeTypePair(origin, rowDir, rowType) {
+    const fromType = origin.dir === 'out' ? origin.type : rowType;
+    const toType   = origin.dir === 'out' ? rowType     : origin.type;
+    return { fromType, toType };
+  }
   function _markCompatibility(origin) {
     nodeState.forEach(s => {
       s.el.querySelectorAll('.io-row').forEach(row => {
-        row.classList.remove('compatible', 'incompatible', 'rope-origin');
+        row.classList.remove('compatible', 'adaptable', 'incompatible', 'rope-origin');
         const rowDir    = row.dataset.dir;
         const rowType   = row.dataset.type;
         const rowIoName = row.dataset.io.split(':').slice(1).join(':');
@@ -1105,17 +1640,21 @@ window.Canvas = (function () {
           row.classList.add('rope-origin');
           return;
         }
-        const ok = s.data.id !== origin.nodeId &&
-                   rowDir   !== origin.dir     &&
-                   rowType  === origin.type    &&
-                   !_alreadyConnected(origin, s.data.id, rowDir, rowIoName);
-        row.classList.add(ok ? 'compatible' : 'incompatible');
+        const structurallyValid =
+          s.data.id !== origin.nodeId &&
+          rowDir   !== origin.dir     &&
+          !_alreadyConnected(origin, s.data.id, rowDir, rowIoName);
+        if (!structurallyValid) { row.classList.add('incompatible'); return; }
+        if (rowType === origin.type) { row.classList.add('compatible'); return; }
+        const pair = _ropeTypePair(origin, rowDir, rowType);
+        if (_getAdaptor(pair.fromType, pair.toType)) { row.classList.add('adaptable'); return; }
+        row.classList.add('incompatible');
       });
     });
   }
   function _clearCompatibility() {
     nodeState.forEach(s => {
-      s.el.querySelectorAll('.io-row').forEach(row => row.classList.remove('compatible', 'incompatible', 'rope-origin', 'drop-hover'));
+      s.el.querySelectorAll('.io-row').forEach(row => row.classList.remove('compatible', 'adaptable', 'incompatible', 'rope-origin', 'drop-hover'));
     });
   }
   function _setDropHover(row) {
@@ -1138,6 +1677,7 @@ window.Canvas = (function () {
     zoom = Math.max(0.25, Math.min(2.5, newZoom));
     panX = mx - wx * zoom; panY = my - wy * zoom;
     applyTransform();
+    drawEdges();
   }
   const PAN_CURSOR_THRESHOLD_PX = 3;
   let panState = null;
@@ -1197,6 +1737,7 @@ window.Canvas = (function () {
     const maxZoom = opts.maxZoom != null ? opts.maxZoom : 1.0;
     const minZoom = opts.minZoom != null ? opts.minZoom : 0.25;
     const animate = opts.animate !== false;
+    const ifNeeded = !!opts.ifNeeded; // skip if all nodes already in view
     if (!ids || !ids.length) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const id of ids) {
@@ -1223,13 +1764,78 @@ window.Canvas = (function () {
     const centerY = (minY + maxY) / 2;
     const viewportCX = (reserve.left || 0) + (rect.width  - (reserve.left || 0) - (reserve.right  || 0)) / 2;
     const viewportCY = (reserve.top  || 0) + (rect.height - (reserve.top  || 0) - (reserve.bottom || 0)) / 2;
+    const newPanX = viewportCX - centerX * newZoom;
+    const newPanY = viewportCY - centerY * newZoom;
+    // If caller opts in, skip the fit when all nodes are already comfortably on-screen.
+    if (ifNeeded) {
+      const insetL = (reserve.left  || 0) + padding;
+      const insetT = (reserve.top   || 0) + padding;
+      const insetR = rect.width  - (reserve.right  || 0) - padding;
+      const insetB = rect.height - (reserve.bottom || 0) - padding;
+      let allIn = true;
+      for (const id of ids) {
+        const s = nodeState.get(id);
+        if (!s) continue;
+        const el = s.el;
+        const nx = parseFloat(el.style.left) || 0;
+        const ny = parseFloat(el.style.top)  || 0;
+        const nw = el.offsetWidth  || 200;
+        const nh = el.offsetHeight || 200;
+        const sx1 = panX + nx * zoom;
+        const sy1 = panY + ny * zoom;
+        const sx2 = panX + (nx + nw) * zoom;
+        const sy2 = panY + (ny + nh) * zoom;
+        if (sx1 < insetL || sy1 < insetT || sx2 > insetR || sy2 > insetB) { allIn = false; break; }
+      }
+      if (allIn && Math.abs(newZoom - zoom) < zoom * 0.1) return;
+    }
     zoom = newZoom;
-    panX = viewportCX - centerX * zoom;
-    panY = viewportCY - centerY * zoom;
+    panX = newPanX;
+    panY = newPanY;
+    fitToNodes._transitioning = false;
     canvasInner.style.transition = animate ? 'transform 0.32s cubic-bezier(0.4, 0.0, 0.2, 1)' : '';
     applyTransform();
+    if (fitToNodes._raf) {
+      cancelAnimationFrame(fitToNodes._raf);
+      fitToNodes._raf = null;
+    }
+    if (fitToNodes._onTransEnd) {
+      canvasInner.removeEventListener('transitionend', fitToNodes._onTransEnd);
+      fitToNodes._onTransEnd = null;
+    }
     clearTimeout(fitToNodes._t);
-    fitToNodes._t = setTimeout(() => { canvasInner.style.transition = ''; drawEdges(); }, animate ? 340 : 20);
+    let _fitToNodesEnded = false;
+    const finish = () => {
+      if (_fitToNodesEnded) return;
+      _fitToNodesEnded = true;
+      clearTimeout(fitToNodes._t);
+      fitToNodes._t = null;
+      canvasInner.style.transition = '';
+      if (fitToNodes._raf) {
+        cancelAnimationFrame(fitToNodes._raf);
+        fitToNodes._raf = null;
+      }
+      if (fitToNodes._onTransEnd) {
+        canvasInner.removeEventListener('transitionend', fitToNodes._onTransEnd);
+        fitToNodes._onTransEnd = null;
+      }
+      fitToNodes._transitioning = false;
+      drawEdges();
+    };
+    if (animate) {
+      fitToNodes._transitioning = true;
+      fitToNodes._onTransEnd = (ev) => {
+        if (ev.target !== canvasInner) return;
+        if (ev.propertyName && ev.propertyName !== 'transform') return;
+        finish();
+      };
+      canvasInner.addEventListener('transitionend', fitToNodes._onTransEnd);
+      /* Fallback: no transition, reduced-motion, or missing transitionend. */
+      fitToNodes._t = setTimeout(finish, 450);
+    } else {
+      fitToNodes._transitioning = false;
+      fitToNodes._t = setTimeout(finish, 20);
+    }
     if (!animate) drawEdges();
   }
 
@@ -1348,6 +1954,7 @@ window.Canvas = (function () {
     addConnection, removeConnection,
     // Rendering helpers (for modal code in HTML shells)
     drawEdges, ICONS, typePill,
+    snapshotConnection, getAdaptorUiModel, updateConnectionAdaptorSettings,
     // Lookups
     getNode, getAllNodes, getConnections, getNodeConnections, breakNodeConnections,
     isEditable, getViewportCenter, getTransform, clientToWorld, panToWorld, focusWorld, getCanvasInner, getCanvasEl,
@@ -1357,8 +1964,14 @@ window.Canvas = (function () {
     removeActiveEdgeSelection,
     // Interaction
     onNodeClick(cb)          { onNodeClickCb          = cb; },
+    shouldSuppressPostDragActivation,
+    allocSurfaceZSlots,
+    setNodeSurfaceZ,
+    bumpNodeSurfaceFront,
     onKebabClick(cb)         { onKebabClickCb         = cb; },
     onConnectionConflict(cb) { onConnectionConflictCb = cb; },
+    onAdaptorRequired(cb)    { onAdaptorRequiredCb    = cb; },
+    onAdaptorChipClick(cb)    { onAdaptorChipClickCb    = cb; },
     onChange(cb)             { onChangeCb             = cb; },
     zoomIn, zoomOut
   };

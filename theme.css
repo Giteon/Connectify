@@ -1,3 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap');
+
+/* Topbar wordmark — Poppins; short “Connectify” lockup next to mark. */
+header.topbar .brand {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  gap: 5px;
+}
+header.topbar .brand-wordmark {
+  font-size: 0.8125rem;
+  letter-spacing: 0.012em;
+  line-height: 1;
+}
+
 /* ============================================================
    DARK MODE
    Applied by setting `data-theme="dark"` on the <html> element.
@@ -132,6 +146,11 @@ html[data-theme="dark"] .side-panel,
 html[data-theme="dark"] .sidebar-icons {
   box-shadow: none;
   background: var(--surface);
+}
+
+/* Brand mark SVG uses black fills — invert on dark topbar. */
+html[data-theme="dark"] .brand-logo img {
+  filter: brightness(0) invert(1);
 }
 
 /* Canvas dotted-grid background. The light-mode rule sets both the
@@ -284,7 +303,74 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #2d3b5a; }
 html[data-theme="dark"] .theme-toggle .ico-sun  { display: block; }
 html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
 
+.topbar-search {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-start;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  overflow: hidden;
+  transition: width 0.2s ease, border-radius 0.2s ease, background 0.15s, border-color 0.15s;
+}
+
+.topbar-search:hover { background: var(--bg); color: var(--text-primary); }
+
+.topbar-search.open {
+  width: clamp(240px, 30vw, 360px);
+  border-radius: 18px;
+}
+
+.topbar-search-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar-search-btn svg { width: 16px; height: 16px; padding-left: 1px;}
+
+.topbar-search-input {
+  width: 0;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, width 0.2s ease, padding 0.2s ease;
+}
+
+.topbar-search.open .topbar-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  padding: 0 6px 0 10px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.topbar-search-input::placeholder { color: var(--text-muted); }
+
 /* Breathing room between the theme control and the account pill. */
 .topbar .theme-toggle {
-  margin-inline-end: 10px;
+  margin-inline-end: 0px;
+}
+
+/* Hub / standalone topbars (no canvas shell): a bit more space before the avatar. */
+body:not(:has(.app)) .topbar .theme-toggle {
+  margin-inline-end: 14px;
 }

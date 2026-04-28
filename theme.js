@@ -4,7 +4,8 @@
 // "light" or "dark"). The theme is applied pre-paint by a small
 // inline script in each HTML file so there's no flash-of-wrong-
 // theme on load; this module handles everything else:
-//   - injects the toggle button into .topbar-actions / .topbar-right
+//   - injects the toggle into `[data-theme-slot]` if present, else
+//     .topbar-actions / .topbar-right` (before .avatar-dropdown when present)
 //   - wires the click handler
 //   - re-syncs across tabs via the `storage` event
 (function () {
@@ -52,25 +53,203 @@
     return btn;
   }
 
-  // Slot the button in right before the user pill so its placement is
-  // consistent across all three pages, regardless of container class
-  // (dashboard uses .topbar-right; editing/view use .topbar-actions).
+  function buildTopbarSearch() {
+    const wrap = document.createElement('div');
+    wrap.className = 'topbar-search';
+    wrap.innerHTML = `
+      <button type="button" class="topbar-search-btn" aria-label="Search" title="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <input type="search" class="topbar-search-input" placeholder="Search graphs, models, datasets..." />
+    `;
+    const btn = wrap.querySelector('.topbar-search-btn');
+    const input = wrap.querySelector('.topbar-search-input');
+    const app = document.querySelector('.app');
+    const topbar = app?.querySelector('.topbar');
+    const mid = document.getElementById('topbarMidActions');
+    const syncMidA11y = (expanded) => {
+      if (!mid) return;
+      mid.setAttribute('aria-hidden', expanded ? 'true' : 'false');
+    };
+    const open = () => {
+      wrap.classList.add('open');
+      topbar?.classList.add('topbar-search-expanded');
+      syncMidA11y(true);
+      setTimeout(() => input.focus(), 50);
+    };
+    const close = () => {
+      wrap.classList.remove('open');
+      topbar?.classList.remove('topbar-search-expanded');
+      syncMidA11y(false);
+      input.blur();
+    };
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (wrap.classList.contains('open')) close();
+      else open();
+    });
+    document.addEventListener('mousedown', (e) => {
+      if (!wrap.classList.contains('open')) return;
+      if (wrap.contains(e.target)) return;
+      close();
+    }, true);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
+    return wrap;
+  }
+
+  // Preferred: `[data-theme-slot]` (end of topbar / rail). Otherwise insert before
+  // `.avatar-dropdown` in `.topbar-actions` / `.topbar-right`, else append to `.topbar`.
   function mount() {
     if (document.querySelector('.theme-toggle')) return;
+    const slot = document.querySelector('[data-theme-slot]');
+    const search = buildTopbarSearch();
+    const btn = buildButton();
+    if (slot) {
+      const app = document.querySelector('.app');
+      const end = slot.closest('.topbar-end');
+      slot.appendChild(search);
+      if (app && end) {
+        const menuToggle = document.getElementById('topbarMenuToggle');
+        if (menuToggle && menuToggle.parentElement === end) {
+          end.insertBefore(btn, menuToggle);
+        } else {
+          end.appendChild(btn);
+        }
+      } else {
+        slot.appendChild(btn);
+      }
+      return;
+    }
     const avatarBtn = document.querySelector('.avatar-dropdown');
-    // Fall back to `.topbar` for pages that don't wrap right-side controls
-    // in their own actions container (e.g. editing-mode-new.html).
     const host = document.querySelector('.topbar-actions, .topbar-right, .topbar');
     if (!host) return;
-    const btn = buildButton();
-    if (avatarBtn && avatarBtn.parentElement === host) host.insertBefore(btn, avatarBtn);
-    else host.appendChild(btn);
+    if (avatarBtn && avatarBtn.parentElement === host) {
+      host.insertBefore(search, avatarBtn);
+      host.insertBefore(btn, avatarBtn);
+    } else {
+      host.appendChild(search);
+      host.appendChild(btn);
+    }
+  }
+
+  function isLeftnavCollapsed() {
+    const app = document.querySelector('.app');
+    if (app) return !app.classList.contains('leftnav-expanded');
+    return !document.body.classList.contains('sidebar-expanded');
+  }
+
+  function expandLeftnav() {
+    if (!isLeftnavCollapsed()) return;
+    const app = document.querySelector('.app');
+    const KEY = 'cfg.leftnav.expanded';
+    if (app) {
+      app.classList.add('leftnav-expanded');
+      document.documentElement.setAttribute('data-leftnav', 'expanded');
+    } else {
+      document.body.classList.add('sidebar-expanded');
+    }
+    try { localStorage.setItem(KEY, '1'); } catch (_) { /* no-op */ }
+  }
+
+  function initLeftnavAvatarDropdown() {
+    const avatarBtn = document.querySelector('.leftnav-avatar');
+    if (!avatarBtn || avatarBtn.dataset.dropdownBound === '1') return;
+    avatarBtn.dataset.dropdownBound = '1';
+    avatarBtn.setAttribute('aria-haspopup', 'menu');
+    avatarBtn.setAttribute('aria-expanded', 'false');
+
+    const pop = document.createElement('div');
+    pop.className = 'leftnav-avatar-pop';
+    pop.hidden = true;
+    pop.innerHTML = `
+      <button type="button" data-action="profile">View profile</button>
+      <button type="button" data-action="preferences">Preferences</button>
+      <button type="button" data-action="settings">Open settings</button>
+    `;
+    document.body.appendChild(pop);
+
+    function position() {
+      const r = avatarBtn.getBoundingClientRect();
+      pop.style.width = `${Math.max(32, Math.round(r.width))}px`;
+      const popW = pop.offsetWidth || Math.round(r.width);
+      let left = r.left;
+      left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
+      pop.style.left = `${left}px`;
+      pop.style.top = `${r.bottom + 6}px`;
+    }
+
+    function open() {
+      position();
+      pop.hidden = false;
+      avatarBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function close() {
+      pop.hidden = true;
+      avatarBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    avatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isLeftnavCollapsed()) {
+        expandLeftnav();
+        close();
+        return;
+      }
+      if (pop.hidden) open();
+      else close();
+    });
+
+    pop.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'settings') {
+        document.querySelector('.nav-item-settings')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      }
+      close();
+    });
+
+    document.addEventListener('mousedown', (e) => {
+      if (pop.hidden) return;
+      if (pop.contains(e.target) || avatarBtn.contains(e.target)) return;
+      close();
+    }, true);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
+    window.addEventListener('resize', () => {
+      if (!pop.hidden) position();
+    });
+    window.addEventListener('scroll', () => {
+      if (!pop.hidden) position();
+    }, true);
+  }
+
+  function initLeftnavEnhancements() {
+    document.querySelectorAll('.nav-item-settings').forEach((el) => {
+      if (el.dataset.bound === '1') return;
+      el.dataset.bound = '1';
+      el.addEventListener('click', (e) => e.preventDefault());
+    });
+    document.querySelectorAll('.nav-item-stub').forEach((el) => {
+      if (el.dataset.bound === '1') return;
+      el.dataset.bound = '1';
+      el.addEventListener('click', (e) => e.preventDefault());
+    });
+    initLeftnavAvatarDropdown();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
+    document.addEventListener('DOMContentLoaded', () => {
+      mount();
+      initLeftnavEnhancements();
+    });
   } else {
     mount();
+    initLeftnavEnhancements();
   }
 
   // Keep theme in sync across open tabs.

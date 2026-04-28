@@ -20,6 +20,17 @@ function _readCustomProjectBySlug(targetSlug) {
   }
 }
 
+function _readVariantsForSlug(targetSlug) {
+  const rows = _readJSONStore('cfg.variants.' + targetSlug, []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function _activeVariantIdForSlug(targetSlug, variants) {
+  const fromStorage = localStorage.getItem('cfg.activeVariant.' + targetSlug);
+  if (fromStorage && variants.some(v => v && v.id === fromStorage)) return fromStorage;
+  return variants[0] && variants[0].id ? variants[0].id : null;
+}
+
 /** Merge saved variant state (same keys as edit mode) so view matches last edit session. */
 function _buildCanvasProjectFromVariantBase(slug, baseP) {
   const variants = _readJSONStore('cfg.variants.' + slug, null);
@@ -37,7 +48,7 @@ function _buildCanvasProjectFromVariantBase(slug, baseP) {
 }
 
 if (!slug) {
-  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>';
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>';
 } else {
   const custom = _readCustomProjectBySlug(slug);
   if (custom) {
@@ -45,7 +56,7 @@ if (!slug) {
     initApp();
   } else {
     const fail = () => {
-      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>`;
     };
     if (typeof bootstrapBundledProject !== 'function') {
       fail();
@@ -273,7 +284,9 @@ function initInfoPanel(P) {
   const author = (P.contributors || []).find(c => c.role === 'Owner') || (P.contributors || [])[0];
   document.getElementById('ipAuthor').textContent = author ? ('By ' + author.name) : '—';
   const tagRow = document.getElementById('ipTagRow');
-  tagRow.innerHTML = (P.tags || []).map(t => `<span class="ip-tag">${esc(t)}</span>`).join('');
+  const variantCount = _readVariantsForSlug(slug).length || 1;
+  const extraTags = [`${variantCount} ${variantCount === 1 ? 'variant' : 'variants'}`];
+  tagRow.innerHTML = [...(P.tags || []), ...extraTags].map(t => `<span class="ip-tag">${esc(t)}</span>`).join('');
 
   const contribs = P.contributors || [];
   document.getElementById('ipContribCount').textContent =
@@ -327,23 +340,26 @@ function initInfoPanel(P) {
 }
 
 /* ── Variants (read-only — switch but no add/rename/delete) ── */
-const MOCK_VARIANTS = [
-  { id: 'v1', name: 'Master',        active: true  },
-  { id: 'v2', name: 'ResNet swap',   active: false },
-  { id: 'v3', name: 'Smaller LIDAR', active: false },
-];
 function initVariants() {
   const strip = document.getElementById('variantStrip');
+  const storedVariants = _readVariantsForSlug(slug);
+  const variants = (storedVariants.length ? storedVariants : [
+    { id: 'v1', name: 'Master' },
+    { id: 'v2', name: 'ResNet swap' },
+    { id: 'v3', name: 'Smaller LIDAR' },
+  ]).map(v => ({ id: v.id, name: v.name || 'Untitled variant', active: false }));
+  const initialActiveId = _activeVariantIdForSlug(slug, variants) || variants[0]?.id;
+  variants.forEach(v => { v.active = (v.id === initialActiveId); });
   function render() {
-    strip.innerHTML = MOCK_VARIANTS.map((v, i) => `
+    strip.innerHTML = variants.map((v, i) => `
       <button class="variant-tab ${v.active ? 'active' : ''}" data-vid="${v.id}">
         <span class="tab-dot"></span><span>v${i+1} · ${esc(v.name)}</span>
       </button>`).join('');
     strip.querySelectorAll('.variant-tab').forEach(t => t.addEventListener('click', () => {
-      MOCK_VARIANTS.forEach(v => v.active = (v.id === t.dataset.vid));
-      const active = MOCK_VARIANTS.find(v => v.active);
+      variants.forEach(v => v.active = (v.id === t.dataset.vid));
+      const active = variants.find(v => v.active);
       document.getElementById('bcVariant').textContent =
-        'v' + (MOCK_VARIANTS.indexOf(active)+1) + ' ' + active.name;
+        'v' + (variants.indexOf(active)+1) + ' ' + active.name;
       render();
     }));
   }
@@ -421,9 +437,43 @@ function initDrawerToggles() {
 /* ── Paths (read-only). Reuses localStorage from editing-mode-new. ── */
 function initPaths() {
   const panel = document.getElementById('panelPaths');
-  const storedRaw = (() => { try { return localStorage.getItem('cfg.paths.' + slug); } catch (_) { return null; } })();
+  const variants = _readVariantsForSlug(slug);
+  const activeVid = _activeVariantIdForSlug(slug, variants);
+  const storageKeys = [];
+  if (activeVid) storageKeys.push('cfg.paths.' + slug + '.' + activeVid);
+  variants.forEach(v => {
+    if (!v || !v.id) return;
+    const k = 'cfg.paths.' + slug + '.' + v.id;
+    if (!storageKeys.includes(k)) storageKeys.push(k);
+  });
+  storageKeys.push('cfg.paths.' + slug); // legacy fallback
+  let storedRaw = null;
+  for (const key of storageKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) {
+        storedRaw = raw;
+        break;
+      }
+    } catch (_) {}
+  }
   let paths = [];
   try { paths = storedRaw ? JSON.parse(storedRaw) : []; } catch (_) { paths = []; }
+  paths = (Array.isArray(paths) ? paths : []).map((p, i) => {
+    const nodeIds = Array.isArray(p?.nodeIds) ? p.nodeIds : (Array.isArray(p?.nodes) ? p.nodes : []);
+    const author = typeof p?.author === 'string'
+      ? p.author
+      : (p?.author && typeof p.author.name === 'string' ? p.author.name : 'Unknown');
+    return {
+      ...p,
+      id: p?.id || ('path_' + i),
+      name: p?.name || ('Path ' + (i + 1)),
+      nodeIds,
+      author,
+    };
+  });
   if (!paths.length) {
     panel.innerHTML = `<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
@@ -434,7 +484,7 @@ function initPaths() {
   panel.innerHTML = paths.map((p, i) => `
     <div class="path-item" data-idx="${i}">
       <div class="t">${esc(p.name || 'Untitled path')}</div>
-      <div class="m">${(p.nodes||[]).length} nodes · ${esc(p.author || 'Unknown')}</div>
+      <div class="m">${(p.nodeIds||[]).length} node${(p.nodeIds||[]).length === 1 ? '' : 's'} · ${esc(p.author || 'Unknown')}</div>
     </div>`).join('');
   panel.querySelectorAll('.path-item').forEach(el => el.addEventListener('click', () => {
     const idx = parseInt(el.dataset.idx, 10);
@@ -443,7 +493,7 @@ function initPaths() {
 }
 
 function focusPath(p) {
-  const ids = p.nodes || [];
+  const ids = p.nodeIds || p.nodes || [];
   document.querySelectorAll('.node').forEach(n => n.classList.remove('path-highlight', 'path-dim'));
   if (!ids.length) return;
   const set = new Set(ids);
@@ -650,6 +700,14 @@ function initLeftNav() {
       if (slug) editLink.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
     } catch (_) {}
   }
+  document.querySelectorAll('.nav-item-plus[data-new-graph-link]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = btn.getAttribute('data-new-graph-link');
+      if (href) window.location.assign(href);
+    });
+  });
 }
 
 /* ── Role pill ────────────────────────────────────────────── */

@@ -264,13 +264,14 @@ if (!slug) {
        are declared later in this script → TDZ errors. Defer until this block finishes. */
     queueMicrotask(() => initApp());
   } else {
-    const s = document.createElement('script');
-    s.src = 'graphs/' + slug + '/data.js';
-    s.onload = initApp;
-    s.onerror = () => {
-      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
+    const fail = () => {
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
     };
-    document.head.appendChild(s);
+    if (typeof bootstrapBundledProject !== 'function') {
+      fail();
+    } else {
+      bootstrapBundledProject(slug).then(() => { initApp(); }, fail);
+    }
   }
 }
 
@@ -1902,6 +1903,9 @@ function _bindSubgraphFeatureListeners() {
   }, true);
   inner.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
+    // Let edge interactions inside expanded subgroups pass through to
+    // canvas edge handlers (selection + delete bubble), not group drag.
+    if (e.target.closest('.sg-internal-edges, .edge-hit, .adaptor-chip')) return;
     let box = e.target.closest('.subgraph-box');
     if (!box) {
       const h = e.target.closest('.sg-head[data-sg-group]');

@@ -272,7 +272,7 @@ header.topbar .brand + .breadcrumb {
 
 .app .topbar.topbar-search-expanded .topbar-mid-actions {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: translateX(-28px);
   max-width: 0;
   overflow: hidden;
   gap: 0;
@@ -314,8 +314,17 @@ header.topbar .brand + .breadcrumb {
 }
 
 .app .topbar .topbar-search.open {
-  width: min(clamp(240px, 30vw, 360px), 100%);
+  width: min(clamp(320px, 42vw, 520px), 100%);
   max-width: 100%;
+}
+
+/* In edit mode, hide the divider left of search while search is expanded. */
+.app .topbar.topbar-search-expanded .tb-sep--toolbar-end {
+  opacity: 0;
+  width: 0;
+  margin: 0;
+  pointer-events: none;
+  transform: translateX(-20px);
 }
 
 .app .topbar .theme-toggle {

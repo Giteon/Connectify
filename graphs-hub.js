@@ -25,6 +25,8 @@
       'autonomous-vehicle-navigation': 11,
       'human-genome-analysis': 25,
     };
+    /** Node counts for bundled graphs; merged from graphs/catalog.json when present. */
+    const BUNDLED_GRAPH_COUNTS = Object.assign({}, DEMO_NODE_COUNT_BY_SLUG);
     const TAB_META = {
       'dashboard': {
         title: 'Dashboard',
@@ -46,6 +48,63 @@
       { title:'Autonomous Vehicle Navigation', owner:'Waymo', shortOwner:'Waymo', domain:'Autonomous Driving', modality:'LiDAR+Vision', method:'Perception', role:'View Only', status:'Stable', license:'Apache-2.0', updatedHours:2, forks:200, stars:1200, downloads:0, activity:98, openContrib:false, team:'Vector Lab', abstract:'Perception-to-planning graph with branch-level ablation tracing.', starred:true, recentRank:3, editedAgo:'1 day ago', editedBy:'Ria S.', collaborators:['RC','DN','YK'], collaboratorExtra:22 },
       { title:'Public Health Monitoring', owner:'UCLA', shortOwner:'UCLA', domain:'Public Health', modality:'Multimodal', method:'Forecasting', role:'Contributor', status:'Stable', license:'CC-BY-4.0', updatedHours:55, forks:55, stars:310, downloads:0, activity:91, openContrib:true, team:'Vector Lab', abstract:'County-level outbreak warning with EHR + wastewater + mobility inputs.', starred:false, recentRank:4, editedAgo:'2 days ago', editedBy:'Lana R.', collaborators:['LR','SP','AQ'], collaboratorExtra:9 }
     ];
+
+    /* ── Community-only dummy graphs ─────────────────────────
+       Populate community + new-graph modal with browseable
+       breadth. Marked `dummy: true` so dashboard filtering
+       and click-to-open both treat them as inert. */
+    (function seedDummies() {
+      const seeds = [
+        ['Protein Folding Pipeline',          'DeepMind',         'Bioinformatics',     'Structure Prediction', 'Sequence',    'Stable',       1200, 980,  true],
+        ['Climate Storm Forecasting',         'NOAA',             'Climate',            'Forecasting',          'Multimodal',  'Stable',       540,  610,  true],
+        ['Cancer Cell Classification',        'MSK',              'Oncology',           'Image Classification', 'Histology',   'Stable',       430,  720,  true],
+        ['Drug-Target Interaction',           'Recursion',        'Drug Discovery',     'Network Analysis',     'Graph',       'Experimental', 280,  410,  true],
+        ['Sentiment in Clinical Notes',       'Mayo Clinic',      'NLP',                'Text Classification',  'Text',        'Stable',       190,  340,  false],
+        ['EEG Seizure Detection',             'Stanford Medicine','Neuroscience',       'Time Series',          'EEG',         'Stable',       220,  380,  true],
+        ['Single-Cell RNA-seq',               '10x Genomics',     'Genomics',           'Clustering',           'Sequence',    'Stable',       510,  640,  true],
+        ['Wildfire Spread Modeling',          'USGS',             'Climate',            'Simulation',           'Geo',         'Experimental', 130,  210,  true],
+        ['Retinal Disease Screening',         'Google Health',    'Ophthalmology',      'Image Classification', 'Fundus',      'Stable',       870,  990,  false],
+        ['CRISPR Off-Target Prediction',      'Broad Institute',  'Genomics',           'Sequence Analysis',    'Sequence',    'Stable',       460,  560,  true],
+        ['fMRI Connectivity Atlas',           'HCP',              'Neuroscience',       'Connectomics',         'fMRI',        'Stable',       330,  470,  true],
+        ['Antibody-Antigen Docking',          'Genentech',        'Drug Discovery',     'Structure Prediction', 'Protein',     'Experimental', 150,  290,  false],
+        ['Speech Emotion Recognition',        'Affectiva',        'NLP',                'Audio Classification', 'Audio',       'Experimental', 90,   180,  true],
+        ['Pedestrian Trajectory Forecasting', 'NVIDIA',           'Autonomous Driving', 'Trajectory Prediction','LiDAR+Vision','Stable',       620,  840,  false],
+        ['Coral Bleaching Index',             'NOAA',             'Climate',            'Remote Sensing',       'Satellite',   'Stable',       200,  260,  true],
+        ['Histopathology Tumor Grading',      'PathAI',           'Oncology',           'Image Classification', 'Histology',   'Stable',       380,  520,  false],
+        ['Polygenic Risk Scoring',            '23andMe',          'Genomics',           'Statistical Genetics', 'Sequence',    'Stable',       410,  580,  true],
+        ['Molecular Property Prediction',     'Atomwise',         'Drug Discovery',     'Graph Neural Net',     'Graph',       'Experimental', 240,  360,  true],
+        ['Air Quality Forecasting',           'EPA',              'Public Health',      'Forecasting',          'Multimodal',  'Stable',       170,  230,  true],
+        ['Brain Tumor Segmentation',          'UPenn',            'Neuroscience',       'Image Segmentation',   'MRI',         'Stable',       560,  720,  true],
+        ['Pose Estimation for Animals',       'Harvard',          'Behavioral Science', 'Pose Estimation',      'Video',       'Experimental', 120,  200,  true],
+        ['Earthquake Aftershock Prediction',  'USGS',             'Geophysics',         'Time Series',          'Seismic',     'Experimental', 80,   140,  true],
+        ['Lidar Point Cloud Segmentation',    'Cruise',           'Autonomous Driving', 'Segmentation',         'LiDAR',       'Stable',       450,  610,  false],
+        ['Multilingual Disease Surveillance', 'WHO',              'Public Health',      'NLP',                  'Text',        'Stable',       210,  290,  true],
+        ['Cardiac MRI Function',              'Cleveland Clinic', 'Cardiology',         'Image Analysis',       'MRI',         'Stable',       300,  420,  false],
+        ['Microbiome Diversity',              'JCVI',             'Bioinformatics',     'Diversity Analysis',   'Sequence',    'Stable',       180,  240,  true],
+        ['Glacier Retreat Mapping',           'NASA',             'Climate',            'Remote Sensing',       'Satellite',   'Stable',       260,  340,  true],
+        ['Diabetic Retinopathy Grading',      'Aravind',          'Ophthalmology',      'Image Classification', 'Fundus',      'Stable',       320,  480,  true],
+        ['Synthetic Biology Pathway Design',  'Ginkgo',           'Synthetic Biology',  'Optimization',         'Graph',       'Experimental', 100,  160,  false],
+        ['Plant Disease Detection',           'Plantix',          'Agriculture',        'Image Classification', 'Photo',       'Stable',       140,  220,  true]
+      ];
+      const palette = ['LR','MK','SP','AQ','RC','DN','YK','AM','TP','JW'];
+      seeds.forEach((s, i) => {
+        const [title, owner, domain, method, modality, status, stars, forks, openContrib] = s;
+        GRAPHS.push({
+          title, owner, shortOwner: owner, domain, modality, method,
+          role: 'Public', status, license: 'MIT',
+          updatedHours: 24 + i * 7,
+          forks, stars, downloads: stars * 80,
+          activity: 40 + (i * 3) % 50,
+          openContrib, team: 'Community',
+          abstract: '', starred: false,
+          recentRank: 1000 + i,
+          editedAgo: '', editedBy: '',
+          collaborators: [palette[i % palette.length], palette[(i + 3) % palette.length], palette[(i + 7) % palette.length]],
+          collaboratorExtra: (i * 2) % 30,
+          dummy: true
+        });
+      });
+    })();
     const CUSTOM_PROJECTS_KEY = 'cfg.customProjects';
     const STARRED_KEY = 'cfg.starredSlugs';
     const DELETED_KEY = 'cfg.deletedSlugs';
@@ -97,6 +156,25 @@
       } catch (_) {
         return [];
       }
+    }
+
+    /** Slugs stored in cfg.customProjects (user-created / forked); exclude from community new-graph modal. */
+    function userCustomGraphSlugSet() {
+      const s = new Set();
+      readCustomProjects().forEach((p) => {
+        if (p && p.slug) s.add(p.slug);
+      });
+      return s;
+    }
+
+    /** Graphs eligible for the “New graph” community browser (not the user’s own). */
+    function ngGraphPool() {
+      const owned = userCustomGraphSlugSet();
+      return GRAPHS.filter((g) => {
+        const sid = graphSlug(g);
+        if (sid && owned.has(sid)) return false;
+        return true;
+      });
     }
 
     function writeCustomProjects(list) {
@@ -186,7 +264,9 @@
       const customs = readCustomProjects();
       const row = customs.find((r) => r && r.slug === slug);
       if (row && row.project && Array.isArray(row.project.nodes)) return row.project.nodes.length;
-      return DEMO_NODE_COUNT_BY_SLUG[slug] || 0;
+      const n = BUNDLED_GRAPH_COUNTS[slug];
+      if (n != null) return n;
+      return 0;
     }
 
     function openGraph(title) {
@@ -340,9 +420,13 @@
 
     function renderCard(g, opts = {}) {
       const showManageActions = opts.showManageActions !== false;
+      const hideFooter = !!opts.hideFooter;
       const slug = graphSlug(g);
       const nNodes = nodeCountForGraph(g);
       const slugAttr = slug ? ` data-graph-slug="${esc(slug)}"` : '';
+      const dummyAttr = g.dummy ? ' data-dummy="1"' : '';
+      const titleClass = g.dummy ? 'graph-title' : 'graph-title graph-title--editable';
+      const titleAttr = g.dummy ? '' : ' title="Click to rename graph"';
       const avatars = (g.collaborators || []).slice(0, 3).map((ini, i) =>
         `<span class="mini" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]};">${esc(ini)}</span>`
       ).join('');
@@ -354,14 +438,19 @@
             <button class="card-icon-btn danger" type="button" data-action="delete" data-title="${esc(g.title)}" title="Delete graph" aria-label="Delete graph">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>` : '';
-      return `<article class="graph-card"${slugAttr}>
+      const footerHtml = hideFooter ? '' : `
+        <div class="card-footer">
+          <span class="push-meta">Last edited: <strong>${esc(g.editedAgo || 'recently')}</strong> by ${esc(g.editedBy || 'Unknown')}</span>
+          <div class="avatar-stack">${avatars}${extra > 0 ? `<span class="more">+${extra}</span>` : ''}</div>
+        </div>`;
+      return `<article class="graph-card"${slugAttr}${dummyAttr}>
         <div class="graph-thumb">
           <span class="role-badge ${roleBadgeToken(g.role)}">${esc(g.role)}</span>
           ${graphVizFor(g.title)}
         </div>
         <div class="graph-head">
           <div>
-            <div class="graph-title graph-title--editable" title="Click to rename graph">${esc(g.title)}</div>
+            <div class="${titleClass}"${titleAttr}>${esc(g.title)}</div>
             <div class="graph-meta">${esc(g.shortOwner || g.owner)}</div>
           </div>
           <div class="card-actions">
@@ -381,10 +470,7 @@
           <span>↯ ${g.forks}</span>
           <span>↓ ${g.downloads > 0 ? `${Math.round(g.downloads / 1000)}k` : '—'}</span>
         </div>
-        <div class="card-footer">
-          <span class="push-meta">Last edited: <strong>${esc(g.editedAgo || 'recently')}</strong> by ${esc(g.editedBy || 'Unknown')}</span>
-          <div class="avatar-stack">${avatars}${extra > 0 ? `<span class="more">+${extra}</span>` : ''}</div>
-        </div>
+        ${footerHtml}
       </article>`;
     }
 
@@ -447,7 +533,7 @@
 
     function renderDashboard() {
       const role = dashboardRoleFilter;
-      let rows = [...GRAPHS];
+      let rows = GRAPHS.filter(g => !g.dummy);
       if (dashboardView === 'starred') rows = rows.filter(g => g.starred);
       if (role) rows = rows.filter(g => g.role === role);
       if (dashboardView === 'recent') rows.sort((a, b) => a.recentRank - b.recentRank);
@@ -814,6 +900,7 @@
         }
         const card = e.target.closest('.graph-card[data-graph-slug], .open-item[data-graph-slug]');
         if (!card) return;
+        if (card.dataset.dummy === '1') return;
         const slug = card.getAttribute('data-graph-slug');
         if (!slug) return;
         try { localStorage.setItem(LAST_EDITED_KEY, slug); } catch (_) {}
@@ -837,13 +924,19 @@
       if (target) link.href = `editing-mode-new.html?project=${encodeURIComponent(target)}`;
     }
 
-    q('#newGraphBtn').addEventListener('click', () => {
-      const slug = `new-graph-${Date.now().toString(36)}`;
+    function uniqueTitle(base) {
       const existing = readCustomProjects();
       const taken = new Set([...GRAPHS.map(g => g.title), ...existing.map(r => r && r.title).filter(Boolean)]);
-      let title = 'New Graph';
+      let title = base;
       let n = 2;
-      while (taken.has(title)) title = `New Graph (${n++})`;
+      while (taken.has(title)) title = `${base} (${n++})`;
+      return title;
+    }
+
+    function createBlankGraph() {
+      const slug = `new-graph-${Date.now().toString(36)}`;
+      const existing = readCustomProjects();
+      const title = uniqueTitle('New Graph');
       existing.unshift({
         slug,
         title,
@@ -869,19 +962,267 @@
       });
       writeCustomProjects(existing);
       window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
-    });
+    }
+
+    function forkGraph(g) {
+      // Copy the source graph's project blob if available; otherwise spin up a
+      // shell project that opens cleanly in the editor.
+      const slug = `fork-${graphSlug(g)}-${Date.now().toString(36)}`;
+      const existing = readCustomProjects();
+      const title = uniqueTitle(`${g.title} (fork)`);
+      const sourceSlug = graphSlug(g);
+      const baseProject = (window.PROJECTS && window.PROJECTS[sourceSlug]) || null;
+      const project = baseProject
+        ? JSON.parse(JSON.stringify(baseProject))
+        : {
+            org: g.owner,
+            tags: [g.domain, g.method].filter(Boolean),
+            description: g.abstract || '',
+            contributors: [{ name: 'You', role: 'Owner', letter: 'JS', bg: 'var(--avatar-5)', pushes: 0 }],
+            contributorCount: 1,
+            othersCount: 0,
+            othersPreview: '',
+            others: [],
+            nodes: [],
+            connections: [],
+            subgraphs: [],
+            canvasWidth: 2400,
+            canvasHeight: 1600,
+            viewZoom: 0.52
+          };
+      project.slug = slug;
+      project.title = title;
+      existing.unshift({ slug, title, createdAt: Date.now(), forkedFrom: sourceSlug, project });
+      writeCustomProjects(existing);
+      window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+    }
+
+    /* ── New-graph modal ───────────────────────────────────── */
+    const NG_STATUS_FILTERS = [
+      { id: 'all',         label: 'All' },
+      { id: 'open',        label: 'Open to contributions' },
+      { id: 'stable',      label: 'Stable' },
+      { id: 'experimental',label: 'Experimental' },
+      { id: 'recent',      label: 'Recently updated' },
+      { id: 'popular',     label: 'Most forked' }
+    ];
+    let ngState = { search: '', category: 'all', status: 'all' };
+
+    function ngCategories() {
+      const pool = ngGraphPool();
+      const counts = new Map();
+      pool.forEach((g) => {
+        if (!g.domain) return;
+        counts.set(g.domain, (counts.get(g.domain) || 0) + 1);
+      });
+      const cats = [...counts.entries()]
+        .map(([name, count]) => ({ id: name, label: name, count }))
+        .sort((a, b) => b.count - a.count);
+      cats.unshift({ id: 'all', label: 'All categories', count: pool.length });
+      return cats;
+    }
+
+    function ngFilteredGraphs() {
+      const s = ngState.search.trim().toLowerCase();
+      let rows = ngGraphPool().filter((g) => {
+        if (ngState.category !== 'all' && g.domain !== ngState.category) return false;
+        if (ngState.status === 'open' && !g.openContrib) return false;
+        if (ngState.status === 'stable' && g.status !== 'Stable') return false;
+        if (ngState.status === 'experimental' && g.status !== 'Experimental') return false;
+        if (s) {
+          const hay = `${g.title} ${g.owner} ${g.domain} ${g.method} ${g.abstract || ''}`.toLowerCase();
+          if (!hay.includes(s)) return false;
+        }
+        return true;
+      });
+      if (ngState.status === 'recent')  rows = rows.sort((a, b) => a.updatedHours - b.updatedHours);
+      if (ngState.status === 'popular') rows = rows.sort((a, b) => b.forks - a.forks);
+      return rows;
+    }
+
+    function renderNgCategories() {
+      const host = document.getElementById('ngCategories');
+      if (!host) return;
+      host.innerHTML = ngCategories().map(c => `
+        <button type="button" class="ng-cat ${c.id === ngState.category ? 'active' : ''}" data-ng-cat="${esc(c.id)}">
+          <span>${esc(c.label)}</span>
+          <span class="ng-cat-count">${c.count}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderNgPills() {
+      const host = document.getElementById('ngStatusPills');
+      if (!host) return;
+      host.innerHTML = NG_STATUS_FILTERS.map(f => `
+        <button type="button" class="ng-pill ${f.id === ngState.status ? 'active' : ''}" data-ng-status="${esc(f.id)}">${esc(f.label)}</button>
+      `).join('');
+    }
+
+    function renderNgGrid() {
+      const host = document.getElementById('ngGrid');
+      if (!host) return;
+      const blank = `
+        <button type="button" class="ng-blank" data-ng-action="blank">
+          <span class="ng-blank-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </span>
+          <span class="ng-blank-title">Start from scratch</span>
+          <span class="ng-blank-sub">Start from a blank canvas with no existing nodes.</span>
+        </button>`;
+      const cards = ngFilteredGraphs().map(g => {
+        const slug = graphSlug(g);
+        return `<div class="ng-card" data-ng-card data-graph-slug="${esc(slug)}">
+          ${renderCard({ ...g, role: 'Public', shortOwner: g.owner }, { showManageActions: false, hideFooter: true })}
+          <div class="ng-card-overlay">
+            <button type="button" class="ng-overlay-btn" data-ng-action="preview" data-graph-slug="${esc(slug)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              Preview
+            </button>
+            <button type="button" class="ng-overlay-btn ng-overlay-btn--fork" data-ng-action="fork" data-graph-slug="${esc(slug)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v4a2 2 0 0 0 2 2h6"/><path d="M18 10v2"/></svg>
+              Fork
+            </button>
+          </div>
+        </div>`;
+      }).join('');
+      host.innerHTML = blank + cards;
+    }
+
+    function openNewGraphModal() {
+      const modal = document.getElementById('newGraphModal');
+      if (!modal) return;
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      renderNgCategories();
+      renderNgPills();
+      renderNgGrid();
+      const search = document.getElementById('ngSearch');
+      if (search) { search.value = ngState.search; setTimeout(() => search.focus(), 50); }
+    }
+
+    function closeNewGraphModal() {
+      const modal = document.getElementById('newGraphModal');
+      if (!modal) return;
+      modal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function initNewGraphModal() {
+      const modal = document.getElementById('newGraphModal');
+      if (!modal) return;
+      document.getElementById('ngClose')?.addEventListener('click', closeNewGraphModal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeNewGraphModal(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) closeNewGraphModal();
+      });
+      document.getElementById('ngSearch')?.addEventListener('input', (e) => {
+        ngState.search = e.target.value;
+        renderNgGrid();
+      });
+      document.getElementById('ngCategories')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-ng-cat]');
+        if (!btn) return;
+        ngState.category = btn.dataset.ngCat;
+        renderNgCategories();
+        renderNgGrid();
+      });
+      document.getElementById('ngStatusPills')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-ng-status]');
+        if (!btn) return;
+        ngState.status = btn.dataset.ngStatus;
+        renderNgPills();
+        renderNgGrid();
+      });
+      document.getElementById('ngGrid')?.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-ng-action]');
+        if (!action) return;
+        e.stopPropagation();
+        const kind = action.dataset.ngAction;
+        if (kind === 'blank') { createBlankGraph(); return; }
+        const slug = action.dataset.graphSlug;
+        const g = GRAPHS.find(x => graphSlug(x) === slug);
+        if (!g) return;
+        if (kind === 'preview') {
+          window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
+        } else if (kind === 'fork') {
+          forkGraph(g);
+        }
+      });
+    }
+
+    async function loadBundledCatalog() {
+      try {
+        const r = await fetch('graphs/catalog.json', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const list = Array.isArray(data.graphs) ? data.graphs : [];
+        list.forEach((entry) => {
+          if (!entry || !entry.slug) return;
+          if (entry.nodeCount != null) BUNDLED_GRAPH_COUNTS[entry.slug] = entry.nodeCount;
+          const g = GRAPHS.find(
+            (x) =>
+              (x.slug && x.slug === entry.slug) ||
+              (entry.title && x.title === entry.title) ||
+              KNOWN_PROJECTS[x.title] === entry.slug
+          );
+          if (g) {
+            if (!g.slug) g.slug = entry.slug;
+            return;
+          }
+          if (!entry.title) return;
+          const row = {
+            title: entry.title,
+            slug: entry.slug,
+            owner: entry.owner || 'Community',
+            shortOwner: entry.shortOwner || entry.owner || 'Community',
+            domain: entry.domain || 'General',
+            modality: entry.modality || 'Multimodal',
+            method: entry.method || '—',
+            role: entry.role || 'Contributor',
+            status: entry.status || 'Stable',
+            license: entry.license || 'MIT',
+            updatedHours: entry.updatedHours != null ? entry.updatedHours : 24,
+            forks: entry.forks != null ? entry.forks : 0,
+            stars: entry.stars != null ? entry.stars : 0,
+            downloads: entry.downloads != null ? entry.downloads : 0,
+            activity: entry.activity != null ? entry.activity : 40,
+            openContrib: entry.openContrib !== false,
+            team: entry.team || 'Community',
+            abstract: entry.abstract || '',
+            starred: false,
+            recentRank: 999,
+            editedAgo: entry.editedAgo || '',
+            editedBy: entry.editedBy || '',
+            collaborators: entry.collaborators || ['CF'],
+            collaboratorExtra: entry.collaboratorExtra != null ? entry.collaboratorExtra : 0,
+          };
+          GRAPHS.push(row);
+          byTitle.set(row.title, row);
+        });
+      } catch (_) { /* offline, file://, or missing catalog */ }
+    }
+
+    q('#newGraphBtn').addEventListener('click', openNewGraphModal);
     const tabFromUrl = new URLSearchParams(window.location.search).get('tab');
-    hydrateCustomProjects();
-    window.openGraph = openGraph;
-    initDashboardControls();
-    renderDashboard();
-    renderCommunity();
-    initFilters();
-    initCommunityControls();
-    initTopicPills();
-    initTeamSelector();
-    initCardsLayoutToggle();
-    initGraphCardNavigation();
-    initGraphTitleRename();
-    initEditNavLink();
-    switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
+    (async () => {
+      await loadBundledCatalog();
+      hydrateCustomProjects();
+      window.openGraph = openGraph;
+      initDashboardControls();
+      renderDashboard();
+      renderCommunity();
+      initFilters();
+      initCommunityControls();
+      initTopicPills();
+      initTeamSelector();
+      initCardsLayoutToggle();
+      initGraphCardNavigation();
+      initGraphTitleRename();
+      initEditNavLink();
+      initNewGraphModal();
+      switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
+      if (new URLSearchParams(window.location.search).get('new') === '1') {
+        openNewGraphModal();
+      }
+    })();

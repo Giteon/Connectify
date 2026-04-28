@@ -332,6 +332,8 @@ window.Canvas = (function () {
         svg = document.createElementNS(SVG_NS, 'svg');
         svg.setAttribute('class', 'node-overlay sg-internal-edges');
         svg.setAttribute('aria-hidden', 'true');
+        svg.style.pointerEvents = 'auto';
+        svg.addEventListener('mousedown', _onEdgeSvgPointerDown, true);
         svg.addEventListener('click', _onEdgeSvgClick);
         const head = box.querySelector(':scope > .sg-head');
         if (head) box.insertBefore(svg, head);
@@ -741,6 +743,19 @@ window.Canvas = (function () {
       _showEdgeBubble(conn);
     }
   }
+  function _onEdgeSvgPointerDown(e) {
+    if (!opts.editable) return;
+    const hit = e.target.closest && e.target.closest('.edge-hit');
+    if (!hit) return;
+    e.stopPropagation();
+    const conn = CONNECTIONS[parseInt(hit.dataset.connIdx, 10)];
+    if (!conn) return;
+    if (edgeBubbleConn === conn && edgeBubbleEl?.classList.contains('show')) {
+      _hideEdgeBubble();
+    } else {
+      _showEdgeBubble(conn);
+    }
+  }
   function _syncEdgeFrontAfterSubgraph() {
     if (!edgeOverlayFront || !canvasInner) return;
     const sg = document.getElementById('subgraphLayer');
@@ -869,14 +884,39 @@ window.Canvas = (function () {
     _edgeLineRoots().forEach(root => {
       root.querySelectorAll('.edge-active').forEach(p => p.classList.remove('edge-active'));
     });
+    document.querySelectorAll('.port-anchor.edge-hovered, .sg-row-port.edge-hovered')
+      .forEach(a => a.classList.remove('edge-hovered'));
     if (!edgeBubbleConn) return;
     const idx = CONNECTIONS.indexOf(edgeBubbleConn);
     if (idx < 0) return;
+    const conn = CONNECTIONS[idx];
     const hit = _queryEdgeHitByConnIdx(idx);
     if (hit) {
       hit.classList.add('edge-active');
       if (hit.nextElementSibling) hit.nextElementSibling.classList.add('edge-active');
     }
+    const a = _getAnchorForEdgeEnd(conn?.from);
+    const b = _getAnchorForEdgeEnd(conn?.to);
+    a?.classList.add('edge-hovered');
+    b?.classList.add('edge-hovered');
+  }
+
+  function _getAnchorForEdgeEnd(end) {
+    if (!end || !end[0]) return null;
+    const s = nodeState.get(end[0]);
+    if (!s) return null;
+    if (s.el.classList.contains('sg-hidden')) {
+      if (typeof window.getSubgraphCollapsedPortAnchorEl === 'function') {
+        try {
+          const el = window.getSubgraphCollapsedPortAnchorEl(end[0], end[1]);
+          if (el) return el;
+        } catch (_) { /* host shell */ }
+      }
+      const dir = end[1];
+      const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
+      return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
+    }
+    return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
   }
 
   function getPortPos(nodeId, dir, ioName, canvasRect) {
@@ -1119,24 +1159,8 @@ window.Canvas = (function () {
       const idx = parseInt(hit.dataset.connIdx, 10);
       const c = CONNECTIONS[idx];
       if (!c) return;
-      const getAnchor = (end) => {
-        const s = nodeState.get(end[0]);
-        if (!s) return null;
-        if (s.el.classList.contains('sg-hidden')) {
-          if (typeof window.getSubgraphCollapsedPortAnchorEl === 'function') {
-            try {
-              const el = window.getSubgraphCollapsedPortAnchorEl(end[0], end[1]);
-              if (el) return el;
-            } catch (_) { /* host shell */ }
-          }
-          const dir = end[1];
-          const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
-          return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
-        }
-        return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
-      };
-      const a = getAnchor(c.from);
-      const b = getAnchor(c.to);
+      const a = _getAnchorForEdgeEnd(c.from);
+      const b = _getAnchorForEdgeEnd(c.to);
       const on  = () => { a?.classList.add('edge-hovered');    b?.classList.add('edge-hovered'); };
       const off = () => { a?.classList.remove('edge-hovered'); b?.classList.remove('edge-hovered'); };
       hit.addEventListener('mouseenter', on);

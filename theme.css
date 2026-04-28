@@ -367,7 +367,7 @@ html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
 
 /* Breathing room between the theme control and the account pill. */
 .topbar .theme-toggle {
-  margin-inline-end: 10px;
+  margin-inline-end: 0px;
 }
 
 /* Hub / standalone topbars (no canvas shell): a bit more space before the avatar. */

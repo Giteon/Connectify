@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "graphs": [
+    {
+      "slug": "autonomous-vehicle-navigation",
+      "title": "Autonomous Vehicle Navigation",
+      "nodeCount": 11,
+      "document": "graph.json"
+    },
+    {
+      "slug": "human-genome-analysis",
+      "title": "Human Genome Analysis",
+      "nodeCount": 25,
+      "document": "graph.json"
+    },
+    {
+      "slug": "neurological-disease-analysis",
+      "title": "Neurological Disease Analysis",
+      "nodeCount": 10,
+      "document": "graph.json"
+    },
+    {
+      "slug": "public-health-monitoring",
+      "title": "Public Health Monitoring",
+      "nodeCount": 60,
+      "document": "graph.json"
+    }
+  ]
+}

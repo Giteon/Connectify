@@ -44,13 +44,14 @@ if (!slug) {
     window.PROJECT = Object.assign({ slug }, custom, { slug });
     initApp();
   } else {
-    const s = document.createElement('script');
-    s.src = 'graphs/' + slug + '/data.js';
-    s.onload = initApp;
-    s.onerror = () => {
-      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${slug}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
+    const fail = () => {
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to dashboard</a></p>`;
     };
-    document.head.appendChild(s);
+    if (typeof bootstrapBundledProject !== 'function') {
+      fail();
+    } else {
+      bootstrapBundledProject(slug).then(() => { initApp(); }, fail);
+    }
   }
 }
 

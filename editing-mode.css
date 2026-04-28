@@ -89,6 +89,7 @@
     flex-shrink: 0;
     margin: 0;
     align-self: center;
+    transition: opacity 0.22s ease, width 0.22s ease, transform 0.22s ease, margin 0.22s ease;
   }
 
   .tb-share-toggle {
@@ -165,6 +166,11 @@
       justify-content: center;
       align-items: center;
       gap: 0;
+    }
+    .editing-shell #tglPaths.tb-toggle,
+    .editing-shell #tglHistory.tb-toggle,
+    .editing-shell #shareGraphBtn.tb-toggle {
+      margin-left: -6px;
     }
     .editing-shell #rolePillText {
       display: none !important;
@@ -1336,7 +1342,7 @@
     height: 100%;
     overflow: visible;
     z-index: 1;
-    pointer-events: none;
+    pointer-events: auto;
   }
   .subgraph-box.member-drag-active {
     border-color: #2563eb;
@@ -1823,6 +1829,9 @@
     stroke: var(--edge);
     stroke-width: 1.35;
     opacity: 0.88;
+    pointer-events: none;
+  }
+  .node-overlay path.edge-line {
     pointer-events: none;
   }
   .node-overlay path.edge-hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }

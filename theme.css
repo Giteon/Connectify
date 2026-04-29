@@ -170,11 +170,6 @@ html[data-theme="dark"] .sidebar-icons {
   background: var(--surface);
 }
 
-/* Brand mark SVG uses black fills — invert on dark topbar. */
-html[data-theme="dark"] .brand-logo img {
-  filter: brightness(0) invert(1);
-}
-
 /* Canvas dotted-grid background. The light-mode rule sets both the
    base color AND a radial-gradient grid of #d5d9e0 dots — invisible
    on black — so we repaint the grid here with a dim slate: just
@@ -401,4 +396,10 @@ html[data-theme="dark"] .topbar-search .topbar-search-input:hover {
 /* Hub / standalone topbars (no canvas shell): a bit more space before the avatar. */
 body:not(:has(.app)) .topbar .theme-toggle {
   margin-inline-end: 14px;
+}
+
+/* Brand mark uses icons/logo.png in every theme — never CSS-invert or swap by mode. */
+.brand-logo img,
+.lp-brand img {
+  filter: none;
 }

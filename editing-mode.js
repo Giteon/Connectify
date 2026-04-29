@@ -2081,11 +2081,18 @@ function initApp() {
     });
     variants = IS_CUSTOM_PROJECT
       ? [{ id: 'v1', name: 'Master', createdAt: Date.now(), ...base }]
-      : [
-          { id: 'v1', name: 'Master',        createdAt: Date.now(), ...base             },
-          { id: 'v2', name: 'ResNet swap',   createdAt: Date.now(), ...cloneGraph(base) },
-          { id: 'v3', name: 'Smaller LIDAR', createdAt: Date.now(), ...cloneGraph(base) },
-        ];
+      : Array.isArray(P.initialVariants) && P.initialVariants.length
+        ? P.initialVariants.map((spec, i) => ({
+            id: spec.id || ('v' + (i + 1)),
+            name: spec.name || ('Variant ' + (i + 1)),
+            createdAt: Date.now(),
+            ...(i === 0 ? base : cloneGraph(base)),
+          }))
+        : [
+            { id: 'v1', name: 'Master',        createdAt: Date.now(), ...base             },
+            { id: 'v2', name: 'ResNet swap',   createdAt: Date.now(), ...cloneGraph(base) },
+            { id: 'v3', name: 'Smaller LIDAR', createdAt: Date.now(), ...cloneGraph(base) },
+          ];
     writeJSON(KEY.variants, variants);
   }
   ACTIVE_VID = localStorage.getItem(KEY.active) || variants[0].id;
@@ -2104,6 +2111,28 @@ function initApp() {
     canvasHeight: activeVariant.canvasHeight || P.canvasHeight,
   });
   initSubgraphFeature(activeVariant.subgraphs || []);
+  (function seedBundledDemoPaths() {
+    if (IS_CUSTOM_PROJECT) return;
+    const P = window.PROJECT;
+    const demo = P && P.demoPaths;
+    if (!demo || typeof demo !== 'object') return;
+    const variantsList = readJSON(KEY.variants) || [];
+    variantsList.forEach((v) => {
+      const specs = demo[v.id];
+      if (!specs || !specs.length) return;
+      if ((readJSON(KEY.paths(v.id)) || []).length) return;
+      const t = Date.now();
+      const out = specs.map((p, i) => ({
+        id: p.id || ('p_seed_' + v.id + '_' + i),
+        name: p.name || ('Path ' + (i + 1)),
+        nodeIds: [...(p.nodeIds || [])],
+        nodes: [...(p.nodeIds || [])],
+        author: p.author || 'Demo',
+        createdAt: p.createdAt != null ? p.createdAt : (t - i * 1000),
+      }));
+      writeJSON(KEY.paths(v.id), out);
+    });
+  })();
   // Clicking a node either toggles it in the current path draft (if we're
   // in draw mode) or opens the Inspector — never both.
   Canvas.onNodeClick(nodeData => {
@@ -3800,8 +3829,6 @@ const PATH_PICK = { x: 0, y: 0, nodeId: null, armed: false };
 let FOCUSED_PATH_ID = null; // drawer item currently highlighted on the canvas
 
 function initPaths() {
-  const pathTool = document.querySelector('[data-tool="path"]');
-  if (pathTool) pathTool.addEventListener('click', () => pathDrawStart());
   renderPaths();
 }
 
@@ -4027,13 +4054,20 @@ function initToolPalette() {
     setPaletteTool('comment');
   });
 
-  // Keyboard shortcuts (V / M / C / P). Discover has its own standard +.
+  // Keyboard shortcuts (V / M / C / P / N). N toggles Discover like the + tool.
   document.addEventListener('keydown', (e) => {
     // Don't swallow shortcuts while typing in inputs / content-editables.
     const t = e.target;
     if (t && (t.matches('input, textarea, [contenteditable="true"]'))) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const key = e.key.toLowerCase();
+    if (key === 'n') {
+      e.preventDefault();
+      if (PATH_DRAW.active) pathDrawCancel();
+      if (COMMENTS.dropping) stopCommentDrop();
+      document.getElementById('toolDiscover')?.click();
+      return;
+    }
     if (key === 'v') {
       setPaletteTool('select');
       if (PATH_DRAW.active) pathDrawCancel();
@@ -5574,11 +5608,29 @@ function initBottomPanel() {
   const variants = readJSON(KEY.variants) || [];
   variants.forEach(v => {
     if ((readJSON(KEY.runs(v.id)) || []).length) return;
-    const seeded = makeRunResults(v.id.length * 1337);
-    writeJSON(KEY.runs(v.id), [
-      { id: 'r_' + v.id + '_a', name: v.name + ' · baseline', at: Date.now() - 86400000, status: 'ok', progress: 100,
-        ...seeded, pathId: null, pathName: null, pathNodeIds: [], edgeGroups: [] },
-    ]);
+    const P = window.PROJECT;
+    const map = P && P.demoRunCountByVariant;
+    let n = 1;
+    if (map && typeof map === 'object' && map[v.id] != null) {
+      n = Math.max(0, Math.min(10, Math.floor(Number(map[v.id]))));
+    }
+    const runs = [];
+    for (let i = 0; i < n; i++) {
+      const seeded = makeRunResults(v.id.length * 1337 + i * 97);
+      runs.push({
+        id: 'r_' + v.id + '_' + i,
+        name: v.name + (n > 1 ? ' · run ' + (i + 1) : ' · baseline'),
+        at: Date.now() - (n - i) * 3600000,
+        status: 'ok',
+        progress: 100,
+        ...seeded,
+        pathId: null,
+        pathName: null,
+        pathNodeIds: [],
+        edgeGroups: [],
+      });
+    }
+    writeJSON(KEY.runs(v.id), runs);
   });
   renderRuns();
   renderLogs();

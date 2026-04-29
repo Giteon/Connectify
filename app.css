@@ -56,25 +56,31 @@ body {
 
 .app.leftnav-expanded { --leftnav-w: 180px; }
 
-.topbar        { grid-column: 1 / -1; grid-row: 1; }
+/* Leftnav now spans the full height of the app shell. The topbar and
+   variant strip start in column 2 so the leftnav reads as a continuous
+   rail from the top of the viewport down. */
+.topbar        { grid-column: 2 / -1; grid-row: 1; }
 
-.variant-strip { grid-column: 1 / -1; grid-row: 2; }
+.variant-strip { grid-column: 2 / -1; grid-row: 2; }
 
 .bottom-panel  { grid-column: 1 / -1; grid-row: 4; }
 
 .leftnav {
+  position: relative;
+  grid-column: 1; grid-row: 1 / 4;
   background: var(--surface); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: stretch;
-  padding: 12px 8px 8px 12px; gap: 2px; overflow: hidden;
-  height: calc(100vh - var(--topbar-h) - var(--variant-h));
+  padding: 12px 8px 12px 12px; gap: 0; overflow: hidden;
+  height: 100%;
+  z-index: 21;
 }
 
 .leftnav .nav-toggle:hover { background: var(--bg); color: var(--text-primary); }
 
-.leftnav .nav-toggle img { width: 14px; height: 14px; display: block; opacity: 0.72; }
+.leftnav .nav-toggle img { width: 16px; height: 16px; display: block; opacity: 0.4; }
 .leftnav .nav-toggle .nav-toggle-close { display: none; }
 
-.app.leftnav-expanded .leftnav .nav-toggle { align-self: flex-end; }
+.app.leftnav-expanded .leftnav-brand-shell .nav-toggle { align-self: auto; }
 
 .app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-open { display: none; }
 .app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-close { display: block; }
@@ -90,28 +96,82 @@ html[data-theme="dark"] .leftnav .nav-toggle img { filter: brightness(0) invert(
 
 .leftnav a:hover { background: var(--bg); color: var(--text-primary); }
 
-.leftnav a.active { background: var(--primary-soft); color: var(--primary); }
-
-.leftnav .nav-item-settings { margin-top: auto; }
-
-.leftnav .nav-item-settings .nav-item-settings-icon {
-  width: 15px;
-  height: 15px;
+.leftnav > .leftnav-avatar {
+  margin-top: auto;
+  margin-bottom: 0;
   flex-shrink: 0;
-  transform: translateY(0.5px);
-  opacity: 0.72;
 }
-html[data-theme="dark"] .leftnav .nav-item-settings .nav-item-settings-icon {
-  filter: invert(1);
+
+/* Dark-mode toggle sits at the bottom of the rail; avatar lives in the topbar. */
+.leftnav > .leftnav-theme-slot {
+  margin-top: auto;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  width: 32px;
+  align-self: center;
+  display: inline-flex;
+  justify-content: center;
 }
-.leftnav .nav-item-settings:hover .nav-item-settings-icon,
-.leftnav .nav-item-settings.active .nav-item-settings-icon {
-  opacity: 1;
+.app.leftnav-expanded .leftnav .leftnav-theme-slot {
+  width: 100%;
+  align-self: stretch;
+  justify-content: flex-start;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+.leftnav .leftnav-theme-slot .theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.topbar-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.topbar-avatar:hover { background: var(--bg); }
+.topbar-avatar .la-av {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.topbar-avatar .la-chev {
+  width: 12px;
+  height: 12px;
+  color: var(--text-muted);
+  transform: rotate(0deg);
+  transition: transform 0.14s ease;
+}
+.topbar-avatar[aria-expanded="true"] .la-chev {
+  transform: rotate(180deg);
+}
+.leftnav a.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  margin-top: 2px;
+  margin-bottom: 2px;
 }
 
 .leftnav .nav-item-stub {
   opacity: 0.55;
-  cursor: not-allowed;
+  cursor: default;
+  pointer-events: none;
 }
 
 .leftnav .nav-item-stub:hover {
@@ -119,20 +179,22 @@ html[data-theme="dark"] .leftnav .nav-item-settings .nav-item-settings-icon {
   color: var(--text-muted);
 }
 
+/* Match graphs-hub rail: 16px glyphs inside the 32px collapsed hit target */
 .leftnav a svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 .leftnav .nav-item-dashboard { position: relative; }
 .leftnav .nav-item-plus {
   margin-left: auto;
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
+  width: 24px;
+  height: 24px;
+  border: 0px;
   border-radius: 6px;
   background: var(--surface);
   color: var(--text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   opacity: 0;
   pointer-events: none;
   transition: opacity .14s ease, color .14s ease, border-color .14s ease, background .14s ease;
@@ -226,7 +288,7 @@ html[data-theme="dark"] .leftnav .nav-item-settings .nav-item-settings-icon {
 .leftnav .leftnav-group-label {
   display: none;
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--text-muted); padding: 10px 8px 4px; margin: 0; flex-shrink: 0;
+  color: var(--text-muted); padding: 14px 8px 6px; margin: 0; flex-shrink: 0;
 }
 
 .app.leftnav-expanded .leftnav .leftnav-group-label { display: block; }
@@ -245,6 +307,63 @@ html[data-theme="dark"] .leftnav .nav-item-settings .nav-item-settings-icon {
   color: var(--text-primary);
   text-decoration: none;
   flex-shrink: 0;
+}
+
+/* Brand inside the leftnav (full-height rail layout). Icon always
+   visible; wordmark is a `.nav-label`, so it follows the same opacity
+   transition as other nav-item labels. */
+.leftnav .brand--leftnav {
+  display: flex; align-items: center; gap: 4px;
+  height: 36px; padding: 0 6px; margin: 0 0 6px;
+  border-radius: 7px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600; font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+.leftnav .brand--leftnav:hover { background: var(--bg); }
+.leftnav-brand-shell .brand--leftnav {
+  margin-bottom: 0;
+}
+.app:not(.leftnav-expanded) .leftnav .brand--leftnav {
+  justify-content: center; padding: 0; gap: 0; align-self: center; width: 32px;
+}
+.leftnav-top {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  flex-shrink: 0;
+  gap: 0;
+}
+.leftnav-brand-shell {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.app.leftnav-expanded .leftnav-brand-shell {
+  align-items: stretch;
+  margin-bottom: 6px;
+}
+.app.leftnav-expanded .leftnav-brand-shell .brand--leftnav {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 36px;
+}
+.app.leftnav-expanded .leftnav-brand-shell .nav-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  margin: 0;
+  align-self: auto;
+}
+.app:not(.leftnav-expanded) .leftnav .nav-toggle {
+  margin-bottom: 10px;
 }
 
 .brand-logo {
@@ -332,6 +451,15 @@ header.topbar .brand + .breadcrumb {
 }
 
 .topbar-theme-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.topbar-search-slot {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -473,9 +601,9 @@ header.topbar .brand + .breadcrumb {
 .role-perms-link svg { width: 13px; height: 13px; flex-shrink: 0; }
 
 .share-modal-card {
-  width: 540px;
+  width: 450px;
   max-width: min(92vw, 540px);
-  padding: 0;
+  padding: 10px !important;
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
@@ -490,7 +618,7 @@ header.topbar .brand + .breadcrumb {
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--border-light);
+  /* border-bottom: 1px solid var(--border-light); */
 }
 
 .share-head h2 {
@@ -501,7 +629,6 @@ header.topbar .brand + .breadcrumb {
   letter-spacing: 0.02em;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .share-head .modal-close { margin-left: auto; }
@@ -762,6 +889,7 @@ header.topbar .brand + .breadcrumb {
 .empty-state {
   padding: 26px 8px; text-align: center; color: var(--text-muted);
   font-size: 12.5px;
+  line-height: 18px;
 }
 
 .empty-state svg { width: 28px; height: 28px; margin-bottom: 6px; opacity: 0.5; }
@@ -948,17 +1076,17 @@ header.topbar .brand + .breadcrumb {
 .adaptor-chip .adaptor-chip-bg {
   fill: var(--surface); stroke: var(--border); stroke-width: 1;
   filter: drop-shadow(0 1px 2px rgba(15,23,42,0.08));
-  pointer-events: none;
 }
 
 .adaptor-chip--dot .adaptor-chip-dot-body {
-  fill: var(--surface); stroke: rgba(245,158,11,0.55); stroke-width: 1.1;
-  pointer-events: none;
+  fill: #9ca3af;
+  stroke: none;
 }
 
-html[data-theme="dark"] .adaptor-chip .adaptor-chip-bg { stroke: rgba(245,158,11,0.5); }
-
-html[data-theme="dark"] .adaptor-chip--dot .adaptor-chip-dot-body { stroke: rgba(251,191,36,0.65); }
+html[data-theme="dark"] .adaptor-chip--dot .adaptor-chip-dot-body {
+  fill: var(--edge);
+  stroke: none;
+}
 
 .type-string  { background: #dcfce7; color: #15803d; }
 
@@ -1053,12 +1181,12 @@ html[data-theme="dark"] .adaptor-chip--dot .adaptor-chip-dot-body { stroke: rgba
 
 .adp-pop-close:hover { background: var(--bg); color: var(--text-primary); }
 
-.adp-pop-pill .adaptor-arrow { color: #b45309; font-weight: 600; margin: 0 2px; }
+.adp-pop-pill .adaptor-arrow { color: var(--primary); font-weight: 600; margin: 0 2px; }
 
 .adp-pop-pill {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 10px; margin-bottom: 10px;
-  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.35);
+  background: var(--bg); border: 1px solid var(--primary-hover);
   border-radius: 8px; font-size: 12px;
 }
 

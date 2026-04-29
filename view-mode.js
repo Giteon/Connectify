@@ -1,5 +1,15 @@
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug = new URLSearchParams(location.search).get('project');
+const PUBLIC_GRAPH_EDIT_OPT_IN_KEY = 'cfg.publicGraphEditOptInSlugs';
+function rememberPublicGraphEditOptIn(s) {
+  if (!s) return;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PUBLIC_GRAPH_EDIT_OPT_IN_KEY) || '[]');
+    const set = new Set(Array.isArray(parsed) ? parsed : []);
+    set.add(s);
+    localStorage.setItem(PUBLIC_GRAPH_EDIT_OPT_IN_KEY, JSON.stringify([...set]));
+  } catch (_) { /* storage */ }
+}
 
 function _readJSONStore(key, fallback) {
   try {
@@ -260,7 +270,8 @@ function initApp() {
   initFindBar();
   initLeftNav();
   initRolePill();
-  initContribModal(P);
+  initRequestContributorModal(P);
+  initForkFromView(P);
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (!Canvas.getAllNodes().length) {
@@ -732,28 +743,118 @@ function initRolePill() {
 
   document.getElementById('roleOptEditMode').addEventListener('click', () => {
     menu.classList.remove('open');
-    window.location.href = 'editing-mode-new.html?project=' + slug;
+    rememberPublicGraphEditOptIn(slug);
+    window.location.href = 'editing-mode-new.html?project=' + encodeURIComponent(slug);
   });
 }
 
-/* ── Become-a-contributor flow ──────────────────────────────
-   Matches the old build's copy and confirm flow. Confirming just closes
-   the modal for now — this is a wireframe commitment, not a backend. */
-function initContribModal(P) {
-  const modal = document.getElementById('contribModal');
-  document.getElementById('contribModalText').textContent =
-    `You're about to become a contributor on "${P.title}". You're stepping into a collaborative space where you can experiment locally, then push your changes to the public graph when you're ready.`;
+/* ── Request Contributor (public graph) — same modal pattern as edit-mode
+   Request Admin; wireframe only (no backend). */
+function initRequestContributorModal(P) {
+  const modal = document.getElementById('requestContributorModal');
+  const closeBtn = document.getElementById('requestContributorClose');
+  const cancelBtn = document.getElementById('requestContributorCancel');
+  const submitBtn = document.getElementById('requestContributorSubmit');
+  const recipEl = document.getElementById('contributorRecipientNames');
+  const reasonEl = document.getElementById('contributorReasonInput');
+  const scopeEl = document.getElementById('contributorScopeInput');
+  const openBtn = document.getElementById('contributeBtn');
+  if (!modal || !closeBtn || !cancelBtn || !submitBtn || !recipEl || !openBtn) return;
 
-  const open  = () => modal.classList.add('show');
-  const close = () => modal.classList.remove('show');
+  function recipientNames() {
+    const owners = (P.contributors || []).filter(
+      (c) => c && (String(c.role) === 'Owner' || String(c.role) === 'Admin')
+    );
+    return owners.length
+      ? owners.map((c) => c.name).join(', ')
+      : (P.contributors && P.contributors[0] && P.contributors[0].name) || 'project owners';
+  }
 
-  document.getElementById('contributeBtn').addEventListener('click', open);
-  document.getElementById('contribClose').addEventListener('click', close);
-  document.getElementById('contribCancel').addEventListener('click', close);
-  modal.addEventListener('click', e => { if (e.target === modal) close(); });
-  document.getElementById('contribConfirm').addEventListener('click', () => {
+  const close = () => {
+    modal.classList.remove('show');
+    if (reasonEl) reasonEl.value = '';
+    if (scopeEl) scopeEl.value = '';
+  };
+
+  openBtn.addEventListener('click', () => {
+    recipEl.textContent = recipientNames();
+    modal.classList.add('show');
+  });
+  closeBtn.addEventListener('click', close);
+  cancelBtn.addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  submitBtn.addEventListener('click', () => {
+    try {
+      sessionStorage.setItem('contributorRequestPending_' + slug, 'true');
+    } catch (_) { /* ignore */ }
     close();
-    // Transition to edit mode as "contributor" (role param mirrors old build).
-    window.location.href = 'editing-mode-new.html?project=' + slug;
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('show')) close();
+  });
+}
+
+/** Fork public/custom graph into My Graphs; user becomes Admin on the copy. */
+function initForkFromView(P) {
+  const btn = document.getElementById('forkBtn');
+  const modal = document.getElementById('forkConfirmModal');
+  if (!btn || !slug || !window.ConnectifyFork || !modal) return;
+
+  function forkBodyText() {
+    const t = ((P && P.title) || 'this graph').trim() || 'this graph';
+    return (
+      `Create your own copy of "${t}" with its canvas, variants, paths, and experiments?`
+    );
+  }
+
+  function openForkModal() {
+    const bodyEl = document.getElementById('forkConfirmBody');
+    if (bodyEl) bodyEl.textContent = forkBodyText();
+    modal.classList.add('show');
+    try {
+      document.body.style.overflow = 'hidden';
+    } catch (_) {}
+  }
+
+  function closeForkModal() {
+    modal.classList.remove('show');
+    try {
+      document.body.style.overflow = '';
+    } catch (_) {}
+  }
+
+  function runFork() {
+    const tag0 = (P.tags || [])[0];
+    const tag1 = (P.tags || [])[1];
+    window.ConnectifyFork.forkProjectToMyGraphs(slug, {
+      title: P.title,
+      owner: P.org || 'Community',
+      domain: tag0 || 'General',
+      method: tag1 || 'Custom',
+      abstract: P.description || '',
+    }).catch(() => {
+      alert('Could not fork this graph. If you are offline, try again when the project can load.');
+    });
+  }
+
+  btn.addEventListener('click', () => openForkModal());
+
+  if (modal.dataset.forkBound === '1') return;
+  modal.dataset.forkBound = '1';
+
+  document.getElementById('forkConfirmClose')?.addEventListener('click', closeForkModal);
+  document.getElementById('forkConfirmCancel')?.addEventListener('click', closeForkModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeForkModal();
+  });
+  document.getElementById('forkConfirmOk')?.addEventListener('click', () => {
+    closeForkModal();
+    runFork();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!modal.classList.contains('show')) return;
+    e.preventDefault();
+    closeForkModal();
   });
 }

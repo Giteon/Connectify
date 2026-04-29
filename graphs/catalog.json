@@ -2,9 +2,99 @@
   "version": 1,
   "graphs": [
     {
+      "slug": "air-quality-forecasting",
+      "title": "Air Quality Forecasting",
+      "nodeCount": 20,
+      "document": "graph.json"
+    },
+    {
+      "slug": "antibody-antigen-docking",
+      "title": "Antibody-Antigen Docking",
+      "nodeCount": 13,
+      "document": "graph.json"
+    },
+    {
       "slug": "autonomous-vehicle-navigation",
       "title": "Autonomous Vehicle Navigation",
       "nodeCount": 11,
+      "document": "graph.json"
+    },
+    {
+      "slug": "brain-tumor-segmentation",
+      "title": "Brain Tumor Segmentation",
+      "nodeCount": 21,
+      "document": "graph.json"
+    },
+    {
+      "slug": "cancer-cell-classification",
+      "title": "Cancer Cell Classification",
+      "nodeCount": 14,
+      "document": "graph.json"
+    },
+    {
+      "slug": "cardiac-mri-function",
+      "title": "Cardiac MRI Function",
+      "nodeCount": 16,
+      "document": "graph.json"
+    },
+    {
+      "slug": "climate-storm-forecasting",
+      "title": "Climate Storm Forecasting",
+      "nodeCount": 12,
+      "document": "graph.json"
+    },
+    {
+      "slug": "coral-bleaching-index",
+      "title": "Coral Bleaching Index",
+      "nodeCount": 16,
+      "document": "graph.json"
+    },
+    {
+      "slug": "crispr-off-target-prediction",
+      "title": "CRISPR Off-Target Prediction",
+      "nodeCount": 20,
+      "document": "graph.json"
+    },
+    {
+      "slug": "diabetic-retinopathy-grading",
+      "title": "Diabetic Retinopathy Grading",
+      "nodeCount": 19,
+      "document": "graph.json"
+    },
+    {
+      "slug": "drug-target-interaction",
+      "title": "Drug-Target Interaction",
+      "nodeCount": 13,
+      "document": "graph.json"
+    },
+    {
+      "slug": "earthquake-aftershock-prediction",
+      "title": "Earthquake Aftershock Prediction",
+      "nodeCount": 13,
+      "document": "graph.json"
+    },
+    {
+      "slug": "eeg-seizure-detection",
+      "title": "EEG Seizure Detection",
+      "nodeCount": 17,
+      "document": "graph.json"
+    },
+    {
+      "slug": "fmri-connectivity-atlas",
+      "title": "fMRI Connectivity Atlas",
+      "nodeCount": 12,
+      "document": "graph.json"
+    },
+    {
+      "slug": "glacier-retreat-mapping",
+      "title": "Glacier Retreat Mapping",
+      "nodeCount": 18,
+      "document": "graph.json"
+    },
+    {
+      "slug": "histopathology-tumor-grading",
+      "title": "Histopathology Tumor Grading",
+      "nodeCount": 17,
       "document": "graph.json"
     },
     {
@@ -14,15 +104,105 @@
       "document": "graph.json"
     },
     {
+      "slug": "lidar-point-cloud-segmentation",
+      "title": "Lidar Point Cloud Segmentation",
+      "nodeCount": 14,
+      "document": "graph.json"
+    },
+    {
+      "slug": "microbiome-diversity",
+      "title": "Microbiome Diversity",
+      "nodeCount": 17,
+      "document": "graph.json"
+    },
+    {
+      "slug": "molecular-property-prediction",
+      "title": "Molecular Property Prediction",
+      "nodeCount": 19,
+      "document": "graph.json"
+    },
+    {
+      "slug": "multilingual-disease-surveillance",
+      "title": "Multilingual Disease Surveillance",
+      "nodeCount": 15,
+      "document": "graph.json"
+    },
+    {
       "slug": "neurological-disease-analysis",
       "title": "Neurological Disease Analysis",
       "nodeCount": 10,
       "document": "graph.json"
     },
     {
+      "slug": "pedestrian-trajectory-forecasting",
+      "title": "Pedestrian Trajectory Forecasting",
+      "nodeCount": 15,
+      "document": "graph.json"
+    },
+    {
+      "slug": "plant-disease-detection",
+      "title": "Plant Disease Detection",
+      "nodeCount": 21,
+      "document": "graph.json"
+    },
+    {
+      "slug": "polygenic-risk-scoring",
+      "title": "Polygenic Risk Scoring",
+      "nodeCount": 18,
+      "document": "graph.json"
+    },
+    {
+      "slug": "pose-estimation-for-animals",
+      "title": "Pose Estimation for Animals",
+      "nodeCount": 12,
+      "document": "graph.json"
+    },
+    {
+      "slug": "protein-folding-pipeline",
+      "title": "Protein Folding Pipeline",
+      "nodeCount": 14,
+      "document": "graph.json"
+    },
+    {
       "slug": "public-health-monitoring",
       "title": "Public Health Monitoring",
       "nodeCount": 60,
+      "document": "graph.json"
+    },
+    {
+      "slug": "retinal-disease-screening",
+      "title": "Retinal Disease Screening",
+      "nodeCount": 12,
+      "document": "graph.json"
+    },
+    {
+      "slug": "sentiment-in-clinical-notes",
+      "title": "Sentiment in Clinical Notes",
+      "nodeCount": 11,
+      "document": "graph.json"
+    },
+    {
+      "slug": "single-cell-rna-seq",
+      "title": "Single-Cell RNA-seq",
+      "nodeCount": 16,
+      "document": "graph.json"
+    },
+    {
+      "slug": "speech-emotion-recognition",
+      "title": "Speech Emotion Recognition",
+      "nodeCount": 14,
+      "document": "graph.json"
+    },
+    {
+      "slug": "synthetic-biology-pathway-design",
+      "title": "Synthetic Biology Pathway Design",
+      "nodeCount": 20,
+      "document": "graph.json"
+    },
+    {
+      "slug": "wildfire-spread-modeling",
+      "title": "Wildfire Spread Modeling",
+      "nodeCount": 13,
       "document": "graph.json"
     }
   ]

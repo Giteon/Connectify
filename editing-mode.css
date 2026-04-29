@@ -14,7 +14,7 @@
     grid-template-rows: var(--topbar-h) var(--variant-h) 1fr 0fr;
   }
 
-  .leftnav       { grid-column: 1; grid-row: 3; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
+  .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
   .drawer-left   { grid-column: 2; grid-row: 3; min-height: 0; }
   .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; min-height: 0; }
   .drawer-right  { grid-column: 4; grid-row: 3; min-height: 0; }
@@ -33,7 +33,6 @@
     color: var(--text-primary); text-decoration: none;
     cursor: pointer; margin-bottom: 2px; font: inherit;
   }
-
   /* ── Topbar ─────────────────────────────────────────── */
 
   #bcProject { cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; }
@@ -60,7 +59,6 @@
     font-weight: 500; cursor: pointer; transition: background .12s, color .12s, border-color .12s;
   }
 
-  #tglHistory.tb-toggle,
   #tglPaths.tb-toggle {
     padding: 0 6px;
     gap: 4px;
@@ -91,7 +89,6 @@
     align-self: center;
     transition: opacity 0.22s ease, width 0.22s ease, transform 0.22s ease, margin 0.22s ease;
   }
-
   .tb-share-toggle {
     padding: 0 8px;
     gap: 5px;
@@ -133,76 +130,13 @@
     height: 26px;
     border-radius: 999px;
   }
-
   /* ── Topbar condensed (edit): viewport ≤ 1300px ───────────
-     Run | Runs/Paths/History/Share (icon only) | Role | presence stack | right-end icons. */
+     Keep layout/order unchanged; only hide selected text labels. */
   @media (max-width: 1300px) {
-    .editing-shell .brand-wordmark {
-      display: none !important;
-    }
-    .editing-shell .topbar-mid-actions {
-      display: flex;
-      flex-wrap: nowrap;
-      flex: 0 1 auto;
-      min-width: 0;
-      gap: 10px;
-      justify-content: flex-start;
-      align-items: center;
-    }
-    .editing-shell .topbar-mid-actions > .tb-sep {
-      display: none !important;
-    }
-    .editing-shell .tb-toggle-label {
-      display: none !important;
-    }
-    .editing-shell #tglHistory.tb-toggle,
-    .editing-shell #tglPaths.tb-toggle,
-    .editing-shell #tglRuns.tb-toggle,
-    .editing-shell #shareGraphBtn.tb-toggle {
-      width: 32px;
-      min-width: 32px;
-      height: 32px;
-      padding: 0;
-      justify-content: center;
-      align-items: center;
-      gap: 0;
-    }
-    .editing-shell #tglPaths.tb-toggle,
-    .editing-shell #tglHistory.tb-toggle,
-    .editing-shell #shareGraphBtn.tb-toggle {
-      margin-left: -6px;
-    }
+    .editing-shell #tglRuns .tb-toggle-label,
+    .editing-shell #shareGraphBtn .tb-toggle-label,
     .editing-shell #rolePillText {
       display: none !important;
-    }
-    .editing-shell .role-pill {
-      height: 32px;
-      min-height: 32px;
-      padding: 6px 12px;
-      gap: 4px;
-      justify-content: center;
-      align-items: center;
-      box-sizing: border-box;
-    }
-    .editing-shell #runBtn { order: 1; flex-shrink: 0; }
-    .editing-shell #tglRuns { order: 2; }
-    .editing-shell #tglPaths { order: 3; }
-    .editing-shell #tglHistory { order: 4; }
-    .editing-shell #shareGraphBtn { order: 5; }
-    .editing-shell #rolePillBtn { order: 6; margin-left: 0; }
-    .editing-shell #presenceStack {
-      order: 7;
-      display: inline-flex;
-      flex-shrink: 0;
-    }
-    .editing-shell .tb-sep--toolbar-end {
-      display: block;
-      margin: 0;
-    }
-    .editing-shell .topbar-end {
-      gap: 10px;
-      margin-left: auto;
-      flex-shrink: 0;
     }
   }
 
@@ -286,7 +220,7 @@
   .share-link-btn {
     height: 34px;
     border-radius: 8px;
-    border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+    border: none;
     background: color-mix(in srgb, var(--primary) 12%, var(--surface));
     color: var(--primary);
     font-size: 12px;
@@ -543,8 +477,10 @@
 
   .drawer-left  {
     --drawer-w: var(--drawer-left-w);
-    border-right: 1px solid var(--border);
     align-items: flex-end;
+  }
+  .drawer-left.open {
+    border-right: 1px solid var(--border);
   }
   .drawer-right {
     --drawer-w: var(--drawer-right-w);
@@ -2058,7 +1994,7 @@
   .tool.tool-primary.active { background: var(--primary-hover); color: #fff; }
   .tool.tool-primary svg { width: 18px; height: 18px; }
   .tool-sep {
-    height: 1px; margin: 2px 4px; background: var(--border); align-self: stretch;
+    height: 1px; margin: 8px 4px; background: var(--border); align-self: stretch;
   }
 
   /* Zoom + history controls (bottom-left) */
@@ -2197,10 +2133,10 @@
     border-radius: 9px;
   }
   .confirm-box .adaptor-summary .adaptor-arrow {
-    color: #b45309; font-weight: 600; font-size: 13px;
+    color: var(--primary); font-weight: 600; font-size: 13px;
   }
-  html[data-theme="dark"] .confirm-box .adaptor-summary { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.4); }
-  html[data-theme="dark"] .confirm-box .adaptor-summary .adaptor-arrow { color: #fbbf24; }
+  html[data-theme="dark"] .confirm-box .adaptor-summary { background: var(--bg); border-color: var(--primary-hover); }
+  html[data-theme="dark"] .confirm-box .adaptor-summary .adaptor-arrow { color: var(--primary-hover); }
   .confirm-box .adaptor-existing {
     font-size: 12px; color: var(--text-secondary); line-height: 1.5;
     padding: 8px 10px; margin-bottom: 12px;
@@ -2208,14 +2144,14 @@
   }
   .confirm-box .adaptor-existing strong { color: var(--text-primary); font-weight: 600; }
   .confirm-actions .accent {
-    background: #d97706; border-color: #d97706; color: #fff;
+    background: var(--primary); color: #fff;
   }
-  .confirm-actions .accent:hover { background: #b45309; border-color: #b45309; }
+  .confirm-actions .accent:hover { background: var(--bg); border-color: var(--border); }
   .confirm-actions .ghost:hover { background: var(--bg); }
 
   /* Adaptor details popover */
 
-  html[data-theme="dark"] .adp-pop-pill .adaptor-arrow { color: #fbbf24; }
+  html[data-theme="dark"] .adp-pop-pill .adaptor-arrow { color:var(--primary-hover); }
 
   .adp-pop-params { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .adp-field { display: flex; flex-direction: column; gap: 4px; }
@@ -2227,10 +2163,10 @@
   }
   .adp-pop-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 
-  .adp-pop-actions button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .adp-pop-actions button.accent { background: #d97706; border-color: #d97706; color: #fff; }
+  .adp-pop-actions button.primary { background: var(--bg); border-color: var(--primary); color: #fff; }
+  .adp-pop-actions button.accent { background: var(--primary); border-color: var(--border); color: #fff; }
   .adp-pop-actions button.ghost { background: transparent; }
-  html[data-theme="dark"] .adp-pop-pill { border-color: rgba(245,158,11,0.4); }
+  html[data-theme="dark"] .adp-pop-pill { border-color: var(--primary-hover); }
 
   /* Dark-mode adjustments specific to this layout */
   html[data-theme="dark"] .variant-strip { background: var(--bg); }
@@ -2579,7 +2515,7 @@
     border-bottom: none;
   }
   .paths-head .new-path-btn {
-    flex: 1; padding: 5px 10px; font-size: 12px; font-weight: 600;
+    flex: 1; padding: 8px 10px; font-size: 12px; font-weight: 600;
     background: var(--primary); color: #fff; border: none; border-radius: 5px;
     cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   }

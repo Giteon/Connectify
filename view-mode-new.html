@@ -30,12 +30,6 @@
        (per spec). Role pill has view-mode options (Switch to Edit Mode /
        Request Contributor / Request Admin). -->
   <header class="topbar">
-    <a href="landing-page.html" class="brand">
-      <div class="brand-logo" aria-hidden="true">
-        <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
-      </div>
-      <span class="brand-wordmark">Connectify</span>
-    </a>
     <nav class="breadcrumb">
       <a id="bcOrg" href="#">—</a><span class="sep">/</span>
       <a id="bcProject" href="#">—</a><span class="sep">/</span>
@@ -80,7 +74,11 @@
     </div>
     </div>
     <div class="topbar-end">
-      <span class="topbar-theme-slot" data-theme-slot=""></span>
+      <span class="topbar-search-slot" data-search-slot=""></span>
+      <button class="leftnav-avatar topbar-avatar" type="button" aria-label="Account">
+        <span class="la-av">GF</span>
+        <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
     </div>
   </header>
 
@@ -90,54 +88,49 @@
   <!-- ══ VARIANT TAB STRIP (read-only) ══ -->
   <nav class="variant-strip" id="variantStrip"></nav>
 
-  <!-- ══ LEFT NAV RAIL (workspace / create / browse — same as graphs-hub) ══ -->
+  <!-- ══ LEFT NAV RAIL (workspace → browse → create — same order as graphs-hub) ══ -->
   <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
-    <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-      <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
-      <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
-    </button>
-    <button class="leftnav-avatar" type="button" aria-label="Account">
-      <span class="la-av">GF</span>
-      <span class="la-meta">
-        <span class="la-name">Gideon F.</span>
-        <span class="la-role">Account</span>
-      </span>
-      <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
-    </button>
-    <div class="leftnav-group-label">Workspace</div>
-    <a class="nav-item-dashboard" href="graphs-hub.html?tab=dashboard" title="My Graphs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-      <span class="nav-label">My Graphs</span>
-      <button type="button" class="nav-item-plus" data-new-graph-link="graphs-hub.html?tab=dashboard&amp;new=1" aria-label="Create new graph" title="New Graph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </a>
-    <a href="graphs-hub.html?tab=my-team" title="My Team">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span class="nav-label">My Team</span>
-    </a>
-    <div class="leftnav-group-label">Create</div>
-    <a href="graphs-hub.html?tab=dashboard" id="navEditLink" title="Open most recent graph in edit mode">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-      <span class="nav-label">Edit</span>
-    </a>
-    <a href="graphs-hub.html?tab=dashboard" title="Benchmark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
-      <span class="nav-label">Benchmark</span>
-    </a>
-    <a href="graphs-hub.html?tab=dashboard" title="Finetune">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-      <span class="nav-label">Finetune</span>
-    </a>
+    <div class="leftnav-top">
+      <div class="leftnav-brand-shell">
+        <a class="brand brand--leftnav" href="landing-page.html" title="ConnectifyAI home">
+          <span class="brand-logo" aria-hidden="true">
+            <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
+          </span>
+          <span class="brand-wordmark nav-label">Connectify</span>
+        </a>
+        <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
+          <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
+        </button>
+      </div>
+      <div class="leftnav-group-label">Workspace</div>
+      <a class="nav-item nav-item-dashboard" href="graphs-hub.html?tab=dashboard" title="My Graphs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        <span class="nav-label">My Graphs</span>
+        <button type="button" class="nav-item-plus" data-new-graph-link="graphs-hub.html?tab=dashboard&amp;new=1" aria-label="Create new graph" title="New Graph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </a>
+      <a class="nav-item" href="graphs-hub.html?tab=my-team" title="My Team">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">My Team</span>
+      </a>
+    </div>
     <div class="leftnav-group-label">Browse</div>
-    <a href="graphs-hub.html?tab=community" title="Community">
+    <a class="nav-item" href="graphs-hub.html?tab=community" title="Community">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
       <span class="nav-label">Community</span>
     </a>
-    <a class="nav-item-settings" href="#" aria-label="Settings">
-      <img class="nav-item-settings-icon" src="icons/settings.png" alt="" aria-hidden="true" />
-      <span class="nav-label">Settings</span>
+    <div class="leftnav-group-label">Create</div>
+    <a class="nav-item" href="graphs-hub.html?tab=dashboard" id="navEditLink" title="Open most recent graph in edit mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      <span class="nav-label">Edit</span>
     </a>
+    <a class="nav-item nav-item-stub" href="#" tabindex="-1" title="Benchmark" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
+      <span class="nav-label">Benchmark</span>
+    </a>
+    <span class="leftnav-theme-slot" data-theme-slot=""></span>
   </aside>
 
   <!-- ══ INFO PANEL (persistent, view-mode only) ══ -->
@@ -251,22 +244,64 @@
   </div>
 </div>
 
-<!-- Become-a-Contributor modal (matches old-build copy) -->
-<div class="modal-backdrop" id="contribModal">
-  <div class="modal-card" style="text-align:center;position:relative;">
-    <button class="modal-close" id="contribClose" style="position:absolute;top:14px;right:14px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-    </button>
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding-bottom:4px;">
+<!-- Request Contributor (same chrome as edit-mode Request Admin) -->
+<div class="modal-backdrop" id="requestContributorModal">
+  <div class="modal-card request-modal-card">
+    <div class="request-modal-header">
       <span style="display:grid;place-items:center;width:22px;height:22px;color:var(--primary);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
       </span>
-      <span style="font-size:16px;font-weight:600;letter-spacing:-0.01em;">Become a Contributor</span>
+      <h2>Request Contributor Access</h2>
+      <button class="modal-close" id="requestContributorClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
     </div>
-    <p id="contribModalText" style="font-size:13px;line-height:1.55;color:var(--text-secondary);text-align:center;padding:0 8px;">—</p>
-    <div style="display:flex;justify-content:center;gap:10px;padding-top:2px;">
-      <button class="confirm-cancel" id="contribCancel">Cancel</button>
-      <button class="confirm-ok" id="contribConfirm" style="min-width:120px;">Confirm</button>
+    <div class="request-field">
+      <label for="contributorReasonInput">Why do you want to contribute?</label>
+      <textarea id="contributorReasonInput" placeholder="Describe the changes or experiments you plan to work on and how they help the project…" rows="3"></textarea>
+    </div>
+    <div class="request-field">
+      <label for="contributorScopeInput">Which areas will you focus on?</label>
+      <input type="text" id="contributorScopeInput" placeholder="e.g. model nodes, dataset wiring, documentation, benchmarks…" />
+    </div>
+    <div class="request-perms-box">
+      <h4>Contributors can typically</h4>
+      <ul>
+        <li>Add, edit, and delete nodes and connections on the graph</li>
+        <li>Create variants and run experiments on their branches</li>
+        <li>Propose changes for admins to review and merge</li>
+      </ul>
+    </div>
+    <div class="request-recipients" id="contributorRecipients">
+      <span class="recip-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Your request will be sent to
+      </span>
+      <strong id="contributorRecipientNames">—</strong>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button type="button" class="confirm-cancel" id="requestContributorCancel">Cancel</button>
+      <button type="button" class="confirm-ok primary" id="requestContributorSubmit">Send request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fork public graph — confirm before cloning into My Graphs -->
+<div class="modal-backdrop" id="forkConfirmModal">
+  <div class="modal-card request-modal-card" role="dialog" aria-modal="true" aria-labelledby="forkConfirmTitle">
+    <div class="request-modal-header">
+      <span style="display:grid;place-items:center;width:22px;height:22px;flex-shrink:0;">
+        <img src="icons/fork.png" alt="" width="18" height="18" decoding="async" />
+      </span>
+      <h2 id="forkConfirmTitle">Fork this graph?</h2>
+      <button class="modal-close" id="forkConfirmClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p id="forkConfirmBody" style="margin:0;font-size:13px;line-height:1.55;color:var(--text-secondary);"></p>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button type="button" class="confirm-cancel" id="forkConfirmCancel">Cancel</button>
+      <button type="button" class="confirm-ok primary" id="forkConfirmOk">Fork</button>
     </div>
   </div>
 </div>
@@ -329,6 +364,7 @@
 
 <script src="canvas-new.js"></script>
 <script src="static-graph-loader.js"></script>
+<script src="fork-project.js"></script>
 <script src="view-mode.js"></script>
 
 <script src="theme.js"></script>

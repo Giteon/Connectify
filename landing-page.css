@@ -65,7 +65,7 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--lp-text);
   justify-self: start;
 }
-.lp-brand img { display: block; width: 28px; height: 28px; }
+.lp-brand img { display: block; width: 32px; height: 32px; }
 .lp-brand-wordmark { letter-spacing: 0.005em; }
 
 .lp-nav-links {
@@ -138,10 +138,12 @@ button { font-family: inherit; cursor: pointer; }
 /* ── Main / hero ────────────────────────────────────────── */
 .lp-main {
   position: relative;
-  padding: 72px 32px 0;
-  max-width: 1280px;
+  padding: 32px 32px 0;
+  /* Hero stays narrow via .lp-hero; mock strip can use full width up to this cap. */
+  max-width: min(100%, 2400px);
   margin: 0 auto;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 .lp-main::before {
   content: '';
@@ -161,7 +163,7 @@ button { font-family: inherit; cursor: pointer; }
   margin: 0 auto;
 }
 .lp-eyebrow {
-  display: inline-block;
+  display: none;
   padding: 6px 14px;
   border-radius: 999px;
   background: var(--lp-eyebrow-bg);
@@ -181,6 +183,196 @@ button { font-family: inherit; cursor: pointer; }
 .lp-headline-soft {
   color: var(--lp-text-muted);
   font-weight: 600;
+}
+
+/* ── Headline-as-graph ───────────────────────────────────
+   Each word lives in a draggable node; nodes are connected
+   in sequence with bezier edges. Echoes the canvas aesthetic
+   without the runtime weight of the real renderer.
+   ──────────────────────────────────────────────────────── */
+.lp-headline-graph {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  height: 240px;
+  margin: 16px auto 0;
+  font-size: 52px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.lp-edges {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+.lp-edges path {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+html[data-theme="dark"] .lp-edges path { stroke: #64748b; }
+
+.lp-node {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  /* Less top padding than bottom so the cap-height of the word optically
+     centers in the box (text would otherwise read a few px below center). */
+  padding: 10px 22px 16px;
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  /* Halo: 8px ring of page-bg color outside the node masks the dot grid /
+     edge lines / anything else behind the node so the chip reads cleanly. */
+  box-shadow: 0 0 0 2px var(--lp-bg), 0 6px 18px rgba(15, 23, 42, 0.07);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  touch-action: none;
+  /* Clip the accent-bar pseudo to the node's rounded corners so its
+     square right edge doesn't bleed past the radius. */
+  overflow: hidden;
+  transition: box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease;
+  z-index: 1;
+}
+.lp-node:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 0 0 2px var(--lp-bg), 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+.lp-node.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 0 0 2px var(--lp-bg), 0 16px 36px rgba(15, 23, 42, 0.18);
+  z-index: 5;
+}
+/* Smooth reset: applied only while the reset animation runs so dragging
+   stays snappy. */
+.lp-node.is-resetting {
+  transition: left 380ms cubic-bezier(.2,.7,.3,1.05),
+              top  380ms cubic-bezier(.2,.7,.3,1.05),
+              box-shadow 120ms ease, border-color 120ms ease;
+}
+/* Shake: triggered when shuffle swaps a node's word. */
+@keyframes lp-shake {
+  0%   { transform: translate(0, 0)     rotate(0); }
+  25%  { transform: translate(-2px, 1px) rotate(-1deg); }
+  55%  { transform: translate(2px, -1px) rotate(1deg); }
+  100% { transform: translate(0, 0)     rotate(0); }
+}
+.lp-node.is-shaking { animation: lp-shake 220ms ease; }
+.lp-node-word { display: inline-block; line-height: 1; }
+.lp-node-soft { font-weight: 600; }
+
+/* Light mode: light grey border, no outer halo ring (dark keeps full chrome). */
+html:not([data-theme="dark"]) .lp-node {
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+}
+html:not([data-theme="dark"]) .lp-node:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+html:not([data-theme="dark"]) .lp-node.is-dragging {
+  border-color: #cbd5e1;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+/* ── Floating demo toolbar ───────────────────────────────
+   Vertical pill on the left edge, mirroring the in-canvas
+   tool stack. Cursor (drag) is the always-active mode; the
+   other buttons are one-shot actions on the headline graph. */
+.lp-toolbar {
+  position: fixed;
+  left: 24px;
+  top: 22%;
+  z-index: 40;
+  display: flex; flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--lp-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+}
+.lp-toolbar-btn {
+  width: 36px; height: 36px;
+  border: 0; background: transparent;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  color: var(--lp-text-soft);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.lp-toolbar-btn:hover { background: var(--lp-bg-soft); color: var(--lp-text); }
+.lp-toolbar-btn:active { transform: scale(0.94); }
+.lp-toolbar-btn.active {
+  background: var(--lp-text);
+  color: #ffffff;
+}
+.lp-toolbar-btn svg { width: 18px; height: 18px; display: block; }
+.lp-toolbar-btn { position: relative; }
+/* Tooltip — same style as the in-canvas tool palette: dark chip to the
+   right of the button, fades in on hover. */
+.lp-toolbar-tip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--lp-text);
+  color: var(--lp-bg);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+.lp-toolbar-btn:hover .lp-toolbar-tip { opacity: 1; }
+.lp-toolbar-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--lp-border);
+}
+/* Theme toggle: sun in light mode, moon in dark mode. */
+.lp-toolbar-btn[data-tool="theme"] .lp-toolbar-moon { display: none; }
+html[data-theme="dark"] .lp-toolbar-btn[data-tool="theme"] .lp-toolbar-sun { display: none; }
+html[data-theme="dark"] .lp-toolbar-btn[data-tool="theme"] .lp-toolbar-moon { display: block; }
+
+@media (max-width: 700px) {
+  .lp-toolbar { display: none; }
+}
+
+/* Per-node accent. The left color bar is a ::before pseudo so it survives
+   hover/drag box-shadow overrides; word color is per-variant. */
+.lp-node--slate, .lp-node--blue { padding-left: 26px; }
+.lp-node--slate::before,
+.lp-node--blue::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0px;
+  border-top-left-radius: inherit;
+  border-bottom-left-radius: inherit;
+  pointer-events: none;
+}
+.lp-node--slate { color: var(--lp-text); }
+.lp-node--slate::before { background: #64748b; }
+.lp-node--blue  { color: #2563eb; }
+.lp-node--blue::before  { background: #3b82f6; }
+
+@media (max-width: 900px) {
+  .lp-headline-graph { font-size: 36px; height: 220px; }
+  .lp-node { padding: 10px 16px; border-radius: 11px; }
+}
+@media (max-width: 600px) {
+  .lp-headline-graph { font-size: 26px; height: 240px; }
+  .lp-node { padding: 8px 12px; border-radius: 9px; }
 }
 .lp-subhead {
   margin: 22px auto 0;
@@ -237,29 +429,42 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: inset 0 0 0 1px var(--lp-border);
 }
 
-/* ── Mock placeholders (solid color rectangles) ─────────── */
+/* ── Product screenshots ───────────────────────────────────
+   --lp-mock-w caps width; --lp-mock-ar matches the screenshot aspect ratio
+   (set from loaded assets; light/dark swaps keep the same ratio).
+   --lp-mock-display-max keeps mocks a bit smaller on wide viewports. */
 .lp-mock-wrap {
+  --lp-mock-display-max: 1040px;
   position: relative;
   margin: 36px auto 96px;
-  max-width: 1180px;
-  aspect-ratio: 16 / 9;
+  width: min(100%, var(--lp-mock-w, var(--lp-mock-display-max)), var(--lp-mock-display-max));
+  max-width: 100%;
+  aspect-ratio: var(--lp-mock-ar, 16 / 9);
+  height: auto;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--lp-shadow-lg);
   border: 1px solid var(--lp-border);
   background: var(--lp-bg-soft);
 }
+.lp-mock-wrap.is-sized {
+  min-height: 0;
+}
 .lp-mock {
   position: absolute;
   inset: 0;
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
 }
-.lp-mock.active { display: block; }
-.lp-mock-graphs    { background: #4f46e5; }
-.lp-mock-wiki      { background: #059669; }
-.lp-mock-pi        { background: #d97706; }
-.lp-mock-intake    { background: #db2777; }
-.lp-mock-workflows { background: #0891b2; }
+.lp-mock.active { opacity: 1; pointer-events: auto; }
+.lp-mock-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: top center;
+}
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 900px) {

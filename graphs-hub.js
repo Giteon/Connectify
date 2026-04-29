@@ -16,7 +16,37 @@
       'Public Health Monitoring': 'public-health-monitoring',
       'Neurological Disease Analysis': 'neurological-disease-analysis',
       'Autonomous Vehicle Navigation': 'autonomous-vehicle-navigation',
-      'Human Genome Analysis': 'human-genome-analysis'
+      'Human Genome Analysis': 'human-genome-analysis',
+      'Protein Folding Pipeline': 'protein-folding-pipeline',
+      'Climate Storm Forecasting': 'climate-storm-forecasting',
+      'Cancer Cell Classification': 'cancer-cell-classification',
+      'Drug-Target Interaction': 'drug-target-interaction',
+      'Sentiment in Clinical Notes': 'sentiment-in-clinical-notes',
+      'EEG Seizure Detection': 'eeg-seizure-detection',
+      'Single-Cell RNA-seq': 'single-cell-rna-seq',
+      'Wildfire Spread Modeling': 'wildfire-spread-modeling',
+      'Retinal Disease Screening': 'retinal-disease-screening',
+      'CRISPR Off-Target Prediction': 'crispr-off-target-prediction',
+      'fMRI Connectivity Atlas': 'fmri-connectivity-atlas',
+      'Antibody-Antigen Docking': 'antibody-antigen-docking',
+      'Speech Emotion Recognition': 'speech-emotion-recognition',
+      'Pedestrian Trajectory Forecasting': 'pedestrian-trajectory-forecasting',
+      'Coral Bleaching Index': 'coral-bleaching-index',
+      'Histopathology Tumor Grading': 'histopathology-tumor-grading',
+      'Polygenic Risk Scoring': 'polygenic-risk-scoring',
+      'Molecular Property Prediction': 'molecular-property-prediction',
+      'Air Quality Forecasting': 'air-quality-forecasting',
+      'Brain Tumor Segmentation': 'brain-tumor-segmentation',
+      'Pose Estimation for Animals': 'pose-estimation-for-animals',
+      'Earthquake Aftershock Prediction': 'earthquake-aftershock-prediction',
+      'Lidar Point Cloud Segmentation': 'lidar-point-cloud-segmentation',
+      'Multilingual Disease Surveillance': 'multilingual-disease-surveillance',
+      'Cardiac MRI Function': 'cardiac-mri-function',
+      'Microbiome Diversity': 'microbiome-diversity',
+      'Glacier Retreat Mapping': 'glacier-retreat-mapping',
+      'Diabetic Retinopathy Grading': 'diabetic-retinopathy-grading',
+      'Synthetic Biology Pathway Design': 'synthetic-biology-pathway-design',
+      'Plant Disease Detection': 'plant-disease-detection',
     };
     /** Node counts for bundled demo graphs (graphs hub demo slugs). Custom rows use project.nodes.length. */
     const DEMO_NODE_COUNT_BY_SLUG = {
@@ -24,13 +54,111 @@
       'neurological-disease-analysis': 10,
       'autonomous-vehicle-navigation': 11,
       'human-genome-analysis': 25,
+      'protein-folding-pipeline': 14,
+      'climate-storm-forecasting': 12,
+      'cancer-cell-classification': 14,
+      'drug-target-interaction': 13,
+      'sentiment-in-clinical-notes': 11,
+      'eeg-seizure-detection': 17,
+      'single-cell-rna-seq': 16,
+      'wildfire-spread-modeling': 13,
+      'retinal-disease-screening': 12,
+      'crispr-off-target-prediction': 20,
+      'fmri-connectivity-atlas': 12,
+      'antibody-antigen-docking': 13,
+      'speech-emotion-recognition': 14,
+      'pedestrian-trajectory-forecasting': 15,
+      'coral-bleaching-index': 16,
+      'histopathology-tumor-grading': 17,
+      'polygenic-risk-scoring': 18,
+      'molecular-property-prediction': 19,
+      'air-quality-forecasting': 20,
+      'brain-tumor-segmentation': 21,
+      'pose-estimation-for-animals': 12,
+      'earthquake-aftershock-prediction': 13,
+      'lidar-point-cloud-segmentation': 14,
+      'multilingual-disease-surveillance': 15,
+      'cardiac-mri-function': 16,
+      'microbiome-diversity': 17,
+      'glacier-retreat-mapping': 18,
+      'diabetic-retinopathy-grading': 19,
+      'synthetic-biology-pathway-design': 20,
+      'plant-disease-detection': 21,
     };
+    /** Community seed rows → bundled `graphs/<slug>/` (order matches `seeds` in seedDummies). */
+    const BUNDLED_COMMUNITY_ROW_SLUGS = [
+      'protein-folding-pipeline',
+      'climate-storm-forecasting',
+      'cancer-cell-classification',
+      'drug-target-interaction',
+      'sentiment-in-clinical-notes',
+      'eeg-seizure-detection',
+      'single-cell-rna-seq',
+      'wildfire-spread-modeling',
+      'retinal-disease-screening',
+      'crispr-off-target-prediction',
+      'fmri-connectivity-atlas',
+      'antibody-antigen-docking',
+      'speech-emotion-recognition',
+      'pedestrian-trajectory-forecasting',
+      'coral-bleaching-index',
+      'histopathology-tumor-grading',
+      'polygenic-risk-scoring',
+      'molecular-property-prediction',
+      'air-quality-forecasting',
+      'brain-tumor-segmentation',
+      'pose-estimation-for-animals',
+      'earthquake-aftershock-prediction',
+      'lidar-point-cloud-segmentation',
+      'multilingual-disease-surveillance',
+      'cardiac-mri-function',
+      'microbiome-diversity',
+      'glacier-retreat-mapping',
+      'diabetic-retinopathy-grading',
+      'synthetic-biology-pathway-design',
+      'plant-disease-detection',
+    ];
+    const BUNDLED_COMMUNITY_ROW_VARIANT_COUNTS = [
+      2, 3, 2, 3, 1, 2, 3, 2, 2, 3,
+      2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
+      2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
+    ];
+    const PUBLIC_GRAPH_EDIT_OPT_IN_KEY = 'cfg.publicGraphEditOptInSlugs';
+    function readPublicGraphEditOptInSet() {
+      try {
+        const raw = localStorage.getItem(PUBLIC_GRAPH_EDIT_OPT_IN_KEY);
+        const a = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(a) ? a : []);
+      } catch (_) {
+        return new Set();
+      }
+    }
+    function rememberPublicGraphEditOptIn(slug) {
+      if (!slug) return;
+      const s = readPublicGraphEditOptInSet();
+      s.add(slug);
+      try { localStorage.setItem(PUBLIC_GRAPH_EDIT_OPT_IN_KEY, JSON.stringify([...s])); } catch (_) {}
+    }
+    function shouldOpenPublicGraphInViewOnly(g) {
+      if (!g || String(g.role || '').toLowerCase() !== 'public') return false;
+      const slug = graphSlug(g);
+      if (!slug) return true;
+      return !readPublicGraphEditOptInSet().has(slug);
+    }
+    function hrefOpenBundledGraph(g) {
+      const slug = graphSlug(g);
+      if (!slug) return 'graphs-hub.html?tab=dashboard';
+      if (shouldOpenPublicGraphInViewOnly(g)) {
+        return `view-mode-new.html?project=${encodeURIComponent(slug)}`;
+      }
+      return `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+    }
     /** Node counts for bundled graphs; merged from graphs/catalog.json when present. */
     const BUNDLED_GRAPH_COUNTS = Object.assign({}, DEMO_NODE_COUNT_BY_SLUG);
     const TAB_META = {
       'dashboard': {
         title: 'My Graphs',
-        desc: "Explore and manage the graphs you've created or have contributed to."
+        desc: 'Graphs where you are an owner, admin, or contributor.'
       },
       'community': {
         title: 'Community',
@@ -49,10 +177,8 @@
       { title:'Public Health Monitoring', owner:'UCLA', shortOwner:'UCLA', domain:'Public Health', modality:'Multimodal', method:'Forecasting', role:'Contributor', status:'Stable', license:'CC-BY-4.0', updatedHours:55, forks:55, stars:310, downloads:0, activity:91, openContrib:true, team:'Vector Lab', abstract:'County-level outbreak warning with EHR + wastewater + mobility inputs.', starred:false, recentRank:4, editedAgo:'2 days ago', editedBy:'Lana R.', collaborators:['LR','SP','AQ'], collaboratorExtra:9 }
     ];
 
-    /* ── Community-only dummy graphs ─────────────────────────
-       Populate community + new-graph modal with browseable
-       breadth. Marked `dummy: true` so dashboard filtering
-       and click-to-open both treat them as inert. */
+    /* ── Community seed graphs ─────────────────────────────────
+       All rows map to bundled `graphs/<slug>/` demos (slugs, real open). */
     (function seedDummies() {
       const seeds = [
         ['Protein Folding Pipeline',          'DeepMind',         'Bioinformatics',     'Structure Prediction', 'Sequence',    'Stable',       1200, 980,  true],
@@ -89,6 +215,7 @@
       const palette = ['LR','MK','SP','AQ','RC','DN','YK','AM','TP','JW'];
       seeds.forEach((s, i) => {
         const [title, owner, domain, method, modality, status, stars, forks, openContrib] = s;
+        const slugRow = i < BUNDLED_COMMUNITY_ROW_SLUGS.length ? BUNDLED_COMMUNITY_ROW_SLUGS[i] : '';
         GRAPHS.push({
           title, owner, shortOwner: owner, domain, modality, method,
           role: 'Public', status, license: 'MIT',
@@ -101,7 +228,10 @@
           editedAgo: '', editedBy: '',
           collaborators: [palette[i % palette.length], palette[(i + 3) % palette.length], palette[(i + 7) % palette.length]],
           collaboratorExtra: (i * 2) % 30,
-          dummy: true
+          dummy: false,
+          ...(slugRow
+            ? { slug: slugRow, variantCount: BUNDLED_COMMUNITY_ROW_VARIANT_COUNTS[i] }
+            : {}),
         });
       });
     })();
@@ -138,10 +268,13 @@
 
     let activeTab = 'dashboard';
     let dashboardView = 'recent';
+    let activeTeamName = Object.keys(TEAM_DATA)[0];
     let dashboardRoleFilter = '';
     let activeTopic = '';
     let communityContribFilter = '';
     let communitySort = 'relevance';
+    let communityOpenPage = 0;
+    const COMMUNITY_OPEN_PAGE_SIZE = 8;
 
     const q = (s) => document.querySelector(s);
     const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -210,6 +343,15 @@
       writeCustomProjects(customs);
     }
 
+    function roleFromCustomProject(proj) {
+      const contribs = (proj && proj.contributors) || [];
+      const me = contribs.find((c) => c && c.name === 'You') || contribs[0];
+      const raw = String(me && me.role || 'Owner').toLowerCase();
+      if (raw === 'admin') return 'Admin';
+      if (raw === 'contributor') return 'Contributor';
+      return 'Owner';
+    }
+
     function hydrateCustomProjects() {
       const deleted = readSet(DELETED_KEY);
       // Drop any built-ins the user soft-deleted earlier.
@@ -231,7 +373,7 @@
           domain: 'General',
           modality: 'Multimodal',
           method: 'Custom',
-          role: 'Admin',
+          role: roleFromCustomProject(p.project),
           status: 'Draft',
           license: 'Private',
           updatedHours: 0,
@@ -287,7 +429,7 @@
     function openGraph(title) {
       const row = byTitle.get(title);
       const slug = graphSlug(row);
-      if (slug) window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+      if (slug) window.location.href = hrefOpenBundledGraph(row);
       else alert(`Open graph: ${title}`);
     }
 
@@ -402,7 +544,8 @@
         if (!g) return;
         startHubTitleEdit(titleEl, g, oldTitle);
       }
-      ['dashboardCards', 'communityTrending', 'teamGraphs'].forEach((id) => {
+      /* communityTrending uses readOnlyTitle — no inline rename on public cards */
+      ['dashboardCards', 'teamGraphs'].forEach((id) => {
         const root = document.getElementById(id);
         if (!root || root._graphTitleRenameBound) return;
         root._graphTitleRenameBound = true;
@@ -435,13 +578,15 @@
 
     function renderCard(g, opts = {}) {
       const showManageActions = opts.showManageActions !== false;
+      const showCommunityActions = !!opts.showCommunityActions;
       const hideFooter = !!opts.hideFooter;
+      const readOnlyTitle = !!opts.readOnlyTitle;
       const slug = graphSlug(g);
       const nNodes = nodeCountForGraph(g);
       const slugAttr = slug ? ` data-graph-slug="${esc(slug)}"` : '';
       const dummyAttr = g.dummy ? ' data-dummy="1"' : '';
-      const titleClass = g.dummy ? 'graph-title' : 'graph-title graph-title--editable';
-      const titleAttr = g.dummy ? '' : ' title="Click to rename graph"';
+      const titleClass = (g.dummy || readOnlyTitle) ? 'graph-title' : 'graph-title graph-title--editable';
+      const titleAttr = (g.dummy || readOnlyTitle) ? '' : ' title="Click to rename graph"';
       const avatars = (g.collaborators || []).slice(0, 3).map((ini, i) =>
         `<span class="mini" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]};">${esc(ini)}</span>`
       ).join('');
@@ -452,6 +597,13 @@
             </button>
             <button class="card-icon-btn danger" type="button" data-action="delete" data-title="${esc(g.title)}" title="Delete graph" aria-label="Delete graph">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>` : '';
+      const communityActions = showCommunityActions ? `
+            <button class="card-icon-btn" type="button" data-action="preview-inline" data-title="${esc(g.title)}" title="Preview graph" aria-label="Preview graph">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="card-icon-btn" type="button" data-action="fork-inline" data-title="${esc(g.title)}" title="Fork graph" aria-label="Fork graph">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v4a2 2 0 0 0 2 2h6"/><path d="M18 10v2"/></svg>
             </button>` : '';
       const variantCount = variantCountForGraph(g);
       const footerHtml = hideFooter ? '' : `
@@ -473,6 +625,7 @@
             <button class="card-icon-btn star-btn ${g.starred ? 'active' : ''}" type="button" data-action="star" data-title="${esc(g.title)}" title="Star graph" aria-label="Star graph">
               <svg viewBox="0 0 24 24" fill="${g.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
             </button>
+            ${communityActions}
             ${manageActions}
           </div>
         </div>
@@ -480,7 +633,7 @@
           <span class="chip">${esc(g.domain)}</span>
           <span class="chip">${esc(g.method)}</span>
           <span class="chip chip-nodes" title="Nodes on canvas">${nNodes} ${nNodes === 1 ? 'node' : 'nodes'}</span>
-          <span class="chip chip-variants" title="Number of variants">${variantCount} ${variantCount === 1 ? 'variant' : 'variants'}</span>
+          ${variantCount > 1 ? `<span class="chip chip-variants" title="Number of variants">${variantCount} variants</span>` : ''}
         </div>
         <div class="stats">
           <span>★ ${g.stars}</span>
@@ -523,15 +676,28 @@
       const trending = [...rows].sort((a,b) => (b.stars + b.forks * 1.5) - (a.stars + a.forks * 1.5)).slice(0, 8);
       const open = rows.filter(g => g.openContrib);
       const openHost = q('#communityOpenList');
+      const pager = q('#communityOpenPager');
+      const prevBtn = q('#communityOpenPrev');
+      const nextBtn = q('#communityOpenNext');
+      const pageLabel = q('#communityOpenPageLabel');
       q('#communityTrending').innerHTML = trending
-        .map(g => renderCard({ ...g, role: 'Public', shortOwner: `${g.owner}` }, { showManageActions: false }))
+        .map(g => renderCard({ ...g, role: 'Public', shortOwner: `${g.owner}` }, { showManageActions: false, showCommunityActions: true, readOnlyTitle: true }))
         .join('') || '<div class="panel">No matching community graphs.</div>';
       if (openHost) openHost.classList.toggle('open-chart--empty', !open.length);
       if (!open.length) {
         if (openHost) openHost.innerHTML = '<div class="panel">No open-contribution graphs.</div>';
+        if (pager) pager.hidden = true;
         return;
       }
-      q('#communityOpenList').innerHTML = open.map((g, idx) => {
+      const totalPages = Math.max(1, Math.ceil(open.length / COMMUNITY_OPEN_PAGE_SIZE));
+      if (communityOpenPage > totalPages - 1) communityOpenPage = totalPages - 1;
+      const start = communityOpenPage * COMMUNITY_OPEN_PAGE_SIZE;
+      const openPageRows = open.slice(start, start + COMMUNITY_OPEN_PAGE_SIZE);
+      if (pager) pager.hidden = totalPages <= 1;
+      if (prevBtn) prevBtn.disabled = communityOpenPage <= 0;
+      if (nextBtn) nextBtn.disabled = communityOpenPage >= totalPages - 1;
+      if (pageLabel) pageLabel.textContent = `${communityOpenPage + 1} / ${totalPages}`;
+      q('#communityOpenList').innerHTML = openPageRows.map((g, idx) => {
         const s = graphSlug(g);
         const sAttr = s ? ` data-graph-slug="${esc(s)}"` : '';
         return `
@@ -544,13 +710,18 @@
           <button class="card-icon-btn star-btn ${g.starred ? 'active' : ''}" type="button" data-action="star" data-title="${esc(g.title)}" title="Star graph" aria-label="Star graph">
             <svg viewBox="0 0 24 24" fill="${g.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
           </button>
-        </article>${idx < open.length - 1 ? '<div class="open-sep"></div>' : ''}`;
+        </article>${idx < openPageRows.length - 1 ? '<div class="open-sep"></div>' : ''}`;
       }).join('') || '<div class="panel">No open-contribution graphs.</div>';
+    }
+
+    function hasMyGraphAccess(g) {
+      const r = String(g && g.role || '').toLowerCase();
+      return r === 'contributor' || r === 'admin' || r === 'owner';
     }
 
     function renderDashboard() {
       const role = dashboardRoleFilter;
-      let rows = GRAPHS.filter(g => !g.dummy);
+      let rows = GRAPHS.filter(g => !g.dummy && hasMyGraphAccess(g));
       if (dashboardView === 'starred') rows = rows.filter(g => g.starred);
       if (role) rows = rows.filter(g => g.role === role);
       if (dashboardView === 'recent') rows.sort((a, b) => a.recentRank - b.recentRank);
@@ -562,21 +733,21 @@
 
     function initTopicPills() {
       const topics = [
-        ['Neuroscience', 'icons/neuroscience.svg'],
-        ['Genomics', 'icons/genomics.svg'],
-        ['Autonomous Driving', 'icons/autonomous-driving.svg'],
-        ['NLP', 'icons/nlp.svg'],
-        ['Drug Discovery', 'icons/drug-discovery.svg'],
-        ['Climate', 'icons/climate.svg'],
-        ['Bioinformatics', 'icons/bioinformatics.svg'],
-        ['Public Health', 'icons/public-health.svg'],
-        ['Oncology', 'icons/oncology.svg'],
-        ['Ophthalmology', 'icons/ophthalmology.svg'],
-        ['Cardiology', 'icons/cardiology.svg'],
-        ['Synthetic Biology', 'icons/synthetic-biology.svg'],
-        ['Behavioral Science', 'icons/behavioral-science.svg'],
-        ['Agriculture', 'icons/agriculture.svg'],
-        ['Geophysics', 'icons/geophysics.svg'],
+        ['Neuroscience', 'icons/categories/neuroscience.svg'],
+        ['Genomics', 'icons/categories/genomics.svg'],
+        ['Autonomous Driving', 'icons/categories/autonomous-driving.svg'],
+        ['NLP', 'icons/categories/nlp.svg'],
+        ['Drug Discovery', 'icons/categories/drug-discovery.svg'],
+        ['Climate', 'icons/categories/climate.svg'],
+        ['Bioinformatics', 'icons/categories/bioinformatics.svg'],
+        ['Public Health', 'icons/categories/public-health.svg'],
+        ['Oncology', 'icons/categories/oncology.svg'],
+        ['Ophthalmology', 'icons/categories/ophthalmology.svg'],
+        ['Cardiology', 'icons/categories/cardiology.svg'],
+        ['Synthetic Biology', 'icons/categories/synthetic-biology.svg'],
+        ['Behavioral Science', 'icons/categories/behavioral-science.svg'],
+        ['Agriculture', 'icons/categories/agriculture.svg'],
+        ['Geophysics', 'icons/categories/geophysics.svg'],
       ];
       const host = q('#topicPills');
       topics.forEach(([topic, icon]) => host.insertAdjacentHTML('beforeend', `<button class="topic-pill" type="button" data-topic="${esc(topic)}"><img class="topic-pill-icon" src="${esc(icon)}" alt="" aria-hidden="true" /><span>${esc(topic)}</span></button>`));
@@ -585,6 +756,7 @@
           host.querySelectorAll('.topic-pill').forEach(x => x.classList.remove('active'));
           btn.classList.add('active');
           activeTopic = btn.dataset.topic || '';
+          communityOpenPage = 0;
           renderCommunity();
         });
       });
@@ -633,7 +805,10 @@
     }
 
     function initFilters() {
-      q('#searchInput')?.addEventListener('input', renderCommunity);
+      q('#searchInput')?.addEventListener('input', () => {
+        communityOpenPage = 0;
+        renderCommunity();
+      });
     }
 
     function syncCommunityMenuUi() {
@@ -699,34 +874,87 @@
     function initCommunityControls() {
       initCommunityMenu(q('#communityContribBtn'), q('#communityContribPop'), (value) => {
         communityContribFilter = value;
+        communityOpenPage = 0;
         syncCommunityMenuUi();
         renderCommunity();
       });
       initCommunityMenu(q('#communitySortBtn'), q('#communitySortPop'), (value) => {
         communitySort = value || 'relevance';
+        communityOpenPage = 0;
         syncCommunityMenuUi();
+        renderCommunity();
+      });
+      q('#communityOpenPrev')?.addEventListener('click', () => {
+        if (communityOpenPage <= 0) return;
+        communityOpenPage -= 1;
+        renderCommunity();
+      });
+      q('#communityOpenNext')?.addEventListener('click', () => {
+        communityOpenPage += 1;
         renderCommunity();
       });
       syncCommunityMenuUi();
     }
 
+    function syncTeamSelectUi() {
+      const label = q('#teamSelectLabel');
+      const btn = q('#teamSelectBtn');
+      const pop = q('#teamSelectPop');
+      if (label) label.textContent = activeTeamName;
+      if (btn) btn.setAttribute('aria-label', `Team workspace: ${activeTeamName}`);
+      pop?.querySelectorAll('[data-team]').forEach((item) => {
+        item.classList.toggle('active', item.getAttribute('data-team') === activeTeamName);
+      });
+    }
+
     function initTeamSelector() {
-      const select = q('#teamSelect');
-      Object.keys(TEAM_DATA).forEach(name => select.insertAdjacentHTML('beforeend', `<option value="${esc(name)}">${esc(name)}</option>`));
-      select.addEventListener('change', () => renderTeam(select.value));
-      renderTeam(select.value || Object.keys(TEAM_DATA)[0]);
+      const btn = q('#teamSelectBtn');
+      const pop = q('#teamSelectPop');
+      if (!btn || !pop) return;
+      const names = Object.keys(TEAM_DATA);
+      pop.innerHTML = names
+        .map((name) => `<button type="button" class="role-filter-item" data-team="${esc(name)}" role="menuitem">${esc(name)}</button>`)
+        .join('');
+      activeTeamName = names.includes(activeTeamName) ? activeTeamName : names[0];
+
+      const close = () => {
+        pop.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('mousedown', onDoc, true);
+        document.removeEventListener('keydown', onKey);
+      };
+      const open = () => {
+        pop.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+        setTimeout(() => {
+          document.addEventListener('mousedown', onDoc, true);
+          document.addEventListener('keydown', onKey);
+        }, 0);
+      };
+      const onDoc = (e) => {
+        if (btn.contains(e.target) || pop.contains(e.target)) return;
+        close();
+      };
+      const onKey = (e) => { if (e.key === 'Escape') close(); };
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (pop.hidden) open(); else close();
+      });
+      pop.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-team]');
+        if (!item) return;
+        activeTeamName = item.getAttribute('data-team') || names[0];
+        syncTeamSelectUi();
+        renderTeam(activeTeamName);
+        close();
+      });
+      syncTeamSelectUi();
+      renderTeam(activeTeamName);
     }
 
     function syncDashboardSwitcherWidths() {
-      const root = document.getElementById('dashboardSwitcher');
-      if (!root) return;
-      const buttons = [...root.querySelectorAll('button')];
-      if (!buttons.length) return;
-      buttons.forEach((b) => { b.style.minWidth = ''; b.style.width = ''; });
-      void root.offsetWidth;
-      const maxW = Math.ceil(Math.max(...buttons.map((b) => b.getBoundingClientRect().width), 0));
-      if (!maxW) return;
-      buttons.forEach((b) => { b.style.minWidth = `${maxW}px`; });
+      /* ng-pill tab row: natural widths */
     }
 
     function initDashboardControls() {
@@ -858,7 +1086,7 @@
       });
       writeCustomProjects(customs);
       const g = { ...src, slug, title: newTitle, owner: 'You', shortOwner: 'you',
-        team: 'Personal', starred: false, recentRank: 0, editedAgo: 'just now', editedBy: 'You' };
+        role: 'Owner', team: 'Personal', starred: false, recentRank: 0, editedAgo: 'just now', editedBy: 'You' };
       GRAPHS.unshift(g);
       byTitle.set(g.title, g);
       GRAPHS.forEach((row, i) => { row.recentRank = i + 1; });
@@ -932,8 +1160,9 @@
     function rerenderAll() {
       renderDashboard();
       renderCommunity();
-      const teamSel = q('#teamSelect');
-      if (teamSel) renderTeam(teamSel.value);
+      if (activeTeamName && TEAM_DATA[activeTeamName]) renderTeam(activeTeamName);
+      const ngModal = document.getElementById('newGraphModal');
+      if (ngModal && !ngModal.hidden) renderNgGrid();
     }
 
     function initGraphCardNavigation() {
@@ -949,6 +1178,13 @@
             g.starred = !g.starred;
             const slug = graphSlug(g); if (slug) setStarred(slug, g.starred);
             rerenderAll();
+          } else if (action === 'preview-inline') {
+            const g = byTitle.get(title); if (!g) return;
+            const slug = graphSlug(g); if (!slug) return;
+            window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
+          } else if (action === 'fork-inline') {
+            const g = byTitle.get(title); if (!g) return;
+            forkGraph(g);
           } else if (action === 'duplicate') {
             duplicateGraph(title);
           } else if (action === 'delete') {
@@ -961,10 +1197,16 @@
         if (card.dataset.dummy === '1') return;
         const slug = card.getAttribute('data-graph-slug');
         if (!slug) return;
+        const g = GRAPHS.find((x) => graphSlug(x) === slug);
+        const fromNgModal = !!card.closest('#ngGrid');
+        if (fromNgModal) {
+          window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
+          return;
+        }
         try { localStorage.setItem(LAST_EDITED_KEY, slug); } catch (_) {}
-        window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+        window.location.href = g ? hrefOpenBundledGraph(g) : `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
       }
-      ['dashboardCards', 'communityTrending', 'teamGraphs', 'communityOpenList'].forEach(id => {
+      ['dashboardCards', 'communityTrending', 'teamGraphs', 'communityOpenList', 'ngGrid'].forEach(id => {
         const el = document.getElementById(id);
         if (el && !el._graphNavBound) {
           el._graphNavBound = true;
@@ -977,9 +1219,10 @@
       const link = document.getElementById('navEditLink');
       if (!link) return;
       const lastSlug = (() => { try { return localStorage.getItem(LAST_EDITED_KEY); } catch (_) { return null; } })();
-      const target = (lastSlug && GRAPHS.some(g => graphSlug(g) === lastSlug)) ? lastSlug
+      const targetSlug = (lastSlug && GRAPHS.some(g => graphSlug(g) === lastSlug)) ? lastSlug
         : graphSlug(GRAPHS[0]);
-      if (target) link.href = `editing-mode-new.html?project=${encodeURIComponent(target)}`;
+      const row = targetSlug ? GRAPHS.find((g) => graphSlug(g) === targetSlug) : GRAPHS[0];
+      if (row) link.href = hrefOpenBundledGraph(row);
     }
 
     function uniqueTitle(base) {
@@ -1022,37 +1265,84 @@
       window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
     }
 
+    let forkPendingGraph = null;
+
+    function openForkConfirmModal(g) {
+      if (!g || !window.ConnectifyFork) return;
+      const backdrop = document.getElementById('forkConfirmModal');
+      const bodyEl = document.getElementById('forkConfirmBody');
+      if (!backdrop || !bodyEl) return;
+      forkPendingGraph = g;
+      const t = (g.title || 'this graph').trim() || 'this graph';
+      bodyEl.textContent =
+        `Create your own copy of "${t}" with its variants, paths, and experiments? `;
+      backdrop.classList.add('is-open');
+      backdrop.setAttribute('aria-hidden', 'false');
+      try {
+        document.body.style.overflow = 'hidden';
+      } catch (_) {}
+    }
+
+    function closeForkConfirmModal() {
+      const backdrop = document.getElementById('forkConfirmModal');
+      forkPendingGraph = null;
+      if (backdrop) {
+        backdrop.classList.remove('is-open');
+        backdrop.setAttribute('aria-hidden', 'true');
+      }
+      try {
+        document.body.style.overflow = '';
+      } catch (_) {}
+    }
+
+    function initForkConfirmModal() {
+      const backdrop = document.getElementById('forkConfirmModal');
+      if (!backdrop || backdrop.dataset.bound === '1') return;
+      backdrop.dataset.bound = '1';
+      const onClose = () => closeForkConfirmModal();
+      document.getElementById('forkConfirmClose')?.addEventListener('click', onClose);
+      document.getElementById('forkConfirmCancel')?.addEventListener('click', onClose);
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) onClose();
+      });
+      document.getElementById('forkConfirmOk')?.addEventListener('click', () => {
+        const g = forkPendingGraph;
+        if (!g || !window.ConnectifyFork) {
+          onClose();
+          return;
+        }
+        const sourceSlug = graphSlug(g);
+        if (!sourceSlug) {
+          onClose();
+          return;
+        }
+        const meta = {
+          title: g.title,
+          owner: g.owner,
+          domain: g.domain,
+          method: g.method,
+          abstract: g.abstract || '',
+        };
+        forkPendingGraph = null;
+        backdrop.classList.remove('is-open');
+        backdrop.setAttribute('aria-hidden', 'true');
+        try {
+          document.body.style.overflow = '';
+        } catch (_) {}
+        window.ConnectifyFork.forkProjectToMyGraphs(sourceSlug, meta).catch(() => {
+          alert('Could not fork this graph. Try again from a stable network connection.');
+        });
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!backdrop.classList.contains('is-open')) return;
+        e.preventDefault();
+        onClose();
+      });
+    }
+
     function forkGraph(g) {
-      // Copy the source graph's project blob if available; otherwise spin up a
-      // shell project that opens cleanly in the editor.
-      const slug = `fork-${graphSlug(g)}-${Date.now().toString(36)}`;
-      const existing = readCustomProjects();
-      const title = uniqueTitle(`${g.title} (fork)`);
-      const sourceSlug = graphSlug(g);
-      const baseProject = (window.PROJECTS && window.PROJECTS[sourceSlug]) || null;
-      const project = baseProject
-        ? JSON.parse(JSON.stringify(baseProject))
-        : {
-            org: g.owner,
-            tags: [g.domain, g.method].filter(Boolean),
-            description: g.abstract || '',
-            contributors: [{ name: 'You', role: 'Owner', letter: 'JS', bg: 'var(--avatar-5)', pushes: 0 }],
-            contributorCount: 1,
-            othersCount: 0,
-            othersPreview: '',
-            others: [],
-            nodes: [],
-            connections: [],
-            subgraphs: [],
-            canvasWidth: 2400,
-            canvasHeight: 1600,
-            viewZoom: 0.52
-          };
-      project.slug = slug;
-      project.title = title;
-      existing.unshift({ slug, title, createdAt: Date.now(), forkedFrom: sourceSlug, project });
-      writeCustomProjects(existing);
-      window.location.href = `editing-mode-new.html?project=${encodeURIComponent(slug)}`;
+      openForkConfirmModal(g);
     }
 
     /* ── New-graph modal ───────────────────────────────────── */
@@ -1131,7 +1421,7 @@
       const cards = ngFilteredGraphs().map(g => {
         const slug = graphSlug(g);
         return `<div class="ng-card" data-ng-card data-graph-slug="${esc(slug)}">
-          ${renderCard({ ...g, role: 'Public', shortOwner: g.owner }, { showManageActions: false, hideFooter: true })}
+          ${renderCard({ ...g, role: 'Public', shortOwner: g.owner }, { showManageActions: false, hideFooter: true, readOnlyTitle: true })}
           <div class="ng-card-overlay">
             <button type="button" class="ng-overlay-btn" data-ng-action="preview" data-graph-slug="${esc(slug)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -1238,7 +1528,7 @@
             domain: entry.domain || 'General',
             modality: entry.modality || 'Multimodal',
             method: entry.method || '—',
-            role: entry.role || 'Contributor',
+            role: entry.role || 'Public',
             status: entry.status || 'Stable',
             license: entry.license || 'MIT',
             updatedHours: entry.updatedHours != null ? entry.updatedHours : 24,
@@ -1273,6 +1563,7 @@
       await loadBundledCatalog();
       hydrateCustomProjects();
       window.openGraph = openGraph;
+      window.rememberPublicGraphEditOptIn = rememberPublicGraphEditOptIn;
       initDashboardControls();
       renderDashboard();
       renderCommunity();
@@ -1284,6 +1575,7 @@
       initGraphCardNavigation();
       initGraphTitleRename();
       initEditNavLink();
+      initForkConfirmModal();
       initNewGraphModal();
       switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
       if (new URLSearchParams(window.location.search).get('new') === '1') {

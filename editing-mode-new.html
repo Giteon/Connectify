@@ -26,12 +26,6 @@
 
   <!-- ══ TOPBAR ═════════════════════════════════════════════ -->
   <header class="topbar">
-    <a href="landing-page.html" class="brand">
-      <div class="brand-logo" aria-hidden="true">
-        <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
-      </div>
-      <span class="brand-wordmark">Connectify</span>
-    </a>
     <nav class="breadcrumb">
       <a id="bcOrg" href="#">—</a><span class="sep">/</span>
       <a id="bcProject" href="#">—</a><span class="sep">/</span>
@@ -49,29 +43,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
       <span class="tb-toggle-label">Runs</span>
     </button>
-    <span class="tb-sep"></span>
-
-    <button class="tb-toggle" id="tglPaths" type="button" data-side="right" data-tab="paths" title="Paths" aria-label="Paths">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
-      <span class="tb-toggle-label">Paths</span>
-    </button>
-    <span class="tb-sep"></span>
-
-    <button class="tb-toggle" id="tglHistory" type="button" data-side="left" data-tab="history" title="History" aria-label="History">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
-      <span class="tb-toggle-label">History</span>
-    </button>
-    <span class="tb-sep"></span>
+    <!-- <span class="tb-sep"></span> -->
 
     <button class="role-pill" id="rolePillBtn" type="button" title="Role: Contributor" aria-label="Current role: Contributor. Open menu to change.">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span id="rolePillText">Contributor</span>
       <svg class="role-pill-caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
-    </button>
-
-    <button class="tb-toggle tb-share-toggle" id="shareGraphBtn" type="button" title="Share this graph" aria-label="Share this graph">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.7 13.4l6.6 3.2M15.3 7.4L8.7 10.6"/></svg>
-      <span class="tb-toggle-label">Share</span>
     </button>
 
     <div class="presence-stack" id="presenceStack">
@@ -85,13 +62,19 @@
         <span class="count-badge" id="commentsBadge" hidden>0</span>
       </button>
     </div>
+    <button class="tb-toggle tb-share-toggle" id="shareGraphBtn" type="button" title="Share this graph" aria-label="Share this graph">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.7 13.4l6.6 3.2M15.3 7.4L8.7 10.6"/></svg>
+      <span class="tb-toggle-label">Share</span>
+    </button>
+
     </div>
     </div>
-    <span class="tb-sep tb-sep--toolbar-end" aria-hidden="true"></span>
+    <!-- <span class="tb-sep tb-sep--toolbar-end" aria-hidden="true"></span> -->
     <div class="topbar-end">
-      <span class="topbar-theme-slot" data-theme-slot=""></span>
-      <button class="tb-icon-toggle" id="topbarMenuToggle" type="button" title="Toggle sidebar" aria-label="Toggle sidebar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <span class="topbar-search-slot" data-search-slot=""></span>
+      <button class="leftnav-avatar topbar-avatar" type="button" aria-label="Account">
+        <span class="la-av">GF</span>
+        <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
       </button>
     </div>
   </header>
@@ -108,54 +91,49 @@
   </nav>
 
   <!-- ══ LEFT NAV RAIL ════════════════════════════════════════
-       Workspace / Create / Browse groups (mirrors graphs-hub). Collapsed by default. -->
+       Workspace → Browse (Community) → Create (Edit, Benchmark). Collapsed by default. -->
   <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
-    <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-      <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
-      <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
-    </button>
-    <button class="leftnav-avatar" type="button" aria-label="Account">
-      <span class="la-av">GF</span>
-      <span class="la-meta">
-        <span class="la-name">Gideon F.</span>
-        <span class="la-role">Account</span>
-      </span>
-      <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
-    </button>
-    <div class="leftnav-group-label">Workspace</div>
-    <a class="nav-item-dashboard" href="graphs-hub.html?tab=dashboard" title="My Graphs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-      <span class="nav-label">My Graphs</span>
-      <button type="button" class="nav-item-plus" data-new-graph-link="graphs-hub.html?tab=dashboard&amp;new=1" aria-label="Create new graph" title="New Graph">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </a>
-    <a href="graphs-hub.html?tab=my-team" title="My Team">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span class="nav-label">My Team</span>
-    </a>
-    <div class="leftnav-group-label">Create</div>
-    <a class="active" href="graphs-hub.html?tab=dashboard" id="navEditLink" title="Open most recent graph in edit mode">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-      <span class="nav-label">Edit</span>
-    </a>
-    <a href="graphs-hub.html?tab=dashboard" title="Benchmark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
-      <span class="nav-label">Benchmark</span>
-    </a>
-    <a href="graphs-hub.html?tab=dashboard" title="Finetune">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-      <span class="nav-label">Finetune</span>
-    </a>
+    <div class="leftnav-top">
+      <div class="leftnav-brand-shell">
+        <a class="brand brand--leftnav" href="landing-page.html" title="ConnectifyAI home">
+          <span class="brand-logo" aria-hidden="true">
+            <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
+          </span>
+          <span class="brand-wordmark nav-label">Connectify</span>
+        </a>
+        <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
+          <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
+        </button>
+      </div>
+      <div class="leftnav-group-label">Workspace</div>
+      <a class="nav-item nav-item-dashboard" href="graphs-hub.html?tab=dashboard" title="My Graphs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        <span class="nav-label">My Graphs</span>
+        <button type="button" class="nav-item-plus" data-new-graph-link="graphs-hub.html?tab=dashboard&amp;new=1" aria-label="Create new graph" title="New Graph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </a>
+      <a class="nav-item" href="graphs-hub.html?tab=my-team" title="My Team">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label">My Team</span>
+      </a>
+    </div>
     <div class="leftnav-group-label">Browse</div>
-    <a href="graphs-hub.html?tab=community" title="Community">
+    <a class="nav-item" href="graphs-hub.html?tab=community" title="Community">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
       <span class="nav-label">Community</span>
     </a>
-    <a class="nav-item-settings" href="#" aria-label="Settings">
-      <img class="nav-item-settings-icon" src="icons/settings.png" alt="" aria-hidden="true" />
-      <span class="nav-label">Settings</span>
+    <div class="leftnav-group-label">Create</div>
+    <a class="nav-item active" href="graphs-hub.html?tab=dashboard" id="navEditLink" title="Open most recent graph in edit mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      <span class="nav-label">Edit</span>
     </a>
+    <a class="nav-item nav-item-stub" href="#" tabindex="-1" title="Benchmark" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
+      <span class="nav-label">Benchmark</span>
+    </a>
+    <span class="leftnav-theme-slot" data-theme-slot=""></span>
   </aside>
 
   <!-- ══ LEFT DRAWER ═════════════════════════════════════════
@@ -201,9 +179,9 @@
          group marquee, comment tool, path tool. Node-type tools were dropped —
          Discover is the one place to browse & add models/datasets/logic. -->
     <div class="tool-palette">
-      <button class="tool tool-primary" data-tool="discover" id="toolDiscover" data-side="left" data-tab="discover" title="Open Discover (models, datasets, logic)">
+      <button class="tool tool-primary" data-tool="discover" id="toolDiscover" data-side="left" data-tab="discover" title="Open Discover (N) — models, datasets, logic">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        <span class="tool-tip">(D) Add content — open Discover</span>
+        <span class="tool-tip">(N) Add nodes</span>
       </button>
       <span class="tool-sep" aria-hidden="true"></span>
       <button class="tool active" data-tool="select" title="Select / pan (V)">
@@ -218,9 +196,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span class="tool-tip">(C) Drop a comment</span>
       </button>
-      <button class="tool" data-tool="path" id="toolPath" title="Draw a path (P)">
+      <!-- <span class="tool-sep" aria-hidden="true"></span> -->
+      <button class="tool" data-tool="path" id="toolPath" data-side="right" data-tab="paths" title="Paths (P)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
-        <span class="tool-tip">(P) Draw a path</span>
+        <span class="tool-tip">(P) Paths</span>
+      </button>
+      <button class="tool" data-tool="history" id="toolHistory" data-side="left" data-tab="history" title="Version History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+        <span class="tool-tip">Version History</span>
       </button>
     </div>
 

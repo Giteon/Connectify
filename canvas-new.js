@@ -35,6 +35,8 @@ window.Canvas = (function () {
       string:'String', jpg:'JPG',   png:'PNG',   binary:'Binary', float:'Float',
       text:'Text',     image:'Image', audio:'Audio', lbl:'Label',     bbox:'BBox',
       id:'ID',         video:'Video', float32:'Float32',
+      tensor:'Tensor', logits:'Logits', embedding:'Embedding', spectrogram:'Spectrogram',
+      point_cloud:'Point cloud', adjacency:'Adjacency', spike:'Spike',
     };
     const raw = (type || '').toLowerCase();
     const key = raw === 'label' ? 'lbl' : raw;   // avoid clash with .type-label header class
@@ -154,6 +156,32 @@ window.Canvas = (function () {
       },
       { from: 'string', to: 'text', label: 'Str→Text', desc: 'Wraps the string in a text payload.', preview: () => 'Plain string 1.2 KB → rich text document (UTF-8)' },
       { from: 'text', to: 'string', label: 'Text→Str', desc: 'Flattens text into a plain string.', preview: () => 'Rich text 4 KB → flat string 3.6 KB (markup stripped)' },
+      {
+        from: 'tensor', to: 'float', label: 'Tensor→Float',
+        desc: 'Unfolds a dense tensor to a row-major float vector for legacy stats / sklearn-style heads.',
+        preview: () => 'Tensor [B,C,H,W] → float vector [B·C·H·W]',
+      },
+      {
+        from: 'float', to: 'tensor', label: 'Float→Tensor',
+        desc: 'Packs a contiguous float vector into a rank-2 tensor view (shape metadata carried separately).',
+        preview: () => 'float [N] → tensor [1, N]',
+      },
+      { from: 'float32', to: 'tensor', label: 'F32→Tensor', desc: 'Wraps a float32 weight buffer as a tensor handle for mixed-precision graphs.', preview: () => 'float32 [P] → tensor [1, P]' },
+      { from: 'tensor', to: 'float32', label: 'Tensor→F32', desc: 'Materializes a tensor slice as float32 host memory for CUDA / Metal kernels.', preview: () => 'tensor view → float32 [N]' },
+      { from: 'binary', to: 'tensor', label: 'Bin→Tensor', desc: 'Deserializes checkpoint / safetensors / ONNX raw bytes into a typed tensor.', preview: () => '8.4 MB blob → tensor weights' },
+      { from: 'tensor', to: 'binary', label: 'Tensor→Bin', desc: 'Serializes tensor shards for disk, object store, or cross-service RPC.', preview: () => 'tensor tiles → protobuf blob' },
+      { from: 'text', to: 'tensor', label: 'Text→Tensor', desc: 'Tokenizer output: UTF-8 text to int64 token-id tensor for transformer blocks.', preview: () => 'doc → int64 tensor [1, T]' },
+      { from: 'tensor', to: 'text', label: 'Tensor→Text', desc: 'Greedy or sampled decode from vocabulary logits tensor to a string.', preview: () => 'logits [1, V] → UTF-8 string' },
+      { from: 'image', to: 'tensor', label: 'Img→Tensor', desc: 'uint8 HWC image to normalized CHW float tensor for conv stacks.', preview: () => 'H×W×3 → tensor [1, 3, H, W]' },
+      { from: 'tensor', to: 'image', label: 'Tensor→Img', desc: 'Maps normalized CHW activations to 8-bit RGB for thumbnails and QA.', preview: () => 'tensor [1,3,224,224] → RGB preview' },
+      { from: 'logits', to: 'label', label: 'Logits→Label', desc: 'Argmax (or calibrated top-k) over class logits to a discrete label id.', preview: () => 'logits [C] → label id' },
+      { from: 'point_cloud', to: 'binary', label: 'PC→Bin', desc: 'Packs XYZI point records into a compact binary frame (e.g. LAS-style).', preview: () => 'N×4 float → binary frame' },
+      { from: 'binary', to: 'point_cloud', label: 'Bin→PC', desc: 'Parses LiDAR / depth-camera frame bytes into structured point_cloud [N, k].', preview: () => 'Velodyne packet → point_cloud' },
+      { from: 'spectrogram', to: 'float', label: 'Spec→Float', desc: 'Flattens mel or STFT energy matrix to a float feature vector.', preview: () => 'mel [64, T] → float [64·T]' },
+      { from: 'embedding', to: 'tensor', label: 'Emb→Tensor', desc: 'Stacks per-token embedding vectors into a single [T, D] tensor.', preview: () => 'T × float[D] → tensor [T, D]' },
+      { from: 'tensor', to: 'embedding', label: 'Tensor→Emb', desc: 'Slices a [T, D] tensor row-wise as embedding payloads for sparse modules.', preview: () => 'tensor [T, D] → embedding stream' },
+      { from: 'adjacency', to: 'tensor', label: 'Adj→Tensor', desc: 'COO / CSR sparse graph adjacency to dense or sparse tensor for GNN layers.', preview: () => 'sparse adjacency → tensor block' },
+      { from: 'spike', to: 'float', label: 'Spike→Float', desc: 'Binned spike train or event list to a float rate / count vector.', preview: () => 'spike events → float [bins]' },
     ];
     const map = new Map();
     raw.forEach(r => {
@@ -990,7 +1018,8 @@ window.Canvas = (function () {
     const title = _escSvg(adaptor.desc || label);
     const haloPad = 4;
     if (dotMode) {
-      const r = Math.max(3.5, 4 / Math.max(0.25, zoom));
+      // Keep dot size in world space so it scales with zoom like anchors.
+      const r = 4.5;
       return (
         `<g class="adaptor-chip adaptor-chip--dot" data-conn-idx="${i}" data-adaptor-id="${_escSvg(adaptor.id || '')}">` +
           `<title>${title}</title>` +
@@ -1013,7 +1042,7 @@ window.Canvas = (function () {
         `<title>${title}</title>` +
         `<rect class="adaptor-chip-halo" x="${hx}" y="${hy}" width="${hw}" height="${hh}" rx="11" ry="11"/>` +
         `<rect class="adaptor-chip-bg" x="${x}" y="${y}" width="${w}" height="${h}" rx="9" ry="9"/>` +
-        `<text class="adaptor-chip-text" x="${mx}" y="${my + 0.5}" text-anchor="middle" dominant-baseline="central">${_escSvg(label)}</text>` +
+        `<text class="adaptor-chip-text" x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central">${_escSvg(label)}</text>` +
       `</g>`
     );
   }

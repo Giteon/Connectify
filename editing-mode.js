@@ -2216,6 +2216,7 @@ function initApp() {
   initLeftNav(P);
   initContribStatus(P);
   initDrawerToggles();
+  initAddCustomModal();
   initDiscover();
   initHistory();
   initVersionKeyNav();
@@ -2231,6 +2232,10 @@ function initApp() {
   initKebab();
   initCanvasContextMenu();
   initActiveEdgeDeleteKey();
+
+  // V2 layout wiring — centered toolbar, rightnav strip, bottom strip,
+  // variants show/hide, project title, leftnav credits, new inspector.
+  initV2Layout(P);
   // On entry from view mode, start with a full-graph framing so users see
   // the entire workflow immediately. Empty graphs (e.g. new project) still
   // need a sensible viewport — fitAllNodesInView is a no-op with zero nodes.
@@ -2475,13 +2480,13 @@ function updateVariantStrip() {
   `).join('');
   strip.innerHTML = `
     <div class="variant-scroll" id="variantScroll">
-      <div class="variant-tabs-track" id="variantTabsTrack">${parts}</div>
-    </div>
-    <div class="variant-add-wrap">
-      <button class="variant-add" id="variantAdd" type="button">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>
-        New variant
-      </button>
+      <div class="variant-tabs-track" id="variantTabsTrack">
+        ${parts}
+        <button class="variant-add" id="variantAdd" type="button">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>
+          New variant
+        </button>
+      </div>
     </div>`;
 
   strip.querySelectorAll('.variant-tab').forEach(t => {
@@ -2962,10 +2967,20 @@ function initDrawerToggles() {
     const panels = el.querySelectorAll('.drawer-panel');
     tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     panels.forEach(p => p.classList.toggle('active', p.id.toLowerCase().endsWith(tab)));
-    // Discover search bar only appears on the Discover tab.
+    // Search bar shows on Discover always; on My Uploads only when there are
+    // already custom nodes (empty state owns the "+ Custom" CTA on its own).
     if (side === 'left') {
       const ds = document.getElementById('discoverSearch');
-      if (ds) ds.style.display = (tab === 'discover') ? 'flex' : 'none';
+      if (ds) {
+        let show = tab === 'discover';
+        if (tab === 'uploads') {
+          renderUploadsPanel();
+          let custom = [];
+          try { custom = JSON.parse(localStorage.getItem('cfg.customNodes') || '[]'); } catch (_) {}
+          show = custom.length > 0;
+        }
+        ds.style.display = show ? 'flex' : 'none';
+      }
     }
     // Sync every entry-point's active state (topbar + floating pill).
     document.querySelectorAll(`[data-side="${side}"]`).forEach(t => {
@@ -3054,6 +3069,93 @@ const DISC_TYPE_ICONS = {
   Dataset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>`,
   Logic:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
 };
+
+/* Renders the My Uploads panel. For now: a simple empty state with a
+   call-to-action that opens the Add-Custom-Node modal. Custom nodes
+   added via the modal are persisted to localStorage under
+   'cfg.customNodes' and listed here. */
+function renderUploadsPanel() {
+  const panel = document.getElementById('panelUploads');
+  if (!panel) return;
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('cfg.customNodes') || '[]'); } catch (_) {}
+
+  if (!custom.length) {
+    panel.innerHTML = `
+      <div class="uploads-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="uploads-empty-title">No custom nodes yet</div>
+        <div>Add your own model, dataset, logic, or endpoint.</div>
+        <button type="button" class="uploads-empty-cta" id="uploadsEmptyCta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add custom
+        </button>
+      </div>`;
+    document.getElementById('uploadsEmptyCta')?.addEventListener('click', () => {
+      document.getElementById('addCustomBtn')?.click();
+    });
+    return;
+  }
+
+  panel.innerHTML = custom.map(c => `
+    <div class="item-card" data-custom-id="${c.id}">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <strong style="font-size:13px;">${c.name}</strong>
+        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${c.kind}</span>
+      </div>
+      ${c.desc ? `<div style="font-size:11.5px;color:var(--text-muted);">${c.desc}</div>` : ''}
+    </div>`).join('');
+}
+
+/* Add-Custom-Node modal — opened from the "+ Add" button in the
+   left drawer search row. Picking a kind creates a stub custom node
+   record (name auto-generated for now) and refreshes the Uploads list. */
+function initAddCustomModal() {
+  const backdrop = document.getElementById('addCustomBackdrop');
+  const openBtn = document.getElementById('addCustomBtn');
+  const closeBtn = document.getElementById('addCustomClose');
+  if (!backdrop || !openBtn) return;
+
+  function open() {
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+  }
+  function close() {
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
+
+  openBtn.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && backdrop.classList.contains('open')) close();
+  });
+
+  backdrop.querySelectorAll('.add-custom-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const kind = btn.dataset.kind;
+      const name = window.prompt(`Name your custom ${kind}:`, `My ${kind}`);
+      if (!name) return;
+      let custom = [];
+      try { custom = JSON.parse(localStorage.getItem('cfg.customNodes') || '[]'); } catch (_) {}
+      custom.push({
+        id: `custom_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+        kind, name: name.trim(),
+        desc: '', createdAt: new Date().toISOString()
+      });
+      try { localStorage.setItem('cfg.customNodes', JSON.stringify(custom)); } catch (_) {}
+      close();
+      // Switch to Uploads tab so the user sees their new node.
+      const leftEl = document.getElementById('drawerLeft');
+      leftEl?.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'uploads'));
+      leftEl?.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelUploads'));
+      const ds = document.getElementById('discoverSearch');
+      if (ds) ds.style.display = 'flex';
+      renderUploadsPanel();
+    });
+  });
+}
 
 function initDiscover() {
   const panel = document.getElementById('panelDiscover');
@@ -3524,6 +3626,7 @@ const HIST_PREVIEW = { id: null, savedState: null };
 function renderHistory() {
   document.querySelector('.history-confirm-pop')?._cleanup?.();
   const panel = document.getElementById('panelHistory');
+  if (!panel) return; // History panel was removed in v2 layout — exit cleanly.
   const hist = (readJSON(KEY.history(ACTIVE_VID)) || []).slice().reverse(); // newest first
   const previewingId = HIST_PREVIEW.id;
   panel.innerHTML = `
@@ -4911,6 +5014,7 @@ function getCanvasOcclusionReserve() {
 
 function renderCommentsDrawer() {
   const panel = document.getElementById('panelComments');
+  if (!panel) return;
   const badge = document.getElementById('commentsBadge');
   if (!COMMENTS.items.length) {
     panel.innerHTML = `<div class="empty-state">No comments yet. Use the Comment tool to drop one anywhere on the canvas.</div>`;
@@ -5290,25 +5394,16 @@ function _isInspectorDrawerActive() {
   const panel = document.getElementById('panelInspector');
   return !!(tab?.classList.contains('active') && panel?.classList.contains('active'));
 }
+// Delegates to v2 master/detail inspector once initV2Layout has run; before
+// that, falls back to a minimal version that won't crash on the v2 DOM.
 function openInspector(nodeData) {
+  if (typeof openInspectorV2 === 'function') {
+    return openInspectorV2(nodeData);
+  }
   const rightEl = document.getElementById('drawerRight');
   rightEl.classList.add('open');
-  // Flip tabs to inspector
   rightEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'inspector'));
   rightEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelInspector'));
-  // Sync topbar toggles (Paths/Comments become inactive, none of them reflect Inspector;
-  // that's fine — Inspector is context-driven, not toggle-driven).
-  document.querySelectorAll('.tb-toggle[data-side="right"]').forEach(t => t.classList.remove('active'));
-  // Mark the node as selected visually.
-  document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
-  const el = document.querySelector(`.node[data-node-id="${nodeData.id}"]`);
-  el?.classList.add('selected');
-
-  const empty = document.getElementById('inspectorEmpty');
-  const content = document.getElementById('inspectorContent');
-  empty.style.display = 'none';
-  content.style.display = 'block';
-  content.innerHTML = renderInspector(nodeData);
 }
 function renderInspector(n) {
   const colorRaw = String(n.color || '').trim();
@@ -7113,4 +7208,738 @@ function initKebab() {
     if (menu.contains(e.target)) return;
     hide();
   });
+}
+
+/* ════════════════════════════════════════════════════════════
+   V2 LAYOUT — chrome wiring + new inspector / run data drawer.
+   These additions are non-destructive: legacy IDs (undoBtn, zoomIn,
+   tglRuns, etc.) still exist as hidden shadows and remain wired.
+   The new chrome here either delegates to those, or adds behavior
+   that didn't exist before (rightnav, bottom-strip, variants toggle).
+   ════════════════════════════════════════════════════════════ */
+
+function initV2Layout(P) {
+  initProjectTitle(P);
+  initVariantsToggle();
+  initLeftnavCredits();
+  initRightnavStrip();
+  initBottomStrip();
+  initCanvasToolbarBridge();
+  // Override openInspector with the v2 master-detail version.
+  window.openInspector = openInspectorV2;
+}
+
+/* ── Project title chip in topbar ──────────────────────────── */
+function initProjectTitle(P) {
+  const nameEl = document.getElementById('ptName');
+  const variantLabel = document.getElementById('ptVariantLabel');
+  if (nameEl) nameEl.textContent = (P && P.name) ? P.name : 'Untitled project';
+
+  // Mirror the variant chip with the active variant tab.
+  function syncVariant() {
+    const active = document.querySelector('.variant-tab.active .tab-name');
+    if (active && variantLabel) variantLabel.textContent = active.textContent || 'Master';
+  }
+  syncVariant();
+  // Variant strip is rebuilt on changes; re-sync via observer.
+  const strip = document.getElementById('variantStrip');
+  if (strip) {
+    new MutationObserver(syncVariant).observe(strip, { childList: true, subtree: true, characterData: true });
+  }
+  // Variant chip toggles the strip; if expanding, scroll active tab into view.
+  const chip = document.getElementById('ptVariant');
+  const app = document.querySelector('.app');
+  if (chip && app) {
+    chip.addEventListener('click', () => {
+      const hidden = app.classList.toggle('variants-hidden');
+      localStorage.setItem('cfg.variantsHidden', hidden ? '1' : '0');
+      if (!hidden) {
+        requestAnimationFrame(() => {
+          const active = document.querySelector('.variant-tab.active');
+          if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+        });
+      }
+    });
+  }
+}
+
+/* ── Variants show/hide toggle ─────────────────────────────── */
+function initVariantsToggle() {
+  // Restore saved collapsed state. Toggle is now wired in initProjectTitle via ptVariant.
+  const app = document.querySelector('.app');
+  if (app && localStorage.getItem('cfg.variantsHidden') === '1') {
+    app.classList.add('variants-hidden');
+  }
+}
+
+/* ── Leftnav credits (placeholder modal) ───────────────────── */
+function initLeftnavCredits() {
+  const btn = document.getElementById('leftnavCredits');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    // Lightweight prompt for now — wire to a real billing modal later.
+    alert('Cloud credits\n\n$24.30 remaining of $40.00 monthly cap.\nResets in 18 days.\n\nUsage breakdown:\n• Model inference  $12.40\n• Datasets         $1.85\n• Storage          $1.45\n\n(Wire to real billing surface later.)');
+  });
+}
+
+/* ── Right nav strip behavior ──────────────────────────────── */
+function initRightnavStrip() {
+  const drawer = document.getElementById('drawerRight');
+  if (!drawer) return;
+  document.querySelectorAll('.rightnav-btn[data-side="right"]').forEach(btn => {
+    const tab = btn.dataset.tab;
+    btn.addEventListener('click', () => {
+      const isActive = btn.classList.contains('active');
+      if (isActive) {
+        drawer.classList.remove('open');
+      } else {
+        drawer.classList.add('open');
+        drawer.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        drawer.querySelectorAll('.drawer-panel').forEach(p => {
+          const id = p.id.toLowerCase();
+          p.classList.toggle('active', id.endsWith(tab) || (tab === 'rundata' && id === 'panelrundata'));
+        });
+      }
+      syncRightnavActive();
+    });
+  });
+  // Sync active state when drawer changes via other entry points.
+  function syncRightnavActive() {
+    const open = drawer.classList.contains('open');
+    document.querySelectorAll('.rightnav-btn[data-side="right"]').forEach(b => {
+      const tab = b.dataset.tab;
+      const tabEl = drawer.querySelector(`.drawer-tab[data-tab="${tab}"]`);
+      const isActive = open && tabEl?.classList.contains('active');
+      b.classList.toggle('active', !!isActive);
+    });
+  }
+  // Re-sync after any drawer-tab click or close.
+  drawer.querySelectorAll('.drawer-tab').forEach(t => t.addEventListener('click', () => setTimeout(syncRightnavActive, 0)));
+  drawer.querySelector('.drawer-close')?.addEventListener('click', () => setTimeout(syncRightnavActive, 0));
+}
+
+/* ── Bottom strip (Runs / Console / Problems chips) ────────── */
+function initBottomStrip() {
+  const strip = document.getElementById('bottomStrip');
+  const panel = document.getElementById('bottomPanel');
+  if (!strip || !panel) return;
+  strip.querySelectorAll('.bs-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tab = chip.dataset.bpTab;
+      panel.classList.add('open');
+      panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      panel.querySelectorAll('.bp-panel').forEach(p => p.classList.toggle('active', p.id === ('bp' + tab.charAt(0).toUpperCase() + tab.slice(1))));
+      document.getElementById('tglRuns')?.classList.add('active');
+      try { syncBpAppShell(); } catch (_) {}
+    });
+  });
+  // Refresh badge counts periodically (cheap; reads existing DOM counts).
+  function refreshBadges() {
+    const runs = document.getElementById('runsCount')?.textContent;
+    const probs = document.getElementById('problemsCount')?.textContent;
+    const rb = document.getElementById('bsRunsBadge');
+    const pb = document.getElementById('bsProblemsBadge');
+    if (rb && runs != null && runs !== '') rb.textContent = runs;
+    if (pb && probs != null && probs !== '') pb.textContent = probs;
+    // Hide problems badge if zero
+    if (pb) pb.style.display = (pb.textContent === '0') ? 'none' : '';
+  }
+  refreshBadges();
+  setInterval(refreshBadges, 1500);
+}
+
+/* ── Canvas toolbar bridge ─────────────────────────────────── */
+/* The new centered toolbar buttons forward clicks to the legacy IDs
+   (undoBtn, redoBtn, zoomIn, zoomOut, zoomFit, autoLayoutBtn) and
+   the legacy tool palette buttons (data-tool=...). State (active
+   tool, undo/redo enabled, zoom %) is mirrored back from the legacy
+   elements via mutation observers. */
+function initCanvasToolbarBridge() {
+  const tb = document.getElementById('canvasToolbar');
+  if (!tb) return;
+
+  function clickLegacyTool(name) {
+    const el = document.querySelector(`.tool-palette [data-tool="${name}"]`);
+    if (el) el.click();
+  }
+  function clickLegacyId(id) {
+    document.getElementById(id)?.click();
+  }
+
+  tb.querySelector('#ctbSelect')?.addEventListener('click', () => clickLegacyTool('select'));
+  tb.querySelector('#ctbMarquee')?.addEventListener('click', () => clickLegacyTool('subgraph-marquee'));
+  tb.querySelector('#ctbComment')?.addEventListener('click', () => clickLegacyTool('comment'));
+  tb.querySelector('#ctbPath')?.addEventListener('click', () => clickLegacyTool('path'));
+  tb.querySelector('#ctbUndo')?.addEventListener('click', () => clickLegacyId('undoBtn'));
+  tb.querySelector('#ctbRedo')?.addEventListener('click', () => clickLegacyId('redoBtn'));
+  tb.querySelector('#ctbZoomOut')?.addEventListener('click', () => clickLegacyId('zoomOut'));
+  tb.querySelector('#ctbZoomIn')?.addEventListener('click', () => clickLegacyId('zoomIn'));
+  tb.querySelector('#ctbZoomFit')?.addEventListener('click', () => clickLegacyId('zoomFit'));
+  tb.querySelector('#ctbAutoLayout')?.addEventListener('click', () => clickLegacyId('autoLayoutBtn'));
+
+  // Mirror active tool onto the new toolbar.
+  function syncActiveTool() {
+    const active = document.querySelector('.tool-palette .tool.active')?.dataset?.tool;
+    tb.querySelectorAll('.ctb-btn[data-tool]').forEach(b => {
+      b.classList.toggle('active', b.dataset.tool === active);
+    });
+  }
+  // Mirror undo/redo disabled state.
+  function syncUndoRedo() {
+    const u = document.getElementById('undoBtn');
+    const r = document.getElementById('redoBtn');
+    if (u) tb.querySelector('#ctbUndo').disabled = u.disabled;
+    if (r) tb.querySelector('#ctbRedo').disabled = r.disabled;
+  }
+  // Mirror zoom value.
+  function syncZoom() {
+    const z = document.getElementById('zoomValue')?.textContent;
+    if (z) tb.querySelector('#ctbZoomValue').textContent = z;
+  }
+  syncActiveTool(); syncUndoRedo(); syncZoom();
+  const palette = document.querySelector('.tool-palette');
+  if (palette) new MutationObserver(syncActiveTool).observe(palette, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  ['undoBtn','redoBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) new MutationObserver(syncUndoRedo).observe(el, { attributes: true, attributeFilter: ['disabled'] });
+  });
+  const zv = document.getElementById('zoomValue');
+  if (zv) new MutationObserver(syncZoom).observe(zv, { childList: true, characterData: true, subtree: true });
+}
+
+/* ════════════════════════════════════════════════════════════
+   New Inspector — master/detail with Config + Variables sections.
+   ════════════════════════════════════════════════════════════ */
+
+// Stub data: variables are derived from node ports + a few synthetic
+// extras so the table is populated even for nodes with no ports yet.
+function _stubVariablesForNode(n) {
+  const inputs = (n.inputs || []).map(p => ({
+    id: 'in:' + p.name, name: p.name, type: p.type, dir: 'input',
+    desc: 'Input variable from upstream node.',
+    sample: _stubSampleValue(p.type, p.name)
+  }));
+  const outputs = (n.outputs || []).map(p => ({
+    id: 'out:' + p.name, name: p.name, type: p.type, dir: 'output',
+    desc: 'Output produced by this node.',
+    sample: _stubSampleValue(p.type, p.name)
+  }));
+  // Add some synthetic variables based on node type so the table isn't
+  // empty for nodes without explicit ports.
+  if (!inputs.length) {
+    ['raw_input', 'config'].forEach((nm, i) => inputs.push({
+      id: 'in:' + nm, name: nm, type: i === 0 ? 'tensor' : 'json', dir: 'input',
+      desc: 'Synthetic input variable.', sample: _stubSampleValue(i === 0 ? 'tensor' : 'json', nm)
+    }));
+  }
+  if (!outputs.length) {
+    ['result', 'metadata'].forEach((nm, i) => outputs.push({
+      id: 'out:' + nm, name: nm, type: i === 0 ? 'tensor' : 'json', dir: 'output',
+      desc: 'Synthetic output variable.', sample: _stubSampleValue(i === 0 ? 'tensor' : 'json', nm)
+    }));
+  }
+  return { inputs, outputs };
+}
+
+function _stubSampleValue(type, name) {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('tensor')) return '[1024 × 768] float32';
+  if (t.includes('image')) return 'PNG 512×512 RGB';
+  if (t.includes('text') || t.includes('str')) return '"customer feedback batch"';
+  if (t.includes('int') || t.includes('num')) return String(Math.floor(Math.random() * 1000));
+  if (t.includes('bool')) return Math.random() > .5 ? 'true' : 'false';
+  if (t.includes('json') || t.includes('obj')) return '{ schema_v: 2, rows: 10000 }';
+  return `<${type || 'any'}>`;
+}
+
+function _stubConfigForNode(n) {
+  const kind = n.type || 'Node';
+  if (kind === 'Model') {
+    return [
+      ['Framework', n.fw || 'PyTorch'],
+      ['Task', n.fn || 'Classification'],
+      ['Batch size', '32'],
+      ['Learning rate', '5e-4'],
+      ['Optimizer', 'AdamW'],
+      ['Epochs', '5'],
+      ['Random seed', '42'],
+    ];
+  }
+  if (kind === 'Dataset') {
+    return [
+      ['Format', 'Parquet'],
+      ['Rows', '124,580'],
+      ['Splits', 'train · val · test'],
+      ['Schema version', '2'],
+      ['Source', 'gs://datasets/customer/'],
+    ];
+  }
+  return [
+    ['Category', n.fn || 'Transform'],
+    ['Deterministic', 'yes'],
+    ['Stateless', 'yes'],
+    ['Timeout', '30s'],
+  ];
+}
+
+function _stubRunsForVariant() {
+  const now = Date.now();
+  return [
+    { id: 'run_3a1c', label: 'Run #14', when: '2 min ago', status: 'ok', ts: now - 2 * 60000 },
+    { id: 'run_29bf', label: 'Run #13', when: '17 min ago', status: 'ok', ts: now - 17 * 60000 },
+    { id: 'run_277e', label: 'Run #12', when: '1 hr ago', status: 'failed', ts: now - 60 * 60000 },
+    { id: 'run_24aa', label: 'Run #11', when: '3 hr ago', status: 'ok', ts: now - 180 * 60000 },
+  ];
+}
+
+let _currentInspectorNode = null;
+let _currentSubtab = 'config';
+let _selectedRunId = null;
+
+function openInspectorV2(nodeData) {
+  const rightEl = document.getElementById('drawerRight');
+  rightEl.classList.add('open');
+  rightEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'inspector'));
+  rightEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelInspector'));
+
+  document.querySelectorAll('.tb-toggle[data-side="right"]').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.rightnav-btn[data-side="right"]').forEach(t => t.classList.toggle('active', t.dataset.tab === 'inspector'));
+
+  document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
+  document.querySelector(`.node[data-node-id="${nodeData.id}"]`)?.classList.add('selected');
+
+  _currentInspectorNode = nodeData;
+  if (!_selectedRunId) _selectedRunId = _stubRunsForVariant()[0]?.id;
+
+  document.getElementById('inspectorEmpty').style.display = 'none';
+  document.getElementById('inspectorShell').style.display = 'flex';
+  document.getElementById('inspectorDetail').style.display = 'none';
+
+  renderInspectorHead(nodeData);
+  renderInspectorSubtab();
+  bindSubtabClicks();
+}
+
+function renderInspectorHead(n) {
+  const colorRaw = String(n.color || '').trim();
+  let color = 'blue';
+  const m = /var\(--dot-(\w+)\)/.exec(colorRaw);
+  if (m) color = m[1];
+  else if (/^(blue|green|purple|yellow|red)$/.test(colorRaw)) color = colorRaw;
+  const name = n.label || n.name || n.id;
+  const kind = n.type || 'Node';
+  const head = document.getElementById('inspectorHead');
+  if (!head) return;
+  head.innerHTML = `
+    <span class="dot" style="background: var(--dot-${color})"></span>
+    <span class="name">${esc(name)}</span>
+    <span class="kind">${esc(kind)}</span>
+  `;
+}
+
+function bindSubtabClicks() {
+  const tabs = document.getElementById('inspectorSubtabs');
+  if (!tabs || tabs._bound) return;
+  tabs._bound = true;
+  tabs.addEventListener('click', e => {
+    const btn = e.target.closest('.insp-subtab');
+    if (!btn) return;
+    _currentSubtab = btn.dataset.subtab;
+    tabs.querySelectorAll('.insp-subtab').forEach(b => b.classList.toggle('active', b === btn));
+    // Always return to master view when switching sub-tabs.
+    document.getElementById('inspectorDetail').style.display = 'none';
+    document.getElementById('inspectorMaster').style.display = 'block';
+    renderInspectorSubtab();
+  });
+}
+
+function renderInspectorSubtab() {
+  const master = document.getElementById('inspectorMaster');
+  if (!master || !_currentInspectorNode) return;
+  master.style.display = 'block';
+  if (_currentSubtab === 'config') {
+    master.innerHTML = renderConfigSubtab(_currentInspectorNode);
+  } else {
+    master.innerHTML = renderRunDataSubtab(_currentInspectorNode);
+  }
+  bindSubtabContentEvents(_currentInspectorNode);
+}
+
+/* Config sub-tab — config k/v list + variables table (types/structure). */
+function renderConfigSubtab(n) {
+  const cfg = _stubConfigForNode(n);
+  const { inputs, outputs } = _stubVariablesForNode(n);
+  const cfgRows = cfg.map(([k, v]) => `<div class="cfg-row"><span class="k">${esc(k)}</span><span class="v">${esc(String(v))}</span></div>`).join('');
+  return `
+    <div class="insp-section-v2" data-sec="config">
+      <button type="button" class="insp-sec-head">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+        Properties
+      </button>
+      <div class="insp-sec-body">
+        ${cfgRows || '<div class="cfg-row"><span class="v" style="color:var(--text-muted);font-style:italic">No configuration.</span></div>'}
+      </div>
+    </div>
+
+    <div class="insp-section-v2" data-sec="variables">
+      <button type="button" class="insp-sec-head">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+        Variables
+      </button>
+      <div class="insp-sec-body">
+        <div class="vars-filter">
+          <input type="text" placeholder="Filter variables…" id="varsFilterInput" />
+        </div>
+        <div class="vars-grid">
+          ${renderVarsColumn('Inputs', inputs)}
+          ${renderVarsColumn('Outputs', outputs)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* Run Data sub-tab — run selector + variables with actual values + before/after diff. */
+function renderRunDataSubtab(n) {
+  const runs = _stubRunsForVariant();
+  const run = runs.find(r => r.id === _selectedRunId) || runs[0];
+  const { inputs, outputs } = _stubVariablesForNode(n);
+  const runOptions = runs.map(r => `<option value="${esc(r.id)}" ${r.id === run.id ? 'selected' : ''}>${esc(r.label)} · ${esc(r.when)} · ${esc(r.status)}</option>`).join('');
+
+  // Pair inputs and outputs by index for before/after blocks.
+  const pairs = Math.max(inputs.length, outputs.length);
+  let blocks = '';
+  for (let i = 0; i < pairs; i++) {
+    const inp = inputs[i];
+    const out = outputs[i];
+    const name = (out?.name || inp?.name || `var_${i}`);
+    const type = (out?.type || inp?.type || 'any');
+    blocks += `
+      <div class="diff-block">
+        <div class="diff-head">
+          <span>${esc(name)}</span>
+          <span class="vr-type">${esc(type)}</span>
+        </div>
+        <div class="diff-cols">
+          <div class="diff-side before">
+            <div class="diff-side-head">Before · input</div>
+            ${inp ? esc(_stubBeforeAfter(inp, 'before')) : '<span style="color:var(--text-muted)">—</span>'}
+          </div>
+          <div class="diff-side after">
+            <div class="diff-side-head">After · output</div>
+            ${out ? esc(_stubBeforeAfter(out, 'after')) : '<span style="color:var(--text-muted)">—</span>'}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Also include the variables table (clickable for drill-down) so users
+  // can jump from a run's data into a specific variable's full detail.
+  return `
+    <div class="rd-context">
+      <span>Run:</span>
+      <select id="rdRunSelect">${runOptions}</select>
+      <span style="margin-left:auto;color:${run.status === 'failed' ? '#dc2626' : 'var(--text-muted)'}">${esc(run.status)}</span>
+    </div>
+
+    <div class="insp-section-v2" data-sec="diff">
+      <button type="button" class="insp-sec-head">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+        Before / after
+      </button>
+      <div class="insp-sec-body" style="padding:0 0 12px;">
+        ${blocks || '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px;">No variable data for this run.</div>'}
+      </div>
+    </div>
+
+    <div class="insp-section-v2" data-sec="variables">
+      <button type="button" class="insp-sec-head">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+        Variables
+      </button>
+      <div class="insp-sec-body">
+        <div class="vars-filter">
+          <input type="text" placeholder="Filter variables…" id="varsFilterInput" />
+        </div>
+        <div class="vars-grid">
+          ${renderVarsColumn('Inputs', inputs)}
+          ${renderVarsColumn('Outputs', outputs)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderVarsColumn(label, list) {
+  return `
+    <div class="vars-col">
+      <div class="vars-col-head">${esc(label)} · ${list.length}</div>
+      ${list.length === 0
+        ? `<div class="vars-col-empty">No ${label.toLowerCase()}</div>`
+        : list.map(v => `
+          <div class="var-row" data-var-id="${esc(v.id)}">
+            <div class="vr-name">${esc(v.name)}</div>
+            <div class="vr-meta"><span class="vr-type">${esc(v.type || 'any')}</span></div>
+          </div>`).join('')}
+    </div>`;
+}
+
+function bindSubtabContentEvents(n) {
+  const master = document.getElementById('inspectorMaster');
+  if (!master) return;
+  // Section collapse toggles
+  master.querySelectorAll('.insp-sec-head').forEach(h => {
+    h.addEventListener('click', () => h.parentElement.classList.toggle('collapsed'));
+  });
+  // Variable row → drill-down detail
+  const { inputs, outputs } = _stubVariablesForNode(n);
+  const all = inputs.concat(outputs);
+  master.querySelectorAll('.var-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const v = all.find(x => x.id === row.dataset.varId);
+      if (v) openVariableDetail(n, v);
+    });
+  });
+  // Filter
+  const filterInput = master.querySelector('#varsFilterInput');
+  if (filterInput) {
+    filterInput.addEventListener('input', () => {
+      const q = filterInput.value.trim().toLowerCase();
+      master.querySelectorAll('.var-row').forEach(row => {
+        const name = row.querySelector('.vr-name')?.textContent.toLowerCase() || '';
+        const type = row.querySelector('.vr-type')?.textContent.toLowerCase() || '';
+        row.style.display = (!q || name.includes(q) || type.includes(q)) ? '' : 'none';
+      });
+    });
+  }
+  // Run selector (only present in Run Data sub-tab)
+  master.querySelector('#rdRunSelect')?.addEventListener('change', e => {
+    _selectedRunId = e.target.value;
+    renderInspectorSubtab();
+  });
+}
+
+function openVariableDetail(node, v) {
+  document.getElementById('inspectorMaster').style.display = 'none';
+  const detail = document.getElementById('inspectorDetail');
+  detail.style.display = 'block';
+
+  const upstream = v.dir === 'input' ? '(inherited from connected upstream output)' : 'this node';
+  const downstream = v.dir === 'output' ? '(consumed by connected downstream inputs)' : 'this node';
+
+  detail.innerHTML = `
+    <div class="insp-detail-head">
+      <button type="button" class="insp-detail-back" id="varDetailBack">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+      <span class="insp-detail-title">${esc(v.name)}</span>
+    </div>
+    <div class="insp-detail-body">
+      <span class="vd-pill">${esc(v.dir)} · ${esc(v.type || 'any')}</span>
+      <div class="vd-row"><span class="k">Description</span><span class="v">${esc(v.desc || '—')}</span></div>
+      <div class="vd-row"><span class="k">Last value</span><span class="v">${esc(v.sample)}</span></div>
+      <div class="vd-row"><span class="k">Source</span><span class="v">${esc(upstream)}</span></div>
+      <div class="vd-row"><span class="k">Used by</span><span class="v">${esc(downstream)}</span></div>
+      <div class="vd-row"><span class="k">Shape</span><span class="v">${esc(_stubShape(v.type))}</span></div>
+      <div class="vd-row"><span class="k">Observation IDs</span><span class="v">obs_001 → obs_124580</span></div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;">Trace (last run)</div>
+        <div class="vd-trace">${esc(_stubTrace(v))}</div>
+      </div>
+    </div>`;
+
+  detail.querySelector('#varDetailBack')?.addEventListener('click', () => {
+    detail.style.display = 'none';
+    document.getElementById('inspectorMaster').style.display = 'block';
+  });
+}
+
+function _stubShape(type) {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('tensor')) return '[batch=32, features=768]';
+  if (t.includes('image')) return '[3, 512, 512]';
+  if (t.includes('json') || t.includes('obj')) return 'object';
+  return 'scalar';
+}
+function _stubTrace(v) {
+  return [
+    `[${new Date().toISOString().slice(11,19)}] ${v.name} resolved`,
+    `  type: ${v.type || 'any'}`,
+    `  size: ${v.sample}`,
+    `  duration: ${(Math.random() * 80 + 4).toFixed(1)}ms`,
+    `  cache: ${Math.random() > .5 ? 'hit' : 'miss'}`,
+  ].join('\n');
+}
+
+/* ════════════════════════════════════════════════════════════
+   Before/after stub helper used by the Run Data sub-tab.
+   ════════════════════════════════════════════════════════════ */
+
+function _stubBeforeAfter(v, side) {
+  const t = String(v.type || '').toLowerCase();
+  if (t.includes('tensor')) {
+    return side === 'before'
+      ? '[1024 × 768] float32\nmean=0.482, std=0.214\nnan_count=12'
+      : '[1024 × 768] float32 (normalized)\nmean=0.000, std=1.000\nnan_count=0';
+  }
+  if (t.includes('json') || t.includes('obj')) {
+    return side === 'before'
+      ? '{\n  "rows": 10000,\n  "schema_v": 1,\n  "nulls": 47\n}'
+      : '{\n  "rows": 9953,\n  "schema_v": 2,\n  "nulls": 0\n}';
+  }
+  if (t.includes('text') || t.includes('str')) {
+    return side === 'before'
+      ? '"  Hello, world!  \\n\\t"'
+      : '"hello world"';
+  }
+  return v.sample || '—';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   V3 Layout Patches
+   Function redeclarations override earlier definitions (hoisting).
+   ══════════════════════════════════════════════════════════════ */
+
+function initV2Layout(P) {
+  initProjectTitle(P);
+  initVariantsToggle();
+  initLeftnavCredits();
+  // V3: rightnav removed — skip initRightnavStrip()
+  initBottomStrip();
+  initCanvasToolbarBridge();
+  initInspectorEdgeTab();
+  initPathsFloatPanel();
+  window.openInspector = openInspectorV2;
+}
+
+function initInspectorEdgeTab() {
+  const tab = document.getElementById('inspectorEdgeTab');
+  if (!tab) return;
+  const open = () => {
+    const rightEl = document.getElementById('drawerRight');
+    if (!rightEl) return;
+    rightEl.classList.add('open');
+    tab.hidden = true;
+    // Reopen with last node if available
+    if (_currentInspectorNode) {
+      document.getElementById('inspectorEmpty').style.display = 'none';
+      document.getElementById('inspectorShell').style.display = 'flex';
+    }
+  };
+  tab.addEventListener('click', open);
+  tab.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+
+  // Re-wire the right drawer close button to also show the edge tab
+  const closeBtn = document.querySelector('.drawer-close[data-side="right"]');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => { tab.hidden = false; });
+  }
+
+  // Escape closes inspector and shows edge tab
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const rightEl = document.getElementById('drawerRight');
+    if (rightEl?.classList.contains('open')) {
+      rightEl.classList.remove('open');
+      tab.hidden = false;
+    }
+  });
+}
+
+function initPathsFloatPanel() {
+  const panel = document.getElementById('pathsFloatPanel');
+  if (!panel) return;
+
+  // Close button hides panel but keeps path draw mode active (banner takes over)
+  const closeBtn = document.getElementById('pathsFloatClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      panel.hidden = true;
+      syncPathDrawFloatOverlay();
+    });
+  }
+
+  // "New path" button in float panel
+  const newBtn = document.getElementById('pathsNewBtn');
+  if (newBtn) {
+    newBtn.addEventListener('click', () => pathDrawStart());
+  }
+
+  // V3: replace #ctbPath with a clone to strip old listener, then wire directly
+  const oldCtbPath = document.getElementById('ctbPath');
+  if (oldCtbPath) {
+    const newCtbPath = oldCtbPath.cloneNode(true);
+    oldCtbPath.parentNode.replaceChild(newCtbPath, oldCtbPath);
+    newCtbPath.addEventListener('click', () => {
+      if (PATH_DRAW.active) { pathDrawCancel(); return; }
+      pathDrawStart();
+    });
+  }
+}
+
+function pathDrawStart(opts) {
+  opts = opts || {};
+  if (PATH_DRAW.active) pathDrawCancel();
+  PATH_DRAW.active = true;
+  PATH_DRAW.nodeIds = Array.isArray(opts.seedIds) ? opts.seedIds.filter(id => Canvas.getNode(id)) : [];
+  PATH_DRAW.editingPathId = opts.editingPathId || null;
+  document.body.classList.add('building-path');
+  clearFocusedPath();
+
+  // V3: show paths float panel instead of opening the right drawer
+  const floatPanel = document.getElementById('pathsFloatPanel');
+  if (floatPanel) floatPanel.hidden = false;
+
+  setPaletteTool('path');
+  attachPathClickCapture();
+  renderPaths();
+  applyPathHighlights();
+  if (PATH_DRAW.nodeIds.length) {
+    if (PATH_DRAW.editingPathId) fitPathNodes(PATH_DRAW.nodeIds);
+    else fitAroundSelection();
+  }
+}
+
+function syncPathDrawFloatOverlay() {
+  const fo = document.getElementById('pathDrawFloatOverlay');
+  if (!fo) return;
+  if (!PATH_DRAW.active) {
+    fo.hidden = true;
+    fo.innerHTML = '';
+    return;
+  }
+  // V3: banner shows only when float panel is hidden
+  const fp = document.getElementById('pathsFloatPanel');
+  if (fp && !fp.hidden) {
+    fo.hidden = true;
+    fo.innerHTML = '';
+    return;
+  }
+  fo.hidden = false;
+  fo.innerHTML = renderPathDrawBanner();
+  wirePathDrawBanner(fo);
+}
+
+function openInspectorV2(nodeData) {
+  const rightEl = document.getElementById('drawerRight');
+  rightEl.classList.add('open');
+
+  // V3: hide edge tab when inspector is open
+  const edgeTab = document.getElementById('inspectorEdgeTab');
+  if (edgeTab) edgeTab.hidden = true;
+
+  document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
+  document.querySelector(`.node[data-node-id="${nodeData.id}"]`)?.classList.add('selected');
+
+  _currentInspectorNode = nodeData;
+  if (!_selectedRunId) _selectedRunId = _stubRunsForVariant()[0]?.id;
+
+  document.getElementById('inspectorEmpty').style.display = 'none';
+  document.getElementById('inspectorShell').style.display = 'flex';
+  document.getElementById('inspectorDetail').style.display = 'none';
+
+  renderInspectorHead(nodeData);
+  renderInspectorSubtab();
+  bindSubtabClicks();
 }

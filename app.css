@@ -36,6 +36,12 @@
   --bottom-h: 240px;
 }
 
+@property --variant-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 38px;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { height: 100%; }
@@ -52,6 +58,11 @@ body {
   grid-template-columns: auto auto 1fr auto;
   height: 100vh;
   --leftnav-w: 52px;
+  transition: --variant-h 0.22s ease;
+}
+
+.app.variants-hidden {
+  --variant-h: 0px;
 }
 
 .app.leftnav-expanded { --leftnav-w: 180px; }

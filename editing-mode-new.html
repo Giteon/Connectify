@@ -7,6 +7,7 @@
   <script>
     // Pre-paint theme + leftnav state so the page doesn't flash before JS runs.
     try {
+      if (!localStorage.getItem('cfg.theme')) localStorage.setItem('cfg.theme', 'light');
       if (localStorage.getItem('cfg.theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
@@ -25,8 +26,21 @@
   <script>if(document.documentElement.dataset.leftnav==='expanded')document.currentScript.parentElement.classList.add('leftnav-expanded');</script>
 
   <!-- ══ TOPBAR ═════════════════════════════════════════════ -->
-  <header class="topbar">
-    <nav class="breadcrumb">
+  <header class="topbar topbar--v2">
+    <!-- Project title + variant switcher (replaces breadcrumb).
+         The breadcrumb was redundant — user is in their own project, the
+         org context isn't load-bearing. Project name + variant chip
+         carries everything that matters. -->
+    <div class="project-title" id="projectTitle">
+      <span class="pt-name" id="ptName">—</span>
+      <button class="pt-variant" id="ptVariant" type="button" title="Switch variant">
+        <span id="ptVariantLabel">Master</span>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+    </div>
+
+    <!-- Legacy breadcrumb retained but hidden — JS still updates these IDs. -->
+    <nav class="breadcrumb" hidden>
       <a id="bcOrg" href="#">—</a><span class="sep">/</span>
       <a id="bcProject" href="#">—</a><span class="sep">/</span>
       <span class="current" id="bcVariant">Master</span>
@@ -39,11 +53,12 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       Run
     </button>
-    <button class="tb-toggle" id="tglRuns" type="button" data-bottom="true" title="Runs" aria-label="Runs">
+    <!-- Runs topbar toggle stays for keyboard-shortcut wiring; hidden because
+         the bottom-strip now exposes Runs/Console/Errors persistently. -->
+    <button class="tb-toggle" id="tglRuns" type="button" data-bottom="true" title="Runs" aria-label="Runs" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
       <span class="tb-toggle-label">Runs</span>
     </button>
-    <!-- <span class="tb-sep"></span> -->
 
     <button class="role-pill" id="rolePillBtn" type="button" title="Role: Contributor" aria-label="Current role: Contributor. Open menu to change.">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -51,16 +66,12 @@
       <svg class="role-pill-caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
     </button>
 
-    <div class="presence-stack" id="presenceStack">
+    <!-- Presence/social stack hidden for MVP (everything is local). -->
+    <div class="presence-stack" id="presenceStack" hidden>
       <div class="presence" id="presenceBtn" title="Active collaborators">
         <div class="presence-avatars" id="presenceAvatars"></div>
         <span class="presence-count" id="presenceCount">0</span>
       </div>
-      <span class="presence-stack-sep" aria-hidden="true"></span>
-      <button class="tb-icon-toggle" id="tglComments" data-side="right" data-tab="comments" title="Comments" aria-label="Comments">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="count-badge" id="commentsBadge" hidden>0</span>
-      </button>
     </div>
     <button class="tb-toggle tb-share-toggle" id="shareGraphBtn" type="button" title="Share this graph" aria-label="Share this graph">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.7 13.4l6.6 3.2M15.3 7.4L8.7 10.6"/></svg>
@@ -95,12 +106,7 @@
   <aside class="leftnav" id="leftnav" aria-label="Primary navigation">
     <div class="leftnav-top">
       <div class="leftnav-brand-shell">
-        <a class="brand brand--leftnav" href="landing-page.html" title="ConnectifyAI home">
-          <span class="brand-logo" aria-hidden="true">
-            <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
-          </span>
-          <span class="brand-wordmark nav-label">Connectify</span>
-        </a>
+        <a class="brand brand--leftnav" href="graphs-hub.html?tab=dashboard" title="ConnectifyAI home"></a>
         <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
           <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
           <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
@@ -133,22 +139,37 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
       <span class="nav-label">Benchmark</span>
     </a>
+
+    <!-- Cloud credits — pinned bottom of leftnav. Important for an AI tool
+         where users can burn through quota without realizing. Click opens
+         a credits/spend modal. -->
+    <button type="button" class="leftnav-credits" id="leftnavCredits" title="Cloud credits — click for usage details">
+      <span class="lc-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9"/></svg>
+      </span>
+      <span class="lc-meta">
+        <span class="lc-label">Credits</span>
+        <span class="lc-value" id="leftnavCreditsValue">$24.30 left</span>
+        <span class="lc-bar"><span class="lc-bar-fill" id="leftnavCreditsBar" style="width: 62%"></span></span>
+      </span>
+    </button>
+
     <span class="leftnav-theme-slot" data-theme-slot=""></span>
   </aside>
 
+
   <!-- ══ LEFT DRAWER ═════════════════════════════════════════
-       Tabs: Discover (browse models/datasets/logic), History (versions
-       of this graph). Same drawer because both are "content flowing
-       into the canvas." -->
+       Tabs: Discover (public catalog) + My Uploads (custom). Both share
+       a search bar with a "+ Add" button that opens the Add-Custom-Node modal. -->
   <aside class="drawer drawer-left" id="drawerLeft" aria-hidden="true">
     <div class="drawer-tabs">
       <button class="drawer-tab" data-tab="discover">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         Discover
       </button>
-      <button class="drawer-tab" data-tab="history">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
-        Version History
+      <button class="drawer-tab" data-tab="uploads">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        My Uploads
       </button>
       <button class="drawer-close" data-side="left" title="Close drawer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -160,50 +181,92 @@
       <button type="button" class="search-clear" id="discoverQueryClear" aria-label="Clear search" title="Clear search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <button type="button" class="drawer-add-btn" id="addCustomBtn" title="Add custom node">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Custom
+      </button>
     </div>
     <div class="drawer-body">
       <div class="drawer-panel" id="panelDiscover">
         <!-- Populated from MOCK_CATALOG -->
       </div>
-      <div class="drawer-panel" id="panelHistory">
-        <!-- Populated from MOCK_HISTORY -->
+      <div class="drawer-panel" id="panelUploads">
+        <!-- Populated by renderUploadsPanel() -->
       </div>
     </div>
   </aside>
 
   <!-- ══ CANVAS AREA ═════════════════════════════════════════ -->
   <div class="canvas-area" id="canvasArea">
-    <!-- Floating tool palette (top-left). The + at the top opens the Discover
-         drawer as the single "add content" affordance (standard pattern:
-         Figma/FigJam plus button, Notion sidebar +). Below it: select/pan,
-         group marquee, comment tool, path tool. Node-type tools were dropped —
-         Discover is the one place to browse & add models/datasets/logic. -->
-    <div class="tool-palette">
+    <!-- Tool palette (legacy top-left) is hidden via CSS in the v2 layout.
+         Its buttons are repositioned into the centered bottom toolbar
+         (.canvas-toolbar). Kept in DOM so existing click handlers work. -->
+    <div class="tool-palette tool-palette--legacy" hidden>
       <button class="tool tool-primary" data-tool="discover" id="toolDiscover" data-side="left" data-tab="discover" title="Open Discover (N) — models, datasets, logic">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
         <span class="tool-tip">(N) Add nodes</span>
       </button>
-      <span class="tool-sep" aria-hidden="true"></span>
       <button class="tool active" data-tool="select" title="Select / pan (V)">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 7.5-6.5 1.8-1.8 6.5z"/></svg>
-        <span class="tool-tip">(V) Select / pan</span>
       </button>
-      <button class="tool" data-tool="subgraph-marquee" id="toolSubgraphMarquee" title="Subgroup selection — drag marquee to select nodes, release to create subgroup.">
+      <button class="tool" data-tool="subgraph-marquee" id="toolSubgraphMarquee" title="Marquee">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="17" height="17" rx="1" stroke-dasharray="3 2.5"/></svg>
+      </button>
+      <button class="tool" data-tool="comment" id="toolComment" title="Comment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <button class="tool" data-tool="path" id="toolPath" title="Paths">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
+      </button>
+      <button class="tool" data-tool="history" id="toolHistory" data-side="right" data-tab="history" title="History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+      </button>
+    </div>
+
+    <!-- Combined canvas toolbar — centered floating pill at bottom.
+         Groups: tools (select/marquee/comment/path) | history (undo/redo)
+         | zoom (out/value/in) | fit | auto-layout. Replaces the previous
+         top-left palette + bottom-left zoom-ctrls. -->
+    <div class="canvas-toolbar" id="canvasToolbar">
+      <button class="ctb-btn active" data-tool="select" id="ctbSelect" title="Select / pan (V)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 7.5-6.5 1.8-1.8 6.5z"/></svg>
+      </button>
+      <button class="ctb-btn" data-tool="subgraph-marquee" id="ctbMarquee" title="Marquee subgroup (M)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="1" stroke-dasharray="3 2.5"/></svg>
-        <span class="tool-tip">(M) Create subgroup</span>
       </button>
-      <button class="tool" data-tool="comment" id="toolComment" title="Drop a comment (C)">
+      <button class="ctb-btn" data-tool="comment" id="ctbComment" title="Drop a comment (C)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="tool-tip">(C) Drop a comment</span>
       </button>
-      <!-- <span class="tool-sep" aria-hidden="true"></span> -->
-      <button class="tool" data-tool="path" id="toolPath" data-side="right" data-tab="paths" title="Paths (P)">
+      <button class="ctb-btn" data-tool="path" id="ctbPath" title="Paths (P)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
-        <span class="tool-tip">(P) Paths</span>
       </button>
-      <button class="tool" data-tool="history" id="toolHistory" data-side="left" data-tab="history" title="Version History">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
-        <span class="tool-tip">Version History</span>
+
+      <span class="ctb-sep"></span>
+
+      <button class="ctb-btn" id="ctbUndo" title="Undo (⌘Z)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      </button>
+      <button class="ctb-btn" id="ctbRedo" title="Redo (⌘⇧Z)" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      </button>
+
+      <span class="ctb-sep"></span>
+
+      <button class="ctb-btn" id="ctbZoomOut" title="Zoom out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+      </button>
+      <span class="ctb-zoom" id="ctbZoomValue">100%</span>
+      <button class="ctb-btn" id="ctbZoomIn" title="Zoom in">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="ctb-btn" id="ctbZoomFit" title="Zoom to fit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/><path d="M4 16v3a1 1 0 0 0 1 1h3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/></svg>
+      </button>
+
+      <span class="ctb-sep"></span>
+
+      <button class="ctb-btn" id="ctbAutoLayout" title="Auto layout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       </button>
     </div>
 
@@ -223,11 +286,11 @@
       </button>
     </div>
 
-    <!-- Zoom + history controls (bottom-left).
-         Undo/Redo flank the zoom cluster; Fit sits next to zoom because it
-         changes the viewport transform the same way. Separators make the
-         two groups legible without two distinct widgets. -->
-    <div class="zoom-ctrls">
+    <!-- Legacy zoom controls — hidden in v2 layout. The IDs (undoBtn,
+         redoBtn, zoomIn, zoomOut, zoomValue, zoomFit, autoLayoutBtn) are
+         still wired up in JS, so we keep them in the DOM as no-op shadows
+         and bridge clicks/state from the new .canvas-toolbar buttons. -->
+    <div class="zoom-ctrls zoom-ctrls--legacy" hidden>
       <button id="undoBtn" title="Undo (⌘Z)" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
       </button>
@@ -257,6 +320,26 @@
       </button>
     </div>
 
+    <!-- Paths floating panel — top-right of canvas viewport, shown when path mode is active -->
+    <div class="paths-float-panel" id="pathsFloatPanel" hidden>
+      <div class="pfp-hd">
+        <span class="pfp-title">Paths</span>
+        <button class="pfp-close" id="pathsFloatClose" title="Close" aria-label="Close paths panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="pfp-body">
+        <button class="pfp-new" id="pathsNewBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New path
+        </button>
+        <div class="pfp-list" id="panelPaths"><!-- populated by renderPaths() --></div>
+      </div>
+    </div>
+
+    <!-- Inspector edge tab — thin sliver at right canvas edge, click to reopen inspector -->
+    <div class="inspector-edge-tab" id="inspectorEdgeTab" title="Open inspector" role="button" tabindex="0" aria-label="Open inspector"></div>
+
     <!-- Minimap -->
     <div class="minimap" id="minimap">
       <div class="mm-header">
@@ -267,29 +350,43 @@
     </div>
   </div>
 
-  <!-- ══ RIGHT DRAWER ════════════════════════════════════════
-       Tabs: Paths, Inspector (node details), Comments (inbox view).
-       These all describe or annotate what's on the canvas. Inspector
-       auto-focuses when a node is clicked. -->
-  <aside class="drawer drawer-right" id="drawerRight" aria-hidden="true">
-    <div class="drawer-tabs">
-      <button class="drawer-tab" data-tab="paths">Paths</button>
-      <button class="drawer-tab" data-tab="inspector">Inspector</button>
-      <button class="drawer-tab" data-tab="comments">Comments</button>
-      <button class="drawer-close" data-side="right" title="Close drawer">
+  <!-- ══ RIGHT DRAWER (V3) ════════════════════════════════════
+       Context-driven Inspector only (Paths is now a floating panel).
+       - Inspector: node-context — Config + Run Data sub-tabs.
+       - Config: Properties + Variables (types/structure).
+       - Run Data: run selector + before/after diff + Variables (actual values).
+       - Variable drill-down: click a row to see shape, trace, observation IDs. -->
+  <aside class="drawer drawer-right drawer-right--v2" id="drawerRight" aria-hidden="true">
+    <div class="drawer-hd">
+      <button class="drawer-close" data-side="right" title="Close inspector">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
     <div class="drawer-body">
-      <div class="drawer-panel" id="panelPaths"></div>
-      <div class="drawer-panel" id="panelInspector">
+      <!-- Inspector: context-driven modal with Config | Run Data sub-tabs.
+           Variables table appears inside both sub-tabs:
+             • Config tab: types/structure (design-time view)
+             • Run Data tab: actual values + before/after diff (run-time view)
+           Variable click → drill-down detail view with a back button. -->
+      <div class="drawer-panel active" id="panelInspector">
         <div class="empty-state" id="inspectorEmpty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-          <div>Select a node to inspect its config, ports, and metadata.</div>
+          <div>Select a node to inspect its config and variables.</div>
         </div>
-        <div id="inspectorContent" style="display:none;"></div>
+        <div class="insp-shell" id="inspectorShell" style="display:none;">
+          <!-- Header (node name + type pill) -->
+          <div class="insp-hd-v2" id="inspectorHead"></div>
+          <!-- Sub-tabs -->
+          <div class="insp-subtabs" id="inspectorSubtabs">
+            <button class="insp-subtab active" data-subtab="config">Config</button>
+            <button class="insp-subtab" data-subtab="rundata">Run Data</button>
+          </div>
+          <!-- Master view (sub-tab content) -->
+          <div class="insp-master" id="inspectorMaster"></div>
+          <!-- Detail view (variable drill-down) -->
+          <div class="insp-detail" id="inspectorDetail" style="display:none;"></div>
+        </div>
       </div>
-      <div class="drawer-panel" id="panelComments"></div>
     </div>
   </aside>
 
@@ -327,10 +424,77 @@
       <div class="bp-panel" id="bpProblems"></div>
     </div>
   </section>
+
+  <!-- ══ BOTTOM STRIP ═══════════════════════════════════════
+       Collapsed-state shortcut for the bottom panel. Visible when the
+       bottom panel is closed; the strip IS the collapsed state. Each
+       chip opens the panel directly to that tab — Runs, Console (logs),
+       or Problems. Badge counts surface failures even when the panel
+       is closed. -->
+  <div class="bottom-strip" id="bottomStrip">
+    <button type="button" class="bs-chip" data-bp-tab="runs" id="bsRuns">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <span>Runs</span>
+      <span class="bs-badge" id="bsRunsBadge">3</span>
+    </button>
+    <button type="button" class="bs-chip" data-bp-tab="logs" id="bsLogs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span>Console</span>
+    </button>
+    <button type="button" class="bs-chip bs-chip--problems" data-bp-tab="problems" id="bsProblems">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+      <span>Problems</span>
+      <span class="bs-badge bs-badge--err" id="bsProblemsBadge">2</span>
+    </button>
+    <span class="bs-spacer"></span>
+    <span class="bs-meta" id="bsRunMeta">Last run · 2m ago · ✓ ok</span>
+  </div>
 </div>
 
 <!-- Kebab menu (shared, positioned fixed) -->
 <div class="kebab-menu" id="kebabMenu"></div>
+
+<!-- Add Custom Node modal — opens from drawer "+ Add" button. -->
+<div class="confirm-backdrop" id="addCustomBackdrop" aria-hidden="true">
+  <div class="add-custom-card" role="dialog" aria-modal="true" aria-labelledby="addCustomTitle">
+    <div class="add-custom-head">
+      <h3 id="addCustomTitle">Add custom node</h3>
+      <button class="add-custom-close" id="addCustomClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="add-custom-grid">
+      <button type="button" class="add-custom-opt" data-kind="model">
+        <span class="add-custom-ico" data-kind="model">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
+        </span>
+        <span class="add-custom-label">Model</span>
+        <span class="add-custom-desc">An ML model — local file or hosted weights.</span>
+      </button>
+      <button type="button" class="add-custom-opt" data-kind="dataset">
+        <span class="add-custom-ico" data-kind="dataset">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+        </span>
+        <span class="add-custom-label">Dataset</span>
+        <span class="add-custom-desc">A file, table, or batch of records.</span>
+      </button>
+      <button type="button" class="add-custom-opt" data-kind="logic">
+        <span class="add-custom-ico" data-kind="logic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </span>
+        <span class="add-custom-label">Logic</span>
+        <span class="add-custom-desc">A function or transform written in code.</span>
+      </button>
+      <button type="button" class="add-custom-opt" data-kind="endpoint">
+        <span class="add-custom-ico" data-kind="endpoint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+        </span>
+        <span class="add-custom-label">Endpoint</span>
+        <span class="add-custom-desc">An external HTTP API or hosted service.</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Generic confirm dialog (destructive actions) -->
 <div class="confirm-backdrop" id="confirmBackdrop" aria-hidden="true">
@@ -522,7 +686,7 @@
 <script src="canvas-new.js"></script>
 <script src="catalog-data.js"></script>
 <script src="static-graph-loader.js"></script>
-<script src="editing-mode.js"></script>
+<script src="editing-mode.js?v=3"></script>
 
 <script src="theme.js"></script>
 </body>

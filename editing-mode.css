@@ -11,7 +11,7 @@
   /* Expanded runs panel is fixed over the canvas; row 4 collapses so row 3
      keeps full height (avoids squashing the left nav when the drawer grows). */
   .app.bp-expanded {
-    grid-template-rows: var(--topbar-h) var(--variant-h) 1fr 0fr;
+    grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr 0fr;
   }
 
   .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
@@ -306,13 +306,14 @@
   .variant-strip {
     background: var(--bg);
     border-bottom: 1px solid var(--border);
-    display: flex; align-items: stretch;
+    display: flex; flex-direction: column;
     padding: 0;
     position: relative;
+    overflow: hidden;
     min-width: 0;
   }
   .variant-scroll {
-    flex: 1 1 auto; min-width: 0;
+    flex: 0 0 var(--variant-h); min-width: 0; width: 100%;
     display: flex; flex-direction: row; align-items: center;
     overflow-x: auto; overflow-y: hidden;
     gap: 0;
@@ -345,13 +346,6 @@
     display: flex; align-items: center; flex-wrap: nowrap;
     flex: 0 0 auto; gap: 2px;
     padding: 0;
-  }
-  .variant-add-wrap {
-    flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: flex-end;
-    padding: 6px 12px 6px 8px;
-    background: var(--bg);
-    z-index: 5;
   }
   .variant-tab {
     position: relative; height: 100%;
@@ -405,18 +399,21 @@
     outline: none; background: var(--bg); padding: 1px 5px; border-radius: 4px;
     box-shadow: 0 0 0 1px var(--primary);
   }
-  .variant-tab .tab-x {
+  .variant-tab .tab-chev {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 15px; height: 15px; border-radius: 50%;
+    width: 18px; height: 18px; border-radius: 4px;
     background: transparent; border: none; cursor: pointer;
     color: var(--text-muted); opacity: 0; padding: 0;
-    transition: opacity .12s ease, background .12s ease;
+    transition: opacity .12s ease, background .12s ease, transform .18s ease, color .12s ease;
     touch-action: manipulation;
   }
-  .variant-tab .tab-x svg { width: 9px; height: 9px; }
-  .variant-tab:hover .tab-x,
-  .variant-tab.active .tab-x { opacity: 1; }
-  .variant-tab .tab-x:hover { background: var(--border); color: var(--text-primary); }
+  .variant-tab .tab-chev svg { width: 11px; height: 11px; }
+  .variant-tab:hover .tab-chev,
+  .variant-tab:focus-within .tab-chev,
+  .variant-tab.active .tab-chev { opacity: 1; }
+  .variant-tab .tab-chev:hover { background: var(--border); color: var(--text-primary); }
+  /* Rotate chevron on the active tab when the detail panel is open. */
+  .app.variant-detail-open .variant-tab.active .tab-chev { transform: rotate(180deg); color: var(--primary); }
   /* Anchored "Delete [name]?" popover — appears directly below the tab
      (not as a toast), so the confirmation feels tied to the chip the
      user clicked. */
@@ -461,13 +458,85 @@
     font-family: inherit; font-size: 12px; font-weight: 500;
     display: inline-flex; align-items: center; gap: 4px;
     flex: 0 0 auto;
+    margin-left: 6px; margin-right: 12px;
   }
   .variant-add:hover { color: var(--primary); border-color: var(--primary); border-style: solid; background: var(--primary-soft); }
   .variant-add svg { width: 11px; height: 11px; }
   html[data-theme="dark"] .variant-add { border-color: #364457; color: #cbd5e1; }
   html[data-theme="dark"] .variant-add:hover { border-color: var(--primary); }
-  html[data-theme="dark"] .variant-add-wrap { background: var(--bg); }
-  html[data-theme="dark"] .variant-tab .tab-x { color: #cbd5e1; }
+
+  /* ── Variant detail panel ───────────────────────────────
+     Sits below the tab strip in the same grid row block. Height is
+     animated via --variant-detail-h so the canvas reflows smoothly. */
+  .variant-detail-panel {
+    flex: 0 0 var(--variant-detail-h);
+    width: 100%;
+    overflow: hidden;
+    background: var(--surface);
+    border-top: 1px solid var(--border-light);
+    box-sizing: border-box;
+  }
+  .vd-content {
+    height: 100%;
+    padding: 8px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .vd-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .vd-desc-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .vd-actions {
+    display: inline-flex; gap: 6px; align-items: center;
+    flex-shrink: 0;
+  }
+  .vd-actions button {
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary);
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+    white-space: nowrap;
+  }
+  .vd-actions button svg { width: 12px; height: 12px; }
+  .vd-actions .vd-duplicate:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .vd-actions .vd-delete { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 35%, var(--border)); }
+  .vd-actions .vd-delete:hover { background: #fef2f2; border-color: #b91c1c; }
+  .vd-actions .vd-delete[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .vd-desc {
+    flex: 1 1 auto;
+    min-height: 32px;
+    width: 100%; resize: vertical;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: inherit; font-size: 12.5px; line-height: 1.45;
+    color: var(--text-primary);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .12s ease;
+  }
+  .vd-desc::placeholder { color: var(--text-muted); }
+  .vd-desc:focus { border-color: var(--primary); background: var(--surface); }
+  .vd-meta {
+    font-size: 11.5px; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  html[data-theme="dark"] .variant-detail-panel { background: var(--surface); }
+  html[data-theme="dark"] .vd-actions .vd-delete { color: #fca5a5; }
+  html[data-theme="dark"] .vd-actions .vd-delete:hover { background: rgba(220,38,38,0.15); }
+  html[data-theme="dark"] .variant-tab .tab-chev { color: #cbd5e1; }
   html[data-theme="dark"] .variant-tab + .variant-tab::before {
     background: color-mix(in srgb, var(--border-light) 78%, #ffffff 8%);
   }
@@ -554,6 +623,129 @@
   .drawer-search.has-value:hover .search-clear,
   .drawer-search.has-value:focus-within .search-clear { opacity: 1; pointer-events: auto; }
   .drawer-search .search-clear:hover { background: var(--bg); color: var(--text-primary); }
+
+  /* "+ Custom" text-link to the right of the drawer search row. Opens the
+     Add-Custom-Node modal regardless of which left-drawer tab is active.
+     Uses --primary so the icon + label read on both light and dark themes. */
+  .drawer-add-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    border: none; background: transparent;
+    color: var(--primary);
+    padding: 2px 4px;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer; flex-shrink: 0;
+    margin-left: 2px;
+    transition: opacity .12s;
+  }
+  .drawer-add-btn svg {
+    width: 13px; height: 13px;
+    stroke: var(--primary);
+  }
+  .drawer-add-btn:hover { opacity: .75; }
+  .drawer-add-btn:active { opacity: .55; }
+
+  /* Empty / populated states for My Uploads panel */
+  .uploads-empty {
+    padding: 36px 20px; text-align: center;
+    color: var(--text-muted); font-size: 12.5px; line-height: 1.5;
+  }
+  .uploads-empty svg {
+    width: 36px; height: 36px;
+    color: white;
+  }
+  .uploads-empty .uploads-empty-title {
+    color: var(--text-secondary); font-weight: 600;
+    font-size: 13px; margin-bottom: 4px;
+  }
+  .uploads-empty-cta {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 14px;
+    padding: 7px 14px;
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    color: #fff;
+    border-radius: 7px;
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    transition: filter .12s, transform .06s;
+  }
+  .uploads-empty-cta svg { width: 13px; height: 13px; }
+  .uploads-empty-cta:hover { filter: brightness(1.08); }
+  .uploads-empty-cta:active { transform: scale(.97); }
+
+  /* ── Add Custom Node modal ───────────────────────────────────
+     Centered card; 2x2 grid of pickable kinds. Reuses .confirm-backdrop
+     for the dimmed overlay + open animation. */
+  .add-custom-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: min(480px, calc(100vw - 32px));
+    box-shadow: 0 24px 60px rgba(0,0,0,.32);
+    overflow: hidden;
+  }
+  .add-custom-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .add-custom-head h3 {
+    margin: 0; font-size: 14px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .add-custom-close {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    background: transparent; border: none; border-radius: 5px;
+    color: var(--text-muted); cursor: pointer;
+  }
+  .add-custom-close:hover { background: var(--bg); color: var(--text-primary); }
+  .add-custom-close svg { width: 14px; height: 14px; }
+
+  .add-custom-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; padding: 14px;
+  }
+  .add-custom-opt {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 11px; row-gap: 2px;
+    align-items: start;
+    text-align: left;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 12px 12px 11px;
+    cursor: pointer; font-family: inherit;
+    transition: border-color .12s, background .12s, transform .06s;
+  }
+  .add-custom-opt:hover {
+    border-color: var(--primary);
+    background: var(--surface);
+  }
+  .add-custom-opt:active { transform: scale(.99); }
+  .add-custom-ico {
+    grid-row: 1 / 3;
+    width: 32px; height: 32px;
+    border-radius: 7px;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+  }
+  .add-custom-ico[data-kind="model"]   { background: color-mix(in srgb, #ec4899 18%, transparent); color: #ec4899; }
+  .add-custom-ico[data-kind="dataset"] { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #f59e0b; }
+  .add-custom-ico[data-kind="logic"]   { background: color-mix(in srgb, #8b5cf6 18%, transparent); color: #8b5cf6; }
+  .add-custom-ico[data-kind="endpoint"]{ background: color-mix(in srgb, #10b981 18%, transparent); color: #10b981; }
+  .add-custom-ico svg { width: 16px; height: 16px; }
+  .add-custom-label {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .add-custom-desc {
+    font-size: 11.5px; line-height: 1.35;
+    color: var(--text-muted);
+  }
 
   /* Generic list cards used inside drawers (Discover, History, Paths, etc.) */
   .item-card {
@@ -2635,3 +2827,499 @@
     display: block; height: 100%; background: var(--primary); transition: width 0.3s ease;
   }
   .run-detail .progress-bar { height: 5px; margin-top: 0; }
+
+  /* ════════════════════════════════════════════════════════════
+     V2 LAYOUT — chrome refresh
+     • Project title replaces breadcrumb in topbar
+     • Cloud credits pinned to leftnav bottom
+     • Right nav strip mirrors leftnav for right-drawer panels
+     • Bottom strip is the collapsed-state of the bottom panel
+     • Centered floating canvas toolbar combines tools + zoom
+     • Right drawer redesigned with Inspector master/detail + Run Data
+     ════════════════════════════════════════════════════════════ */
+
+  /* ── Grid: 4-column layout (V3 — rightnav removed) ─────────────
+     leftnav | drawer-left | canvas | drawer-right               */
+  :root {
+    --bottom-strip-h: 36px;
+  }
+  .editing-shell.app {
+    grid-template-columns: auto auto 1fr auto;
+  }
+  .editing-shell .topbar        { grid-column: 2 / -1; }
+  .editing-shell .variant-strip { grid-column: 2 / -1; }
+  .editing-shell .bottom-panel  { grid-column: 1 / -1; grid-row: 4; }
+  .editing-shell .bottom-strip  { grid-column: 1 / -1; grid-row: 5; }
+  .editing-shell.app {
+    grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr auto var(--bottom-strip-h);
+  }
+  /* Hide bottom strip when bottom panel is open (panel takes its place). */
+  .editing-shell.app:has(.bottom-panel.open) .bottom-strip { display: none; }
+  .editing-shell.app:has(.bottom-panel.open.expanded) .bottom-strip { display: none; }
+
+  /* Hide the variant strip when the topbar toggle says hide (animated via --variant-h). */
+  .editing-shell.app.variants-hidden { --variant-h: 0px; --variant-detail-h: 0px; }
+
+  /* ── Topbar v2: project title chip ──────────────────────────── */
+  .topbar--v2 .breadcrumb { display: none; }
+  .project-title {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0 4px 0 2px;
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    min-width: 0;
+  }
+  .project-title .pt-name {
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .project-title .pt-variant {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 26px; padding: 0 8px;
+    background: var(--primary-soft); color: var(--primary);
+    border: 1px solid transparent; border-radius: 999px;
+    font: inherit; font-weight: 600; font-size: 12px;
+    cursor: pointer;
+  }
+  .project-title .pt-variant svg { width: 11px; height: 11px; }
+  .project-title .pt-variant:hover { filter: brightness(.96); }
+  .project-title .pt-variant svg { transition: transform 0.22s ease; }
+  .editing-shell.app.variants-hidden .pt-variant svg { transform: rotate(-90deg); }
+
+  /* ── Leftnav credits chip ───────────────────────────────────── */
+  .leftnav-credits {
+    margin: auto 6px 6px 6px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 11.5px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .leftnav-credits:hover { border-color: var(--primary); color: var(--primary); }
+  .leftnav-credits .lc-ico {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+  }
+  .leftnav-credits .lc-ico svg { width: 13px; height: 13px; }
+  .leftnav-credits .lc-meta {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px;
+    text-align: left;
+  }
+  .leftnav-credits .lc-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); font-weight: 600;
+  }
+  .leftnav-credits .lc-value {
+    font-size: 12px; font-weight: 600; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .leftnav-credits .lc-bar {
+    display: block; width: 100%; height: 3px;
+    background: var(--border); border-radius: 2px; margin-top: 2px;
+    overflow: hidden;
+  }
+  .leftnav-credits .lc-bar-fill {
+    display: block; height: 100%; background: var(--primary);
+    transition: width .25s ease;
+  }
+  /* Collapsed leftnav: only show the icon, hide meta. */
+  .app:not(.leftnav-expanded) .leftnav-credits {
+    margin: auto 8px 8px 8px;
+    padding: 7px;
+    justify-content: center;
+  }
+  .app:not(.leftnav-expanded) .leftnav-credits .lc-meta { display: none; }
+
+  /* ── Right nav strip ───────────────────────────────────────── */
+  .rightnav {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px 0; gap: 4px;
+    min-height: 0;
+  }
+  .rightnav-btn {
+    position: relative;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    background: transparent; border: none; border-radius: 7px;
+    color: var(--text-secondary); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .rightnav-btn:hover { background: var(--bg); color: var(--text-primary); }
+  .rightnav-btn.active { background: var(--primary-soft); color: var(--primary); }
+  .rightnav-btn svg { width: 16px; height: 16px; }
+  .rightnav-spacer { flex: 1; }
+  .rightnav-btn .rn-tip {
+    position: absolute; right: calc(100% + 8px); top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary); color: var(--surface);
+    font-size: 11px; font-weight: 500; padding: 3px 7px; border-radius: 4px;
+    white-space: nowrap; pointer-events: none; opacity: 0;
+    transition: opacity .1s; z-index: 50;
+  }
+  .rightnav-btn:hover .rn-tip { opacity: 1; }
+
+  /* ── V3: Paths floating panel ──────────────────────────────── */
+  .canvas-area { position: relative; }
+  .paths-float-panel {
+    position: absolute; top: 12px; right: 12px;
+    width: 240px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    z-index: 20;
+    overflow: hidden;
+  }
+  .pfp-hd {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pfp-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .pfp-close {
+    width: 24px; height: 24px; display: grid; place-items: center;
+    background: transparent; border: none; border-radius: 5px;
+    color: var(--text-muted); cursor: pointer;
+  }
+  .pfp-close:hover { background: var(--bg); color: var(--text-primary); }
+  .pfp-close svg { width: 14px; height: 14px; }
+  .pfp-body { padding: 8px; }
+  .pfp-new {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%; padding: 7px 10px;
+    background: var(--primary-soft); color: var(--primary);
+    border: 1px solid transparent; border-radius: 7px;
+    font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-bottom: 8px;
+  }
+  .pfp-new:hover { filter: brightness(.96); }
+  .pfp-new svg { width: 14px; height: 14px; }
+  .pfp-list { display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-y: auto; }
+
+  /* ── V3: Inspector edge tab ────────────────────────────────── */
+  .inspector-edge-tab {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    width: 8px; height: 52px;
+    background: var(--border);
+    border-radius: 4px 0 0 4px;
+    cursor: pointer; z-index: 10;
+    transition: background .12s, width .12s;
+  }
+  .inspector-edge-tab:hover { background: var(--primary); width: 10px; }
+
+  /* ── Bottom strip ──────────────────────────────────────────── */
+  .bottom-strip {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    height: var(--bottom-strip-h);
+    z-index: 30;
+  }
+  .bottom-strip .bs-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    background: transparent;
+    border: 1px solid transparent; border-radius: 6px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .bottom-strip .bs-chip:hover { background: var(--bg); color: var(--text-primary); }
+  .bottom-strip .bs-chip svg { width: 12px; height: 12px; }
+  .bottom-strip .bs-badge {
+    display: inline-grid; place-items: center;
+    min-width: 16px; height: 14px; padding: 0 5px;
+    border-radius: 7px;
+    background: var(--bg); color: var(--text-muted);
+    font-size: 10px; font-weight: 700; line-height: 1;
+  }
+  .bottom-strip .bs-chip--problems .bs-badge--err {
+    background: #fef2f2; color: #dc2626;
+  }
+  html[data-theme="dark"] .bottom-strip .bs-chip--problems .bs-badge--err {
+    background: rgba(248, 113, 113, 0.12);
+    color: rgba(252, 165, 165, 0.85);
+  }
+  .bottom-strip .bs-spacer { flex: 1; }
+  .bottom-strip .bs-meta {
+    font-size: 11px; color: var(--text-muted); font-weight: 500;
+  }
+
+  /* ── Canvas toolbar (centered floating pill) ───────────────── */
+  /* Hide legacy chrome — JS still references their IDs which exist as
+     hidden shadows in the DOM. */
+  .canvas-area .tool-palette--legacy,
+  .canvas-area .zoom-ctrls--legacy { display: none !important; }
+
+  .canvas-toolbar {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 4px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    z-index: 5;
+  }
+  .canvas-toolbar .ctb-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    background: transparent; border: none; border-radius: 999px;
+    color: var(--text-secondary); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .canvas-toolbar .ctb-btn:hover { background: var(--bg); color: var(--text-primary); }
+  .canvas-toolbar .ctb-btn.active { background: var(--primary-soft); color: var(--primary); }
+  .canvas-toolbar .ctb-btn:disabled { opacity: 0.4; cursor: default; }
+  .canvas-toolbar .ctb-btn:disabled:hover { background: transparent; color: var(--text-secondary); }
+  .canvas-toolbar .ctb-btn svg { width: 14px; height: 14px; }
+  .canvas-toolbar .ctb-sep {
+    width: 1px; height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+  .canvas-toolbar .ctb-zoom {
+    font-size: 11.5px; color: var(--text-primary); font-weight: 500;
+    padding: 0 6px; min-width: 42px; text-align: center;
+  }
+
+  /* ── Right drawer v2: Inspector master/detail ─────────────── */
+  .insp-shell, .insp-master, .insp-detail { display: flex; flex-direction: column; gap: 0; }
+
+  /* Inner sub-tabs (Config | Run Data) within Inspector. Lighter weight
+     than top-level drawer tabs so users perceive them as belonging to
+     Inspector, not as more drawer-level surfaces. */
+  .insp-subtabs {
+    display: flex; gap: 2px;
+    padding: 6px 10px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .insp-subtab {
+    padding: 6px 10px 8px;
+    background: transparent; border: none;
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .12s, border-color .12s;
+  }
+  .insp-subtab:hover { color: var(--text-primary); }
+  .insp-subtab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+  .insp-hd-v2 {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 14px 10px; border-bottom: 1px solid var(--border);
+  }
+  .insp-hd-v2 .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--dot-blue); }
+  .insp-hd-v2 .name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .insp-hd-v2 .kind {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: var(--bg); color: var(--text-secondary); font-weight: 500;
+  }
+
+  /* Collapsible sections in inspector */
+  .insp-section-v2 {
+    border-bottom: 1px solid var(--border);
+  }
+  .insp-section-v2 > .insp-sec-head {
+    width: 100%;
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 14px;
+    background: transparent; border: none; cursor: pointer;
+    font-family: inherit; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .insp-section-v2 > .insp-sec-head svg { width: 11px; height: 11px; transition: transform .12s ease; }
+  .insp-section-v2.collapsed > .insp-sec-head svg { transform: rotate(-90deg); }
+  .insp-section-v2 > .insp-sec-body {
+    padding: 0 14px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .insp-section-v2.collapsed > .insp-sec-body { display: none; }
+
+  /* Config k/v list */
+  .cfg-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 4px 0;
+    font-size: 12.5px;
+  }
+  .cfg-row .k { color: var(--text-muted); flex: 0 0 auto; }
+  .cfg-row .v {
+    color: var(--text-primary); font-weight: 500;
+    text-align: right; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Variables table — two-column input/output */
+  .vars-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .vars-col {
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .vars-col + .vars-col { border-left: 1px solid var(--border); }
+  .vars-col-head {
+    padding: 7px 10px;
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .vars-col-empty {
+    padding: 12px 10px;
+    font-size: 11.5px; color: var(--text-muted); font-style: italic;
+  }
+  .var-row {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+    transition: background .1s ease;
+  }
+  .var-row:last-child { border-bottom: none; }
+  .var-row:hover { background: var(--bg); }
+  .var-row .vr-name {
+    font-size: 12px; font-weight: 500; color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .var-row .vr-meta {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10.5px; color: var(--text-muted);
+  }
+  .var-row .vr-type {
+    padding: 1px 6px; border-radius: 4px;
+    background: var(--bg); color: var(--text-secondary);
+    font-weight: 600; font-size: 10px;
+  }
+
+  /* Variables filter bar */
+  .vars-filter {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .vars-filter input {
+    flex: 1; min-width: 0;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; font: inherit; font-size: 11.5px;
+    background: var(--bg); color: var(--text-primary);
+    outline: none;
+  }
+  .vars-filter input:focus { border-color: var(--primary); }
+
+  /* Inspector detail (drill-down view) */
+  .insp-detail-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .insp-detail-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px 4px 6px; border-radius: 6px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-secondary); cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 500;
+  }
+  .insp-detail-back:hover { background: var(--bg); color: var(--text-primary); }
+  .insp-detail-back svg { width: 12px; height: 12px; }
+  .insp-detail-title {
+    flex: 1; min-width: 0;
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .insp-detail-body {
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .vd-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg); color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+    align-self: flex-start;
+  }
+  .vd-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; padding: 4px 0;
+    font-size: 12.5px;
+  }
+  .vd-row .k { color: var(--text-muted); flex-shrink: 0; }
+  .vd-row .v { color: var(--text-primary); text-align: right; word-break: break-word; }
+  .vd-trace {
+    background: var(--bg); border: 1px solid var(--border-light);
+    border-radius: 6px; padding: 10px;
+    font: 500 11.5px / 1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--text-secondary);
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* Run Data tab */
+  .rd-content { display: flex; flex-direction: column; }
+  .rd-context {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 11.5px; color: var(--text-secondary);
+  }
+  .rd-context strong { color: var(--text-primary); font-weight: 600; }
+  .rd-context select {
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 2px 6px; background: var(--surface); color: var(--text-primary);
+    font: inherit; font-size: 11.5px;
+  }
+  .diff-block {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; margin: 12px 14px;
+  }
+  .diff-block + .diff-block { margin-top: 0; }
+  .diff-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 11.5px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .diff-head .vr-type {
+    padding: 1px 6px; border-radius: 4px;
+    background: var(--surface); color: var(--text-secondary);
+    font-weight: 600; font-size: 10px;
+  }
+  .diff-cols {
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  .diff-side {
+    padding: 8px 10px; min-width: 0;
+    font: 500 11.5px / 1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    word-break: break-word; white-space: pre-wrap;
+    color: var(--text-primary);
+  }
+  .diff-side + .diff-side { border-left: 1px solid var(--border); }
+  .diff-side-head {
+    display: flex; align-items: center; gap: 4px;
+    margin-bottom: 4px;
+    font-family: inherit; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .diff-side .changed { background: color-mix(in srgb, #f59e0b 28%, transparent); border-radius: 2px; padding: 0 2px; }
+  .diff-side.before .changed { background: color-mix(in srgb, #f87171 24%, transparent); }
+  .diff-side.after .changed { background: color-mix(in srgb, #34d399 24%, transparent); }

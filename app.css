@@ -32,8 +32,21 @@
   --avatar-7: #0ea5e9;
   --topbar-h: 52px;
   --variant-h: 38px;
+  --variant-detail-h: 0px;
   --drawer-right-w: 320px;
   --bottom-h: 240px;
+}
+
+@property --variant-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 38px;
+}
+
+@property --variant-detail-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,10 +61,21 @@ body {
 
 .app {
   display: grid;
-  grid-template-rows: var(--topbar-h) var(--variant-h) 1fr auto;
+  grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr auto;
   grid-template-columns: auto auto 1fr auto;
   height: 100vh;
   --leftnav-w: 52px;
+  transition: --variant-h 0.22s ease, --variant-detail-h 0.22s ease;
+}
+
+.app.variant-detail-open {
+  --variant-detail-h: 132px;
+}
+
+/* variants-hidden must come after variant-detail-open so it wins the cascade. */
+.app.variants-hidden {
+  --variant-h: 0px;
+  --variant-detail-h: 0px;
 }
 
 .app.leftnav-expanded { --leftnav-w: 180px; }

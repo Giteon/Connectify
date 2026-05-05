@@ -282,6 +282,7 @@ const KEY = {
   variants: `cfg.variants.${slug}`,
   active:   `cfg.activeVariant.${slug}`,
   projectTitle: `cfg.projectTitle.${slug}`,
+  variantPanelOpen: `cfg.variantPanelOpen.${slug}`,
   paths:    (vid) => `cfg.paths.${slug}.${vid}`,
   runs:     (vid) => `cfg.runs.${slug}.${vid}`,
   history:  (vid) => `cfg.history.${slug}.${vid}`,
@@ -2468,14 +2469,13 @@ function reorderVariants(fromVid, toVid, insertBefore) {
 function updateVariantStrip() {
   const strip = document.getElementById('variantStrip');
   const variants = readJSON(KEY.variants) || [];
-  const allowDelete = variants.length > 1; // always keep at least one variant
   const parts = variants.map((v, i) => `
     <div class="variant-tab ${v.id === ACTIVE_VID ? 'active' : ''}" data-vid="${v.id}" role="button" tabindex="0">
       <span class="tab-dot"></span>
       <span class="tab-name" data-vid="${v.id}" title="Click to rename. Hold and drag the tab to reorder.">${esc(v.name)}</span>
-      ${allowDelete ? `<button type="button" class="tab-x" data-act="delete" data-vid="${v.id}" aria-label="Delete variant ${esc(v.name)}" title="Delete variant">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>` : ''}
+      <button type="button" class="tab-chev" data-act="chev" data-vid="${v.id}" aria-label="Show details for variant ${esc(v.name)}" title="Show variant details">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
     </div>
   `).join('');
   strip.innerHTML = `
@@ -2487,13 +2487,14 @@ function updateVariantStrip() {
           New variant
         </button>
       </div>
-    </div>`;
+    </div>
+    <div class="variant-detail-panel" id="variantDetailPanel" aria-hidden="true"></div>`;
 
   strip.querySelectorAll('.variant-tab').forEach(t => {
     t.addEventListener('pointerdown', variantTabPointerDown);
     t.addEventListener('click', e => {
       if (suppressVariantTabClick) { suppressVariantTabClick = false; return; }
-      if (e.target.closest('.tab-x')) return;
+      if (e.target.closest('.tab-chev')) return;
       if (e.target.closest('.tab-name')) return;
       if (t.classList.contains('confirming')) return;
       switchVariant(t.dataset.vid);
@@ -2523,10 +2524,20 @@ function updateVariantStrip() {
     }, true);
   });
 
-  strip.querySelectorAll('.tab-x').forEach(b => {
+  strip.querySelectorAll('.tab-chev').forEach(b => {
     b.addEventListener('click', e => {
       e.stopPropagation();
-      startInlineVariantDelete(b.dataset.vid);
+      const vid = b.dataset.vid;
+      // Click on a non-active tab's chevron: switch to it AND ensure panel is open.
+      // Click on the active tab's chevron: toggle the panel.
+      if (vid !== ACTIVE_VID) {
+        switchVariant(vid);
+        setVariantDetailPanelOpen(true);
+      } else {
+        const app = document.querySelector('.app');
+        const isOpen = app && app.classList.contains('variant-detail-open');
+        setVariantDetailPanelOpen(!isOpen);
+      }
     });
   });
 
@@ -2547,6 +2558,7 @@ function updateVariantStrip() {
   });
 
   bindVariantScrollFade();
+  renderVariantDetail();
 }
 
 function initVariants(P) {
@@ -2555,6 +2567,106 @@ function initVariants(P) {
   if (active) {
     document.getElementById('bcVariant').textContent = active.name;
   }
+  // Restore detail panel state from localStorage; default closed.
+  const wantOpen = localStorage.getItem(KEY.variantPanelOpen) === '1';
+  setVariantDetailPanelOpen(wantOpen, { skipPersist: true });
+}
+
+// ── Variant detail panel ──────────────────────────────────
+// One global panel shows info for the active variant. Chevron on any tab
+// toggles open/close; switching variants keeps it open and refreshes content.
+function setVariantDetailPanelOpen(open, opts = {}) {
+  const app = document.querySelector('.app');
+  if (!app) return;
+  app.classList.toggle('variant-detail-open', !!open);
+  const panel = document.getElementById('variantDetailPanel');
+  if (panel) panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (!opts.skipPersist) {
+    localStorage.setItem(KEY.variantPanelOpen, open ? '1' : '0');
+  }
+  if (open) renderVariantDetail();
+}
+
+function renderVariantDetail() {
+  const panel = document.getElementById('variantDetailPanel');
+  if (!panel) return;
+  const variants = readJSON(KEY.variants) || [];
+  const v = variants.find(x => x.id === ACTIVE_VID) || variants[0];
+  if (!v) { panel.innerHTML = ''; return; }
+
+  const allowDelete = variants.length > 1;
+  const nodeCount = (v.nodes || []).length;
+  const connCount = (v.connections || []).length;
+  const created = v.createdAt ? new Date(v.createdAt) : null;
+  const createdStr = created
+    ? created.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : '';
+  const metaBits = [];
+  if (createdStr) metaBits.push(`Created ${createdStr}`);
+  metaBits.push(`${nodeCount} node${nodeCount === 1 ? '' : 's'}`);
+  metaBits.push(`${connCount} connection${connCount === 1 ? '' : 's'}`);
+
+  panel.innerHTML = `
+    <div class="vd-content">
+      <div class="vd-top-row">
+        <span class="vd-desc-label">Description</span>
+        <div class="vd-actions">
+          <button type="button" class="vd-duplicate" id="vdDuplicate" title="Duplicate this variant">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="10" height="10" rx="1.5"/><path d="M4 14V5a1 1 0 0 1 1-1h9"/></svg>
+            Duplicate variant
+          </button>
+          <button type="button" class="vd-delete" id="vdDelete" ${allowDelete ? '' : 'disabled'} title="${allowDelete ? 'Delete this variant' : 'Cannot delete the last remaining variant'}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h12M8 6V4h4v2M7 6l1 10h4l1-10"/></svg>
+            Delete
+          </button>
+        </div>
+      </div>
+      <textarea class="vd-desc" id="vdDesc" placeholder="Add a description for this variant…">${esc(v.description || '')}</textarea>
+      <div class="vd-meta">${metaBits.join(' · ')}</div>
+    </div>`;
+
+  const descEl = panel.querySelector('#vdDesc');
+  const dupBtn = panel.querySelector('#vdDuplicate');
+  const delBtn = panel.querySelector('#vdDelete');
+
+  let descTimer = null;
+  const commitDesc = () => {
+    const all = readJSON(KEY.variants) || [];
+    const target = all.find(x => x.id === v.id);
+    if (!target) return;
+    const next = descEl.value || '';
+    if ((target.description || '') === next) return;
+    target.description = next;
+    writeJSON(KEY.variants, all);
+  };
+  descEl.addEventListener('input', () => {
+    clearTimeout(descTimer);
+    descTimer = setTimeout(commitDesc, 250);
+  });
+  descEl.addEventListener('blur', () => { clearTimeout(descTimer); commitDesc(); });
+
+  if (dupBtn) dupBtn.addEventListener('click', () => duplicateVariant(v.id));
+  if (delBtn && allowDelete) {
+    delBtn.addEventListener('click', () => startInlineVariantDelete(v.id));
+  }
+}
+
+function duplicateVariant(vid) {
+  snapshotActiveVariant();
+  const all = readJSON(KEY.variants) || [];
+  const src = all.find(v => v.id === vid) || all.find(v => v.id === ACTIVE_VID) || all[0];
+  if (!src) return;
+  const newId = 'v' + (all.length + 1) + '_' + Date.now().toString(36).slice(-4);
+  const copy = {
+    id: newId,
+    name: 'Copy of ' + src.name,
+    createdAt: Date.now(),
+    description: src.description || '',
+    ...cloneGraph(src),
+  };
+  all.push(copy);
+  writeJSON(KEY.variants, all);
+  switchVariant(newId);
 }
 
 // Inline rename of a variant tab. Commits on blur/Enter; Escape reverts.

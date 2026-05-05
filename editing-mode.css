@@ -11,7 +11,7 @@
   /* Expanded runs panel is fixed over the canvas; row 4 collapses so row 3
      keeps full height (avoids squashing the left nav when the drawer grows). */
   .app.bp-expanded {
-    grid-template-rows: var(--topbar-h) var(--variant-h) 1fr 0fr;
+    grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr 0fr;
   }
 
   .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
@@ -306,14 +306,14 @@
   .variant-strip {
     background: var(--bg);
     border-bottom: 1px solid var(--border);
-    display: flex; align-items: stretch;
+    display: flex; flex-direction: column;
     padding: 0;
     position: relative;
     overflow: hidden;
     min-width: 0;
   }
   .variant-scroll {
-    flex: 1 1 auto; min-width: 0;
+    flex: 0 0 var(--variant-h); min-width: 0; width: 100%;
     display: flex; flex-direction: row; align-items: center;
     overflow-x: auto; overflow-y: hidden;
     gap: 0;
@@ -399,18 +399,21 @@
     outline: none; background: var(--bg); padding: 1px 5px; border-radius: 4px;
     box-shadow: 0 0 0 1px var(--primary);
   }
-  .variant-tab .tab-x {
+  .variant-tab .tab-chev {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 15px; height: 15px; border-radius: 50%;
+    width: 18px; height: 18px; border-radius: 4px;
     background: transparent; border: none; cursor: pointer;
     color: var(--text-muted); opacity: 0; padding: 0;
-    transition: opacity .12s ease, background .12s ease;
+    transition: opacity .12s ease, background .12s ease, transform .18s ease, color .12s ease;
     touch-action: manipulation;
   }
-  .variant-tab .tab-x svg { width: 9px; height: 9px; }
-  .variant-tab:hover .tab-x,
-  .variant-tab.active .tab-x { opacity: 1; }
-  .variant-tab .tab-x:hover { background: var(--border); color: var(--text-primary); }
+  .variant-tab .tab-chev svg { width: 11px; height: 11px; }
+  .variant-tab:hover .tab-chev,
+  .variant-tab:focus-within .tab-chev,
+  .variant-tab.active .tab-chev { opacity: 1; }
+  .variant-tab .tab-chev:hover { background: var(--border); color: var(--text-primary); }
+  /* Rotate chevron on the active tab when the detail panel is open. */
+  .app.variant-detail-open .variant-tab.active .tab-chev { transform: rotate(180deg); color: var(--primary); }
   /* Anchored "Delete [name]?" popover — appears directly below the tab
      (not as a toast), so the confirmation feels tied to the chip the
      user clicked. */
@@ -461,7 +464,79 @@
   .variant-add svg { width: 11px; height: 11px; }
   html[data-theme="dark"] .variant-add { border-color: #364457; color: #cbd5e1; }
   html[data-theme="dark"] .variant-add:hover { border-color: var(--primary); }
-  html[data-theme="dark"] .variant-tab .tab-x { color: #cbd5e1; }
+
+  /* ── Variant detail panel ───────────────────────────────
+     Sits below the tab strip in the same grid row block. Height is
+     animated via --variant-detail-h so the canvas reflows smoothly. */
+  .variant-detail-panel {
+    flex: 0 0 var(--variant-detail-h);
+    width: 100%;
+    overflow: hidden;
+    background: var(--surface);
+    border-top: 1px solid var(--border-light);
+    box-sizing: border-box;
+  }
+  .vd-content {
+    height: 100%;
+    padding: 8px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .vd-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .vd-desc-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .vd-actions {
+    display: inline-flex; gap: 6px; align-items: center;
+    flex-shrink: 0;
+  }
+  .vd-actions button {
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary);
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+    white-space: nowrap;
+  }
+  .vd-actions button svg { width: 12px; height: 12px; }
+  .vd-actions .vd-duplicate:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .vd-actions .vd-delete { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 35%, var(--border)); }
+  .vd-actions .vd-delete:hover { background: #fef2f2; border-color: #b91c1c; }
+  .vd-actions .vd-delete[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .vd-desc {
+    flex: 1 1 auto;
+    min-height: 32px;
+    width: 100%; resize: vertical;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: inherit; font-size: 12.5px; line-height: 1.45;
+    color: var(--text-primary);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .12s ease;
+  }
+  .vd-desc::placeholder { color: var(--text-muted); }
+  .vd-desc:focus { border-color: var(--primary); background: var(--surface); }
+  .vd-meta {
+    font-size: 11.5px; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  html[data-theme="dark"] .variant-detail-panel { background: var(--surface); }
+  html[data-theme="dark"] .vd-actions .vd-delete { color: #fca5a5; }
+  html[data-theme="dark"] .vd-actions .vd-delete:hover { background: rgba(220,38,38,0.15); }
+  html[data-theme="dark"] .variant-tab .tab-chev { color: #cbd5e1; }
   html[data-theme="dark"] .variant-tab + .variant-tab::before {
     background: color-mix(in srgb, var(--border-light) 78%, #ffffff 8%);
   }
@@ -2776,14 +2851,14 @@
   .editing-shell .bottom-panel  { grid-column: 1 / -1; grid-row: 4; }
   .editing-shell .bottom-strip  { grid-column: 1 / -1; grid-row: 5; }
   .editing-shell.app {
-    grid-template-rows: var(--topbar-h) var(--variant-h) 1fr auto var(--bottom-strip-h);
+    grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr auto var(--bottom-strip-h);
   }
   /* Hide bottom strip when bottom panel is open (panel takes its place). */
   .editing-shell.app:has(.bottom-panel.open) .bottom-strip { display: none; }
   .editing-shell.app:has(.bottom-panel.open.expanded) .bottom-strip { display: none; }
 
   /* Hide the variant strip when the topbar toggle says hide (animated via --variant-h). */
-  .editing-shell.app.variants-hidden { --variant-h: 0px; }
+  .editing-shell.app.variants-hidden { --variant-h: 0px; --variant-detail-h: 0px; }
 
   /* ── Topbar v2: project title chip ──────────────────────────── */
   .topbar--v2 .breadcrumb { display: none; }

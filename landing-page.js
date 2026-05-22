@@ -423,3 +423,101 @@
 
   armAutoShuffle();
 })();
+
+/* ── Interactive Demos ─────────────────────────────────────
+   Tab strip drives video playback. Only the active video is
+   actually playing — others are paused (and `preload="none"`
+   in HTML) so we don't hold ~70MB of decoded frames in
+   memory.
+
+   On first activation of a video, set the src/preload so the
+   browser starts fetching. Once loaded, kick off playback.
+   Clicking a different tab pauses the current and plays the
+   new one (looping muted, per the autoplay policy). */
+(() => {
+  const tabs = document.querySelectorAll('.lp-demo-tab');
+  const videos = document.querySelectorAll('.lp-demo-video');
+  if (!tabs.length || !videos.length) return;
+
+  function videoFor(demo) {
+    return [...videos].find(v => v.dataset.demo === demo);
+  }
+
+  function activate(demo) {
+    tabs.forEach(t => {
+      const on = t.dataset.demo === demo;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    videos.forEach(v => {
+      const on = v.dataset.demo === demo;
+      v.classList.toggle('active', on);
+      if (on) {
+        // First-time activation: unlock preload so it actually
+        // fetches. Subsequent times the browser uses its cache.
+        if (v.preload === 'none') v.preload = 'auto';
+        // play() returns a promise; swallow rejection (mostly
+        // hits when user navigates away mid-load).
+        const p = v.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } else {
+        v.pause();
+      }
+    });
+  }
+
+  tabs.forEach(t => {
+    t.addEventListener('click', () => activate(t.dataset.demo));
+  });
+
+  // Kick off the first video. Autoplay needs muted (already
+  // set in HTML) — most browsers honor it.
+  activate('add-node');
+})();
+
+/* ── Anchor links: smooth scroll to section ────────────────
+   Native browser anchor-jump is blocked by `overflow: clip`
+   on `.lp-main`, and `window.scrollTo({behavior:'smooth'})`
+   is unreliable across browsers. We animate the scroll
+   manually with rAF — guaranteed to work everywhere.
+
+   Vertical offset (sticky topnav clearance) is computed
+   from the topnav's actual height so it stays correct if
+   the nav resizes (responsive). */
+(() => {
+  const topnav = document.querySelector('.lp-topnav');
+  function navOffset() {
+    return (topnav?.getBoundingClientRect().height || 64) + 16;
+  }
+
+  function smoothScrollTo(targetY, duration = 600) {
+    const startY = window.scrollY;
+    const dy = targetY - startY;
+    if (Math.abs(dy) < 2) return;
+    const t0 = performance.now();
+    // easeInOutCubic — calm acceleration in, calm deceleration out.
+    const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const tick = (now) => {
+      const t = Math.min(1, (now - t0) / duration);
+      window.scrollTo(0, startY + dy * ease(t));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href');
+      if (!href || href === '#') {
+        e.preventDefault();
+        return;
+      }
+      const target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      history.pushState(null, '', href);
+      const y = target.getBoundingClientRect().top + window.scrollY - navOffset();
+      smoothScrollTo(y);
+    });
+  });
+})();

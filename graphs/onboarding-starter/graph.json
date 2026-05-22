@@ -1,0 +1,88 @@
+{
+  "slug": "onboarding-starter",
+  "title": "Onboarding Starter",
+  "org": "Connectify",
+  "tags": ["Tutorial", "Getting Started"],
+  "contributorCount": 1,
+  "contributors": [
+    {"letter": "C", "bg": "#0f172a", "name": "Connectify Team", "role": "Owner", "pushes": 1}
+  ],
+  "othersCount": 0,
+  "othersPreview": "",
+  "others": [],
+  "description": "A small starter graph designed for first-time users. Five nodes flow from a dataset through a preprocessor, model, postprocessor, and into an output sink. Fork it to try building, connecting, and running on a simple example.",
+  "canvasWidth": 2800,
+  "canvasHeight": 900,
+  "viewZoom": 0.9,
+  "initialVariants": [
+    {"id": "v1", "name": "Master"}
+  ],
+  "demoPaths": {
+    "v1": []
+  },
+  "demoRunCountByVariant": {
+    "v1": 0
+  },
+  "nodes": [
+    {
+      "id": "starter_n0",
+      "type": "Dataset",
+      "label": "Input Data",
+      "color": "var(--dot-blue)",
+      "user": {"letter": "C", "color": "var(--avatar-1)"},
+      "x": 120,
+      "y": 360,
+      "outputs": [{"name": "out", "type": "float"}]
+    },
+    {
+      "id": "starter_n1",
+      "type": "Model",
+      "label": "Preprocessor",
+      "color": "var(--dot-green)",
+      "user": {"letter": "C", "color": "var(--avatar-2)"},
+      "x": 660,
+      "y": 360,
+      "inputs": [{"name": "in", "type": "float"}],
+      "outputs": [{"name": "out", "type": "float"}]
+    },
+    {
+      "id": "starter_n2",
+      "type": "Model",
+      "label": "Main Model",
+      "color": "var(--dot-purple)",
+      "user": {"letter": "C", "color": "var(--avatar-3)"},
+      "x": 1200,
+      "y": 360,
+      "inputs": [{"name": "in", "type": "float"}],
+      "outputs": [{"name": "out", "type": "float"}]
+    },
+    {
+      "id": "starter_n3",
+      "type": "Logic",
+      "label": "Postprocessor",
+      "color": "var(--dot-yellow)",
+      "user": {"letter": "C", "color": "var(--avatar-4)"},
+      "x": 1740,
+      "y": 360,
+      "inputs": [{"name": "in", "type": "float"}],
+      "outputs": [{"name": "out", "type": "float"}]
+    },
+    {
+      "id": "starter_n4",
+      "type": "Logic",
+      "label": "Output",
+      "color": "var(--dot-red)",
+      "user": {"letter": "C", "color": "var(--avatar-5)"},
+      "x": 2280,
+      "y": 360,
+      "inputs": [{"name": "in", "type": "float"}]
+    }
+  ],
+  "connections": [
+    {"from": ["starter_n0", "out", "out"], "to": ["starter_n1", "in", "in"]},
+    {"from": ["starter_n1", "out", "out"], "to": ["starter_n2", "in", "in"]},
+    {"from": ["starter_n2", "out", "out"], "to": ["starter_n3", "in", "in"]},
+    {"from": ["starter_n3", "out", "out"], "to": ["starter_n4", "in", "in"]}
+  ],
+  "subgraphs": []
+}

@@ -58,7 +58,7 @@ function _buildCanvasProjectFromVariantBase(slug, baseP) {
 }
 
 if (!slug) {
-  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>';
+  document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to Home</a></p>';
 } else {
   const custom = _readCustomProjectBySlug(slug);
   if (custom) {
@@ -66,7 +66,7 @@ if (!slug) {
     initApp();
   } else {
     const fail = () => {
-      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>`;
+      document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to Home</a></p>`;
     };
     if (typeof bootstrapBundledProject !== 'function') {
       fail();
@@ -268,7 +268,7 @@ function initApp() {
   initBottomPanel();
   initZoomControls();
   initFindBar();
-  initLeftNav();
+  initLeftNav(P);
   initRolePill();
   initRequestContributorModal(P);
   initForkFromView(P);
@@ -692,16 +692,57 @@ function initFindBar() {
 }
 
 /* ── Leftnav ──────────────────────────────────────────────── */
-function initLeftNav() {
+function initLeftNav(P) {
   const app = document.querySelector('.app');
   if (document.documentElement.getAttribute('data-leftnav') === 'expanded') {
     app.classList.add('leftnav-expanded');
   }
-  document.getElementById('navToggle')?.addEventListener('click', () => {
-    const expanded = app.classList.toggle('leftnav-expanded');
-    try { localStorage.setItem('cfg.leftnav.expanded', expanded ? '1' : '0'); } catch (_) {}
-    if (expanded) document.documentElement.setAttribute('data-leftnav', 'expanded');
-    else document.documentElement.removeAttribute('data-leftnav');
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  if (navToggleBtn) {
+    navToggleBtn.addEventListener('click', () => {
+      const expanded = app.classList.toggle('leftnav-expanded');
+      localStorage.setItem('cfg.leftnav.expanded', expanded ? '1' : '0');
+      navToggleBtn.title = expanded ? 'Collapse navigation' : 'Expand navigation';
+      navToggleBtn.setAttribute('aria-label', expanded ? 'Collapse navigation' : 'Expand navigation');
+    });
+  }
+
+  // Wire leftnav collapsable sections (Projects, My Teams)
+  function wireCollapsable(wrapId, toggleId) {
+    const wrap = document.getElementById(wrapId);
+    const toggle = document.getElementById(toggleId);
+    if (!wrap || !toggle) return;
+    toggle.addEventListener('click', () => {
+      const expanded = wrap.dataset.expanded === 'true';
+      wrap.dataset.expanded = expanded ? 'false' : 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+  }
+  wireCollapsable('leftnavProjects', 'lpHeaderToggle');
+  wireCollapsable('leftnavTeams', 'ltHeaderToggle');
+
+  // Set the active project node to show the current project name
+  const activeNode = document.querySelector('.leftnav-collapsable .lp-node.active');
+  if (activeNode && P) {
+    const nameEl = activeNode.querySelector('#lpCurrentProjectName');
+    if (nameEl) nameEl.textContent = P.title || slug || 'Untitled project';
+    activeNode.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
+    activeNode.title = P.title || 'Current project';
+  }
+
+  document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = 'graphs-hub.html?tab=dashboard&new=1';
+  });
+
+  document.getElementById('leftnavSearch')?.addEventListener('click', () => {
+    const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true });
+    document.dispatchEvent(ev);
+  });
+
+  document.getElementById('leftnavUser')?.addEventListener('click', () => {
+    document.querySelector('.topbar-avatar')?.click();
   });
   const editLink = document.getElementById('navEditLink');
   if (editLink) {
@@ -776,6 +817,18 @@ function initRequestContributorModal(P) {
     if (scopeEl) scopeEl.value = '';
   };
 
+  function setPendingState() {
+    openBtn.classList.remove('primary');
+    openBtn.classList.add('pending');
+    openBtn.disabled = true;
+    openBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> pending`;
+  }
+
+  // Restore pending state if request was already sent this session
+  try {
+    if (sessionStorage.getItem('contributorRequestPending_' + slug) === 'true') setPendingState();
+  } catch (_) { /* ignore */ }
+
   openBtn.addEventListener('click', () => {
     recipEl.textContent = recipientNames();
     modal.classList.add('show');
@@ -788,6 +841,7 @@ function initRequestContributorModal(P) {
       sessionStorage.setItem('contributorRequestPending_' + slug, 'true');
     } catch (_) { /* ignore */ }
     close();
+    setPendingState();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('show')) close();

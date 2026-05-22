@@ -298,6 +298,10 @@ function _setProjectTitleUi(name) {
   const safe = (String(name || '').trim() || 'Untitled graph');
   const el = document.getElementById('bcProject');
   if (el) el.textContent = safe;
+  const ptName = document.getElementById('ptName');
+  if (ptName && !ptName.isContentEditable) ptName.textContent = safe;
+  const lpCur = document.getElementById('lpCurrentProjectName');
+  if (lpCur) lpCur.textContent = safe;
   document.title = 'ConnectifyAI — ' + safe + ' (Editing, new)';
 }
 function _persistProjectTitle(name) {
@@ -322,41 +326,44 @@ function _persistProjectTitle(name) {
   return safe;
 }
 function initProjectTitleRename() {
-  const nameEl = document.getElementById('bcProject');
-  if (!nameEl) return;
-  nameEl.title = 'Click to rename graph';
-  const start = (e) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    if (nameEl.isContentEditable) return;
-    const original = (nameEl.textContent || '').trim() || 'Untitled graph';
-    nameEl.setAttribute('contenteditable', 'true');
-    nameEl.focus();
-    const range = document.createRange();
-    range.selectNodeContents(nameEl);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+  function wireRename(nameEl) {
+    if (!nameEl) return;
+    nameEl.title = 'Click to rename project';
+    const start = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (nameEl.isContentEditable) return;
+      const original = (nameEl.textContent || '').trim() || 'Untitled graph';
+      nameEl.setAttribute('contenteditable', 'true');
+      nameEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
 
-    const commit = () => {
-      const next = (nameEl.textContent || '').trim() || original;
-      nameEl.removeEventListener('blur', commit);
-      nameEl.removeEventListener('keydown', onKey);
-      nameEl.removeAttribute('contenteditable');
-      const saved = _persistProjectTitle(next);
-      _setProjectTitleUi(saved);
+      const commit = () => {
+        const next = (nameEl.textContent || '').trim() || original;
+        nameEl.removeEventListener('blur', commit);
+        nameEl.removeEventListener('keydown', onKey);
+        nameEl.removeAttribute('contenteditable');
+        const saved = _persistProjectTitle(next);
+        _setProjectTitleUi(saved);
+      };
+      const onKey = (ke) => {
+        if (ke.key === 'Enter') { ke.preventDefault(); nameEl.blur(); }
+        if (ke.key === 'Escape') { ke.preventDefault(); nameEl.textContent = original; nameEl.blur(); }
+      };
+      nameEl.addEventListener('blur', commit);
+      nameEl.addEventListener('keydown', onKey);
     };
-    const onKey = (ke) => {
-      if (ke.key === 'Enter') { ke.preventDefault(); nameEl.blur(); }
-      if (ke.key === 'Escape') { ke.preventDefault(); nameEl.textContent = original; nameEl.blur(); }
-    };
-    nameEl.addEventListener('blur', commit);
-    nameEl.addEventListener('keydown', onKey);
-  };
-  nameEl.addEventListener('click', start);
-  nameEl.addEventListener('keydown', (e) => {
-    if (nameEl.isContentEditable) return;
-    if (e.key === 'Enter' || e.key === ' ') start(e);
-  });
+    nameEl.addEventListener('click', start);
+    nameEl.addEventListener('keydown', (e) => {
+      if (nameEl.isContentEditable) return;
+      if (e.key === 'Enter' || e.key === ' ') start(e);
+    });
+  }
+  wireRename(document.getElementById('bcProject'));
+  wireRename(document.getElementById('ptName'));
 }
 function cloneGraph(g) {
   return {
@@ -3177,7 +3184,7 @@ const DISCOVER = {
 // Small inline icons for the Model/Dataset/Logic type tabs — same glyphs
 // we use on the nodes themselves so users connect the dots across UI.
 const DISC_TYPE_ICONS = {
-  Model:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 6.5l2.5 3.5M17 6.5L14.5 10M7 17.5l2.5-3.5M17 17.5L14.5 14"/></svg>`,
+  Model:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg>`,
   Dataset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>`,
   Logic:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
 };
@@ -3349,13 +3356,14 @@ function renderDiscover() {
           </button>`).join('')}
       </div>
       <div class="disc-filter-row">
-        ${['Function','Category','Input','Output'].map(k => {
+        ${['Function','Input','Output'].map(k => {
           const count = DISCOVER.filters[k].size;
           return `<div class="disc-filter-pill ${count ? 'has-selection' : ''}" data-filter="${k}">
             ${esc(k)}${count ? `<span class="pill-badge">${count}</span>` : ''}
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M5 8l5 5 5-5"/></svg>
           </div>`;
         }).join('')}
+        ${anyFilter ? `<button type="button" class="disc-clear-filters" id="discClearFiltersLink" style="margin-left:auto;">Clear filters</button>` : ''}
       </div>
       <!-- Shared dropdown container, positioned via fixed coords so it
            escapes the drawer's scroll/stacking context. -->
@@ -3363,7 +3371,6 @@ function renderDiscover() {
     </div>
     <div class="disc-count-row">
       <div class="disc-count-main">${esc(countPrefix)}${q ? ` "<span class="disc-count-query" title="${esc(DISCOVER.query)}">${esc(DISCOVER.query)}</span>"` : ''}</div>
-      ${anyFilter ? `<button type="button" class="disc-clear-filters" id="discClearFiltersLink">Clear filters</button>` : ''}
     </div>
     <div class="disc-results">
       ${items.length === 0
@@ -7345,7 +7352,10 @@ function initV2Layout(P) {
 function initProjectTitle(P) {
   const nameEl = document.getElementById('ptName');
   const variantLabel = document.getElementById('ptVariantLabel');
-  if (nameEl) nameEl.textContent = (P && P.name) ? P.name : 'Untitled project';
+  const projectName = (P && P.name) ? P.name : 'Untitled project';
+  if (nameEl) nameEl.textContent = projectName;
+  const lpCur = document.getElementById('lpCurrentProjectName');
+  if (lpCur) lpCur.textContent = projectName;
 
   // Mirror the variant chip with the active variant tab.
   function syncVariant() {
@@ -7922,6 +7932,9 @@ function initV2Layout(P) {
   initCanvasToolbarBridge();
   initInspectorEdgeTab();
   initPathsFloatPanel();
+  initCanvasNavMenu();
+  initCanvasNavActions();
+  updateCloudSpendColor();
   window.openInspector = openInspectorV2;
 }
 
@@ -8054,4 +8067,229 @@ function openInspectorV2(nodeData) {
   renderInspectorHead(nodeData);
   renderInspectorSubtab();
   bindSubtabClicks();
+}
+
+// V3: Canvas-mode nav (expand/collapse toggle)
+function initCanvasNavMenu() {
+  const app = document.querySelector('.app');
+  app.classList.add('canvas-mode');
+
+  const navToggleBtn = document.getElementById('navToggleBtn');
+  if (navToggleBtn) {
+    navToggleBtn.addEventListener('click', () => {
+      const expanded = app.classList.toggle('leftnav-expanded');
+      localStorage.setItem('cfg.leftnav.expanded', expanded ? '1' : '0');
+      navToggleBtn.title = expanded ? 'Collapse navigation' : 'Expand navigation';
+      navToggleBtn.setAttribute('aria-label', expanded ? 'Collapse navigation' : 'Expand navigation');
+    });
+  }
+}
+
+// V3: Wire up canvas nav actions (Add nodes, Paths, History)
+function initCanvasNavActions() {
+  const leftEl = document.getElementById('drawerLeft');
+
+  const navActionBtns = [
+    document.getElementById('navAddNodes'),
+    document.getElementById('navHistory'),
+  ].filter(Boolean);
+
+  // Tab → navActionBtn map
+  const TAB_TO_BTN = {
+    discover: document.getElementById('navAddNodes'),
+    history:  document.getElementById('navHistory'),
+  };
+
+  function syncLeftnavActive() {
+    if (!leftEl) return;
+    const isOpen = leftEl.classList.contains('open');
+    const activeTab = leftEl.querySelector('.drawer-tab.active')?.dataset?.tab;
+    navActionBtns.forEach(b => b.classList.remove('active'));
+    if (isOpen && activeTab && TAB_TO_BTN[activeTab]) {
+      TAB_TO_BTN[activeTab].classList.add('active');
+    }
+  }
+
+  function openLeftDrawerTab(tab, triggerBtn) {
+    if (!leftEl) return;
+    const isOpen = leftEl.classList.contains('open');
+    const alreadyActive = triggerBtn?.classList.contains('active');
+    if (isOpen && alreadyActive) {
+      leftEl.classList.remove('open');
+      navActionBtns.forEach(b => b.classList.remove('active'));
+    } else {
+      leftEl.classList.add('open');
+      leftEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id.toLowerCase().endsWith(tab)));
+      const ds = document.getElementById('discoverSearch');
+      if (ds) ds.style.display = tab === 'discover' ? 'flex' : 'none';
+      navActionBtns.forEach(b => b.classList.remove('active'));
+      if (triggerBtn) triggerBtn.classList.add('active');
+    }
+    if (typeof syncPathDrawFloatOverlay === 'function') syncPathDrawFloatOverlay();
+  }
+
+  // Unfocus leftnav when the drawer close (X) button is clicked.
+  leftEl?.querySelector('.drawer-close')?.addEventListener('click', () => {
+    setTimeout(syncLeftnavActive, 0);
+  });
+
+  // Sync when any drawer-tab is clicked directly (e.g. inside the drawer header).
+  leftEl?.querySelectorAll('.drawer-tab').forEach(tab => {
+    tab.addEventListener('click', () => setTimeout(syncLeftnavActive, 0));
+  });
+
+  // MutationObserver: keep leftnav in sync if anything else opens/closes the drawer.
+  if (leftEl) {
+    new MutationObserver(() => syncLeftnavActive()).observe(leftEl, {
+      attributes: true, attributeFilter: ['class'],
+      subtree: true,
+    });
+  }
+
+  const addNodesBtn = document.getElementById('navAddNodes');
+  if (addNodesBtn) {
+    addNodesBtn.addEventListener('click', () => openLeftDrawerTab('discover', addNodesBtn));
+  }
+
+  const pathsBtn = document.getElementById('navPaths');
+  if (pathsBtn) {
+    pathsBtn.addEventListener('click', () => pathDrawStart({}));
+  }
+
+  const historyBtn = document.getElementById('navHistory');
+  if (historyBtn) {
+    historyBtn.addEventListener('click', () => openLeftDrawerTab('history', historyBtn));
+  }
+}
+
+// V3: Color-code cloud spend button based on amount
+function updateCloudSpendColor() {
+  const spendBtn = document.getElementById('leftnavCredits');
+  if (!spendBtn) return;
+
+  const creditsValue = document.getElementById('leftnavCreditsValue');
+  if (creditsValue) {
+    const match = creditsValue.textContent.match(/[\d.]+/);
+    if (match) {
+      const amount = parseFloat(match[0]);
+      spendBtn.setAttribute('data-credits', String(Math.round(amount * 10) / 10));
+    }
+  }
+}
+
+// V4: Wire up floating tool palette (top-left of canvas)
+function initFloatPalette() {
+  const palette = document.getElementById('floatPalette');
+  if (!palette) return;
+
+  function clickLegacyTool(name) {
+    const el = document.querySelector(`.tool-palette [data-tool="${name}"]`);
+    if (el) el.click();
+  }
+
+  function openDiscoverWith(activeType) {
+    if (typeof DISCOVER !== 'undefined' && activeType) {
+      DISCOVER.activeType = activeType;
+      if (typeof renderDiscover === 'function') renderDiscover();
+    }
+    const tgl = document.getElementById('toolDiscover');
+    if (tgl) tgl.click();
+  }
+
+  palette.querySelector('#fpModel')?.addEventListener('click', () => openDiscoverWith('Model'));
+  palette.querySelector('#fpDataset')?.addEventListener('click', () => openDiscoverWith('Dataset'));
+  palette.querySelector('#fpLogic')?.addEventListener('click', () => openDiscoverWith('Logic'));
+
+  palette.querySelector('#fpMarquee')?.addEventListener('click', () => clickLegacyTool('subgraph-marquee'));
+  palette.querySelector('#fpComment')?.addEventListener('click', () => clickLegacyTool('comment'));
+  palette.querySelector('#fpPath')?.addEventListener('click', () => {
+    if (typeof PATH_DRAW !== 'undefined' && PATH_DRAW.active && typeof pathDrawCancel === 'function') {
+      pathDrawCancel();
+      return;
+    }
+    if (typeof pathDrawStart === 'function') pathDrawStart();
+  });
+
+  // Mirror active tool state from legacy palette onto float palette
+  function syncActive() {
+    const active = document.querySelector('.tool-palette .tool.active')?.dataset?.tool;
+    palette.querySelectorAll('.fp-btn[data-fp-tool]').forEach(b => {
+      b.classList.toggle('active', b.dataset.fpTool === active);
+    });
+  }
+  syncActive();
+  const legacy = document.querySelector('.tool-palette');
+  if (legacy) {
+    new MutationObserver(syncActive).observe(legacy, {
+      attributes: true, subtree: true, attributeFilter: ['class']
+    });
+  }
+}
+
+// V4: Collapsable section toggles in leftnav (Projects, My Teams)
+function initLeftnavProjects() {
+  function wireCollapsable(wrapId, toggleId) {
+    const wrap = document.getElementById(wrapId);
+    const toggle = document.getElementById(toggleId);
+    if (!wrap || !toggle) return;
+    toggle.addEventListener('click', () => {
+      const expanded = wrap.dataset.expanded === 'true';
+      wrap.dataset.expanded = expanded ? 'false' : 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+    });
+  }
+  wireCollapsable('leftnavProjects', 'lpHeaderToggle');
+  wireCollapsable('leftnavTeams', 'ltHeaderToggle');
+
+  document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = 'graphs-hub.html?tab=dashboard&new=1';
+  });
+
+  document.getElementById('leftnavSearch')?.addEventListener('click', () => {
+    const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true });
+    document.dispatchEvent(ev);
+  });
+
+  document.getElementById('leftnavUser')?.addEventListener('click', () => {
+    document.querySelector('.topbar-avatar')?.click();
+  });
+}
+
+// V4: Topbar history button → opens left drawer history tab
+function initTopbarHistory() {
+  const btn = document.getElementById('tbHistoryBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const leftEl = document.getElementById('drawerLeft');
+    if (!leftEl) return;
+    const isOpen = leftEl.classList.contains('open');
+    const historyActive = leftEl.querySelector('.drawer-tab.active')?.dataset?.tab === 'history';
+    if (isOpen && historyActive) {
+      leftEl.classList.remove('open');
+      btn.classList.remove('active');
+      return;
+    }
+    leftEl.classList.add('open');
+    leftEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'history'));
+    leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelHistory'));
+    const ds = document.getElementById('discoverSearch');
+    if (ds) ds.style.display = 'none';
+    btn.classList.add('active');
+  });
+}
+
+// Boot the V4 initializers after DOM is ready (idempotent — guards on null)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    initFloatPalette();
+    initLeftnavProjects();
+    initTopbarHistory();
+  });
+} else {
+  initFloatPalette();
+  initLeftnavProjects();
+  initTopbarHistory();
 }

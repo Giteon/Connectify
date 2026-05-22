@@ -10,6 +10,36 @@
         try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (_) {}
         apply();
       });
+
+      // Wire leftnav collapsable sections (Projects, My Teams)
+      function wireCollapsable(wrapId, toggleId) {
+        const wrap = document.getElementById(wrapId);
+        const toggle = document.getElementById(toggleId);
+        if (!wrap || !toggle) return;
+        toggle.addEventListener('click', () => {
+          const expanded = wrap.dataset.expanded === 'true';
+          wrap.dataset.expanded = expanded ? 'false' : 'true';
+          toggle.setAttribute('aria-expanded', String(!expanded));
+        });
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        wireCollapsable('leftnavProjects', 'lpHeaderToggle');
+        wireCollapsable('leftnavTeams', 'ltHeaderToggle');
+
+        document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.location.href = 'graphs-hub.html?tab=dashboard&new=1';
+        });
+
+        document.getElementById('leftnavSearch')?.addEventListener('click', () => {
+          const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true });
+          document.dispatchEvent(ev);
+        });
+
+        document.getElementById('leftnavUser')?.addEventListener('click', () => {
+          document.querySelector('.topbar-avatar')?.click();
+        });
+      });
     })();
 
     const KNOWN_PROJECTS = {
@@ -157,7 +187,7 @@
     const BUNDLED_GRAPH_COUNTS = Object.assign({}, DEMO_NODE_COUNT_BY_SLUG);
     const TAB_META = {
       'dashboard': {
-        title: 'My Graphs',
+        title: 'Home',
         desc: 'Graphs where you are an owner, admin, or contributor.'
       },
       'community': {

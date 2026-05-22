@@ -46,9 +46,9 @@
 
   /* Presence stack */
 
-  .presence-row .live { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.25); }
-  .presence-divider { height: 1px; background: var(--border-light); margin: 4px 2px; }
-  .presence-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; padding: 6px 8px 4px; }
+  .presence-row .live { display: none; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.25); }
+  .presence-divider { display:none; height: 1px; background: var(--border-light); margin: 4px 2px; }
+  .presence-label { display:none; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; padding: 6px 8px 4px; }
 
   /* Topbar drawer toggles + Run button */
   .tb-toggle {
@@ -81,6 +81,12 @@
 
   .editing-shell .topbar-end {
     gap: 10px;
+  }
+
+  .topbar-theme-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .tb-sep--toolbar-end {
@@ -2321,7 +2327,7 @@
   .confirm-box .adaptor-summary {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 10px 12px; margin-bottom: 12px;
-    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.35);
+    background: var(--bg); border: 1px solid rgba(245,158,11,0.35);
     border-radius: 9px;
   }
   .confirm-box .adaptor-summary .adaptor-arrow {
@@ -2355,7 +2361,7 @@
   }
   .adp-pop-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 
-  .adp-pop-actions button.primary { background: var(--bg); border-color: var(--primary); color: #fff; }
+  .adp-pop-actions button.primary { background: var(--bg); border-color: var(--primary); color:var(--text-primary); }
   .adp-pop-actions button.accent { background: var(--primary); border-color: var(--border); color: #fff; }
   .adp-pop-actions button.ghost { background: transparent; }
   html[data-theme="dark"] .adp-pop-pill { border-color: var(--primary-hover); }
@@ -2870,6 +2876,13 @@
   }
   .project-title .pt-name {
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: text; border-radius: 4px; padding: 1px 4px; margin: -1px -4px;
+    transition: background .12s;
+  }
+  .project-title .pt-name:hover { background: var(--surface-hover); }
+  .project-title .pt-name[contenteditable="true"] {
+    outline: 2px solid var(--primary); background: var(--surface);
+    overflow: visible; text-overflow: clip; cursor: text;
   }
   .project-title .pt-variant {
     display: inline-flex; align-items: center; gap: 3px;
@@ -2929,13 +2942,252 @@
     display: block; height: 100%; background: var(--primary);
     transition: width .25s ease;
   }
-  /* Collapsed leftnav: only show the icon, hide meta. */
+  /* Collapsed leftnav: only show the icon, hide meta, remove border. */
   .app:not(.leftnav-expanded) .leftnav-credits {
     margin: auto 8px 8px 8px;
     padding: 7px;
     justify-content: center;
+    border: none;
+    background: transparent;
   }
   .app:not(.leftnav-expanded) .leftnav-credits .lc-meta { display: none; }
+  .app:not(.leftnav-expanded) .leftnav-credits .lc-ico {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .app:not(.leftnav-expanded) .leftnav-credits:hover .lc-ico { color: var(--primary); }
+
+  /* Color-coded cloud spend based on amount (data-credits attribute). */
+  .leftnav-credits { --spend-level: 0; }
+  .leftnav-credits[data-credits] { --spend-level: attr(data-credits type(<number>)); }
+  /* Green: >50. Yellow: 20-50. Red: <20. */
+  .leftnav-credits .lc-ico {
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+  }
+  .leftnav-credits[data-credits] .lc-ico {
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: var(--success);
+  }
+  /* Warning: yellow when spend is mid-range (20-50). */
+  .leftnav-credits[data-credits="20"],
+  .leftnav-credits[data-credits="25"],
+  .leftnav-credits[data-credits="30"],
+  .leftnav-credits[data-credits="35"],
+  .leftnav-credits[data-credits="40"],
+  .leftnav-credits[data-credits="45"],
+  .leftnav-credits[data-credits="50"] { --warn: 1; }
+  .leftnav-credits[data-credits="20"] .lc-ico,
+  .leftnav-credits[data-credits="25"] .lc-ico,
+  .leftnav-credits[data-credits="30"] .lc-ico,
+  .leftnav-credits[data-credits="35"] .lc-ico,
+  .leftnav-credits[data-credits="40"] .lc-ico,
+  .leftnav-credits[data-credits="45"] .lc-ico,
+  .leftnav-credits[data-credits="50"] .lc-ico {
+    background: color-mix(in srgb, var(--warning) 20%, transparent);
+    color: var(--warning);
+  }
+  /* Critical: red when spend is low (<20). */
+  .leftnav-credits[data-credits="0"],
+  .leftnav-credits[data-credits="5"],
+  .leftnav-credits[data-credits="10"],
+  .leftnav-credits[data-credits="15"] {
+    --danger: 1;
+  }
+  .leftnav-credits[data-credits="0"] .lc-ico,
+  .leftnav-credits[data-credits="5"] .lc-ico,
+  .leftnav-credits[data-credits="10"] .lc-ico,
+  .leftnav-credits[data-credits="15"] .lc-ico {
+    background: color-mix(in srgb, var(--danger) 20%, transparent);
+    color: var(--danger);
+  }
+
+  /* Canvas-focused nav items (Add nodes, Paths). */
+  .nav-canvas-action {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px;
+    margin: 1px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-canvas-action:hover {
+    background: var(--surface-hover);
+    color: var(--primary);
+  }
+  .nav-canvas-action svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .app:not(.leftnav-expanded) .nav-canvas-action {
+    padding: 8px;
+    margin: 2px auto;
+    justify-content: center;
+  }
+  .app:not(.leftnav-expanded) .nav-canvas-action .nav-label { display: none; }
+
+  /* Extra visual breathing room for the active item. */
+  .nav-canvas-action.active {
+    margin-top: 3px;
+    margin-bottom: 3px;
+  }
+
+  /* Active workspace item */
+  .nav-canvas-action.active {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    font-weight: 600;
+  }
+  .nav-canvas-action.active:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+
+  /* Section labels (TOOLS / WORKSPACE) */
+  .nav-section-label {
+    display: block;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted);
+    padding: 8px 20px 2px;
+  }
+  .app:not(.leftnav-expanded) .nav-section-label { display: none; }
+
+  /* My Graphs row — label + inline "+" button */
+  .nav-ws-row {
+    display: flex; align-items: center;
+    margin: 0 8px;
+  }
+  .nav-ws-row .nav-canvas-action {
+    flex: 1; margin: 2px 0;
+  }
+  .app:not(.leftnav-expanded) .nav-ws-row { flex-direction: column; margin: 0; }
+  .app:not(.leftnav-expanded) .nav-ws-row .nav-ws-add { display: none; }
+  .nav-ws-add {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: none; background: transparent; border-radius: 5px;
+    color: var(--text-muted); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .nav-ws-add:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .nav-ws-add svg { width: 14px; height: 14px; }
+
+  /* Logo + collapse toggle container. In collapsed mode: stack vertically.
+     In expanded mode: logo on left, toggle on right. */
+  .app.canvas-mode .leftnav-brand-row {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+  .app.canvas-mode.leftnav-expanded .leftnav-brand-row {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    gap: 0; padding: 2px 4px 2px 8px;
+  }
+  /* Zero out the bottom margin app.css adds to brand--leftnav in the brand-row context. */
+  .app.canvas-mode .leftnav-brand-row .brand--leftnav {
+    margin-bottom: 0;
+  }
+
+  /* Symmetric padding for canvas-mode leftnav so collapsed icons are centered. */
+  .app.canvas-mode .leftnav { padding: 8px 6px; }
+
+  /* Brand wordmark visible when expanded. */
+  .app.canvas-mode.leftnav-expanded .brand-wordmark { opacity: 1; display: inline; pointer-events: auto; }
+
+  /* Nav expand/collapse toggle — always visible in canvas mode. */
+  .app.canvas-mode .nav-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; padding: 0;
+    border-radius: 6px; background: transparent; border: none;
+    cursor: pointer; color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  /* In expanded mode, toggle sits to the right of logo. */
+  .app.canvas-mode.leftnav-expanded .nav-toggle {
+    width: auto; height: auto;
+    padding: 0;
+  }
+  .app.canvas-mode .nav-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .app.canvas-mode .nav-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .app.canvas-mode .nav-toggle .nav-toggle-close { display: none; }
+  .app.canvas-mode.leftnav-expanded .nav-toggle .nav-toggle-open { display: none; }
+  .app.canvas-mode.leftnav-expanded .nav-toggle .nav-toggle-close { display: block; }
+
+  /* Collapsed nav-canvas-action: fixed width so margin:auto can center it. */
+  .app.canvas-mode:not(.leftnav-expanded) .nav-canvas-action {
+    width: 36px; height: 36px;
+    padding: 0;
+    margin: 2px auto;
+    align-self: center;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Backdrop for nav-menu-drawer. */
+  .nav-menu-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+  }
+  .nav-menu-backdrop[aria-hidden="false"] { display: block; }
+
+  /* Navigation menu drawer (slides from left — placed at body level). */
+  .nav-menu-drawer {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 280px; max-width: 85vw;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.18);
+    z-index: 1000;
+    padding-top: 8px;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+  .nav-menu-drawer[aria-hidden="false"] { transform: translateX(0); }
+
+  .nav-menu-close {
+    width: 28px; height: 28px;
+    padding: 0;
+    margin: 0 8px 8px 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-menu-close svg { width: 18px; height: 18px; }
+  .nav-menu-close:hover { color: var(--text-primary); }
+
+  .nav-menu-content {
+    padding: 8px;
+  }
+
+  .nav-menu-section {
+    margin-bottom: 16px;
+  }
+
+  .nav-menu-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); font-weight: 600;
+    margin: 0 12px 6px 12px;
+  }
+
+  .nav-menu-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px;
+    margin: 4px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .12s, color .12s;
+  }
+  .nav-menu-item:hover {
+    background: var(--surface-hover);
+    color: var(--primary);
+  }
+  .nav-menu-item svg { width: 18px; height: 18px; flex-shrink: 0; }
 
   /* ── Right nav strip ───────────────────────────────────────── */
   .rightnav {
@@ -3323,3 +3575,234 @@
   .diff-side .changed { background: color-mix(in srgb, #f59e0b 28%, transparent); border-radius: 2px; padding: 0 2px; }
   .diff-side.before .changed { background: color-mix(in srgb, #f87171 24%, transparent); }
   .diff-side.after .changed { background: color-mix(in srgb, #34d399 24%, transparent); }
+
+  /* ══════════════════════════════════════════════════════════
+     LEFTNAV V4 — Search box, Projects tree, user avatar tab
+     ══════════════════════════════════════════════════════════ */
+
+  /* Search box (only in expanded mode) */
+  .leftnav-search {
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 8px 8px;
+    padding: 7px 10px;
+    background: var(--surface-hover, #f3f4f6);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .leftnav-search:hover { border-color: var(--border); color: var(--text-primary); }
+  .leftnav-search svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .leftnav-search .lns-label { flex: 1; text-align: left; }
+  .leftnav-search .lns-kbd {
+    font-size: 11px; color: var(--text-muted);
+    background: var(--surface, #fff);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .app:not(.leftnav-expanded) .leftnav-search { display: none; }
+
+  /* Collapsable sections (Projects, My Teams) — header aligned with other nav items */
+  .leftnav-collapsable { margin: 0; }
+  .leftnav-collapsable .lp-header {
+    display: flex; align-items: center; gap: 10px;
+    margin: 1px 8px;
+    width: calc(100% - 16px);
+    box-sizing: border-box;
+    height: 34px; padding: 0 8px;
+    background: transparent; border: none;
+    border-radius: 7px;
+    color: var(--text-muted);
+    font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s, color .12s;
+  }
+  .leftnav-collapsable .lp-header:hover { background: var(--surface-hover); color: var(--primary); }
+  .leftnav-collapsable .lp-folder { width: 18px; height: 18px; flex-shrink: 0; }
+  .leftnav-collapsable .lp-title { flex: 1; }
+  .leftnav-collapsable .lp-chev {
+    width: 14px; height: 14px; flex-shrink: 0;
+    transition: transform .15s ease;
+  }
+  .leftnav-collapsable[data-expanded="false"] .lp-chev { transform: rotate(-90deg); }
+
+  /* Tree (children) — vertical guide line + curved branches per item */
+  .leftnav-collapsable .lp-tree {
+    position: relative;
+    margin: 2px 8px 4px 21px;     /* aligns with folder icon center */
+    padding: 0 0 0 14px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .leftnav-collapsable[data-expanded="false"] .lp-tree { display: none; }
+
+  .leftnav-collapsable .lp-node {
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    margin: 1px 0;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font: inherit; font-size: 13px;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.2;
+    transition: background .12s, color .12s;
+  }
+  .leftnav-collapsable .lp-node-label { flex: 1; }
+
+  /* Continuous vertical guide on the parent + curved branch on each item. */
+  .leftnav-collapsable .lp-tree::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border);
+    pointer-events: none;
+  }
+  /* Curved branch connector — L-shape with rounded corner.
+     Vertical leg overlaps the parent guide line for a seamless join. */
+  .leftnav-collapsable .lp-node::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 0;
+    width: 12px;
+    height: 50%;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-bottom-left-radius: 8px;
+    pointer-events: none;
+  }
+
+  .leftnav-collapsable .lp-node:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .leftnav-collapsable .lp-node.active {
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .leftnav-collapsable .lp-node.active:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+
+  /* Hide collapsable sections in collapsed leftnav */
+  .app:not(.leftnav-expanded) .leftnav-collapsable { display: none; }
+
+  /* Horizontal section divider in leftnav */
+  .leftnav .leftnav-divider {
+    border: none;
+    border-top: 1px solid hsl(216 23% 95% / 1);
+    margin: 8px 16px;
+    height: 0;
+  }
+  .app:not(.leftnav-expanded) .leftnav .leftnav-divider { margin: 8px 8px; }
+
+  /* Align "+ New project" button with the rest of the leftnav nav items
+     (which are anchors styled by `.leftnav a`). */
+  #leftnav button.nav-item#lpAddProject {
+    display: flex; align-items: center; gap: 10px;
+    height: 34px; padding: 0 8px; border-radius: 7px;
+    background: transparent; border: none;
+    color: var(--text-muted);
+    font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    margin: 1px 8px;
+    text-align: left;
+  }
+  #leftnav button.nav-item#lpAddProject:hover { background: var(--surface-hover); color: var(--primary); }
+  #leftnav button.nav-item#lpAddProject svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* Hide entire projects section in collapsed leftnav */
+
+  /* User avatar tab at bottom of leftnav */
+  .leftnav-user {
+    display: flex; align-items: center; gap: 10px;
+    margin: 4px 8px 8px;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .leftnav-user:hover { background: var(--surface-hover); border-color: var(--primary); }
+  .leftnav-user .lnu-av {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; flex-shrink: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    font-size: 11px; font-weight: 700;
+  }
+  .leftnav-user .lnu-name { flex: 1; text-align: left; }
+  .leftnav-user .lnu-chev { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+  .app:not(.leftnav-expanded) .leftnav-user .lnu-name,
+  .app:not(.leftnav-expanded) .leftnav-user .lnu-chev { display: none; }
+  .app:not(.leftnav-expanded) .leftnav-user {
+    justify-content: center;
+    padding: 6px;
+    margin: 4px auto 8px;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     FLOATING TOOL PALETTE — top-left of canvas
+     ══════════════════════════════════════════════════════════ */
+  .float-palette {
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 12;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .float-palette .fp-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border: none; background: transparent;
+    border-radius: 6px;
+    color: var(--text-secondary); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .float-palette .fp-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .float-palette .fp-btn.active { background: var(--primary-soft); color: var(--primary); }
+  .float-palette .fp-btn svg { width: 16px; height: 16px; }
+  .float-palette .fp-btn img { width: 16px; height: 16px; display: block; }
+  .float-palette .fp-sep {
+    display: block;
+    height: 1px;
+    margin: 3px 4px;
+    background: var(--border);
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     TOPBAR — History icon + inline divider
+     ══════════════════════════════════════════════════════════ */
+  .editing-shell .topbar-mid-actions > .tb-sep--inline {
+    width: 1px; height: 18px;
+    background: var(--border);
+    margin: 0 4px;
+    align-self: center;
+  }
+  .tb-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 7px;
+    color: var(--text-secondary); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .tb-icon-btn:hover { background: var(--surface-hover); color: var(--primary); }
+  .tb-icon-btn.active { background: var(--primary-soft); color: var(--primary); }
+  .tb-icon-btn svg { width: 18px; height: 18px; }

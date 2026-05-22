@@ -91,6 +91,8 @@
   .ip-btn:hover { background: var(--bg); }
   .ip-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .ip-btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .ip-btn.pending { background: #f97316; border-color: #f97316; color: #fff; cursor: default; }
+  .ip-btn.pending:hover { background: #f97316; border-color: #f97316; }
   .ip-btn svg { width: 14px; height: 14px; }
   .ip-btn img { width: 14px; height: 14px; object-fit: contain; }
   html[data-theme="dark"] #forkBtn img {

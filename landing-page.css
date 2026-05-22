@@ -481,6 +481,617 @@ html[data-theme="dark"] .lp-toolbar-btn[data-tool="theme"] .lp-toolbar-moon { di
   .lp-hero-cta .lp-btn { width: 100%; }
 }
 
+/* ============================================================
+   EXPANDED LANDING PAGE SECTIONS
+   ============================================================ */
+
+/* ── Section wrapper & titles ────────────────────────────── */
+.lp-section {
+  padding: 80px 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+  /* Offset native anchor-jump under the sticky topnav (~64px + breathing room). */
+  scroll-margin-top: 88px;
+}
+.lp-section-title {
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: var(--lp-text);
+  margin: 0 0 8px;
+}
+.lp-section-subtitle {
+  font-size: 18px;
+  color: var(--lp-text-soft);
+  text-align: center;
+  margin: 0 auto 40px;
+  max-width: 600px;
+}
+
+/* ── Grid layouts ────────────────────────────────────────── */
+.lp-grid {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+.lp-grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.lp-grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+/* ── Card component ──────────────────────────────────────── */
+.lp-card {
+  padding: 32px;
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  background: var(--lp-bg);
+  transition: all 240ms ease;
+}
+.lp-card:hover {
+  border-color: var(--lp-primary);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.1);
+}
+
+/* ── Feature cards ───────────────────────────────────────── */
+.lp-feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.lp-feature-card .lp-card-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  background: var(--lp-bg-soft);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: var(--lp-primary);
+}
+.lp-feature-card .lp-card-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2;
+}
+.lp-feature-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--lp-text);
+}
+.lp-feature-card p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--lp-text-soft);
+  margin: 0;
+}
+
+/* ── Interactive Demos ────────────────────────────────────
+   Tab strip + video stage. Tabs are pill buttons that wrap
+   onto multiple lines on narrow screens. The stage holds all
+   videos absolutely-positioned; only the active one is
+   visible (opacity 1) — keeps DOM stable across switches and
+   lets us cross-fade without layout shift. */
+.lp-demo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 16px auto 28px;
+  max-width: 1000px;
+}
+.lp-demo-tab {
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg);
+  color: var(--lp-text-soft);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  white-space: nowrap;
+}
+.lp-demo-tab:hover {
+  color: var(--lp-text);
+  border-color: #cbd5e1;
+}
+.lp-demo-tab.active {
+  background: var(--lp-primary);
+  color: #ffffff;
+  border-color: var(--lp-primary);
+}
+.lp-demo-tab:active { transform: scale(0.97); }
+
+.lp-demo-stage {
+  position: relative;
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  /* Match the recorded videos (~1280×672 ≈ 40:21). Using the
+     exact ratio means `object-fit: contain` doesn't letterbox
+     and `cover` doesn't crop. */
+  aspect-ratio: 40 / 21;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--lp-bg-soft);
+  border: 1px solid var(--lp-border);
+  box-shadow: var(--lp-shadow-lg);
+}
+.lp-demo-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* `contain` over `cover` — these are screen recordings, so
+     cropping the edges loses UI (toolbars, breadcrumbs). */
+  object-fit: contain;
+  background: var(--lp-bg-soft);
+  /* Hidden by default; only the active video is visible.
+     opacity transition keeps tab switching feel smooth even
+     though new video starts from frame-0. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+.lp-demo-video.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 600px) {
+  .lp-demo-tabs { gap: 4px; }
+  .lp-demo-tab { font-size: 12.5px; padding: 8px 11px; }
+  .lp-demo-stage { aspect-ratio: 4 / 3; border-radius: 12px; }
+}
+
+/* ── How It Works ────────────────────────────────────────── */
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-top: 48px;
+}
+.lp-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px;
+  position: relative;
+}
+.lp-step-num {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
+  background: var(--lp-primary);
+  color: #ffffff;
+  border-radius: 50%;
+  margin-bottom: 16px;
+}
+.lp-step h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--lp-text);
+}
+.lp-step p {
+  font-size: 15px;
+  color: var(--lp-text-soft);
+  margin: 0;
+  line-height: 1.6;
+}
+.lp-step-sep {
+  position: absolute;
+  top: 84px;
+  left: -8px;
+  right: auto;
+  width: 16px;
+  height: 2px;
+  background: var(--lp-border);
+}
+.lp-step:last-child .lp-step-sep { display: none; }
+
+/* ── Use case cards ──────────────────────────────────────── */
+.lp-use-case-card {
+  padding: 28px;
+  border-left: 3px solid var(--lp-primary);
+  display: flex;
+  flex-direction: column;
+}
+.lp-use-case-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--lp-text);
+}
+.lp-use-case-card p {
+  font-size: 15px;
+  color: var(--lp-text-soft);
+  line-height: 1.6;
+  margin: 0 0 16px;
+  flex-grow: 1;
+}
+.lp-card-link {
+  color: var(--lp-primary);
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 120ms ease;
+  align-self: flex-start;
+}
+.lp-card-link:hover { color: var(--lp-primary-hover); }
+
+/* ── Testimonial cards ───────────────────────────────────── */
+.lp-testimonial-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-top: 40px;
+}
+.lp-quote-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 64px;
+  color: var(--lp-primary);
+  line-height: 1;
+  opacity: 0.3;
+}
+.lp-testimonial-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--lp-text-soft);
+  margin: 0 0 16px;
+  font-style: italic;
+}
+.lp-testimonial-author {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--lp-text-muted);
+  margin: 0;
+}
+
+/* ── Integrations ────────────────────────────────────────── */
+.lp-integration-logos {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 16px;
+  margin-top: 48px;
+}
+.lp-integration-item {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  background: var(--lp-bg-soft);
+  transition: border-color 120ms ease;
+}
+.lp-integration-item:hover { border-color: var(--lp-primary); }
+.lp-logo-placeholder {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-text-muted);
+  text-align: center;
+}
+
+/* ── Community stats ─────────────────────────────────────── */
+.lp-community-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-top: 48px;
+}
+.lp-stat-card {
+  padding: 40px;
+  background: linear-gradient(135deg, var(--lp-bg-soft) 0%, var(--lp-bg) 100%);
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  text-align: center;
+}
+.lp-stat-number {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--lp-primary);
+  margin: 0 0 8px;
+}
+.lp-stat-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin: 0 0 12px;
+}
+.lp-stat-card p {
+  font-size: 14px;
+  color: var(--lp-text-soft);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Security section ────────────────────────────────────── */
+.lp-security-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 48px;
+}
+.lp-security-item {
+  text-align: center;
+  padding: 24px;
+}
+.lp-security-item svg {
+  width: 48px;
+  height: 48px;
+  color: var(--lp-primary);
+  margin-bottom: 16px;
+  stroke-width: 1.5;
+}
+.lp-security-item h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin: 0 0 8px;
+}
+.lp-security-item p {
+  font-size: 14px;
+  color: var(--lp-text-soft);
+  margin: 0;
+}
+
+/* ── Accordion (FAQ) ─────────────────────────────────────── */
+.lp-accordion {
+  max-width: 800px;
+  margin: 48px auto 0;
+}
+.lp-accordion-item {
+  border: 1px solid var(--lp-border);
+  border-top: none;
+  background: var(--lp-bg);
+  cursor: pointer;
+}
+.lp-accordion-item:first-child {
+  border-top: 1px solid var(--lp-border);
+  border-radius: 12px 12px 0 0;
+}
+.lp-accordion-item:last-child {
+  border-radius: 0 0 12px 12px;
+}
+.lp-accordion-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 20px 24px;
+  background: transparent;
+  border: none;
+  color: var(--lp-text);
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+  list-style: none;
+}
+.lp-accordion-trigger:hover {
+  background: var(--lp-bg-soft);
+}
+.lp-accordion-trigger::after {
+  content: '▼';
+  font-size: 12px;
+  color: var(--lp-text-muted);
+  margin-left: 12px;
+  transition: transform 240ms ease;
+  flex-shrink: 0;
+}
+.lp-accordion-item[open] .lp-accordion-trigger::after {
+  transform: rotate(-180deg);
+}
+.lp-accordion-content {
+  padding: 0 24px 20px;
+  color: var(--lp-text-soft);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.lp-accordion-content p {
+  margin: 0;
+}
+
+/* ── Blog cards ──────────────────────────────────────────── */
+.lp-blog-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--lp-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  padding: 28px;
+  text-decoration: none;
+  transition: all 240ms ease;
+}
+.lp-blog-card:hover {
+  border-color: var(--lp-primary);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.08);
+}
+.lp-blog-meta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.lp-blog-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lp-text);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+.lp-blog-card p {
+  font-size: 15px;
+  color: var(--lp-text-soft);
+  margin: 0 0 16px;
+  flex-grow: 1;
+  line-height: 1.6;
+}
+.lp-blog-date {
+  font-size: 13px;
+  color: var(--lp-text-muted);
+}
+
+/* ── Final CTA section ───────────────────────────────────── */
+.lp-final-cta {
+  background: linear-gradient(135deg, var(--lp-bg-soft) 0%, rgba(37, 99, 235, 0.05) 100%);
+  border-top: 1px solid var(--lp-border);
+  border-bottom: 1px solid var(--lp-border);
+}
+.lp-cta-box {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.lp-cta-box h2 {
+  font-size: 42px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--lp-text);
+}
+.lp-cta-box p {
+  font-size: 18px;
+  color: var(--lp-text-soft);
+  margin: 0 0 32px;
+}
+.lp-final-cta-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+.lp-footer {
+  background: var(--lp-bg-soft);
+  border-top: 1px solid var(--lp-border);
+  padding: 64px 32px 32px;
+  margin-top: 80px;
+}
+.lp-footer-content {
+  max-width: 1280px;
+  margin: 0 auto 40px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+}
+.lp-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lp-footer-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lp-text);
+  margin: 0 0 8px;
+}
+.lp-footer-col a {
+  font-size: 14px;
+  color: var(--lp-text-soft);
+  transition: color 120ms ease;
+}
+.lp-footer-col a:hover {
+  color: var(--lp-text);
+}
+.lp-footer-bottom {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-top: 24px;
+  border-top: 1px solid var(--lp-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: var(--lp-text-muted);
+}
+.lp-footer-bottom p { margin: 0; }
+.lp-footer-socials {
+  display: flex;
+  gap: 20px;
+}
+.lp-footer-socials a {
+  color: var(--lp-text-soft);
+  transition: color 120ms ease;
+}
+.lp-footer-socials a:hover {
+  color: var(--lp-primary);
+}
+
+/* ── Responsive: 900px ───────────────────────────────────── */
+@media (max-width: 900px) {
+  .lp-section {
+    padding: 60px 32px;
+  }
+  .lp-section-title {
+    font-size: 36px;
+  }
+  .lp-grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
+  .lp-steps { grid-template-columns: repeat(2, 1fr); }
+  .lp-step-sep {
+    top: auto;
+    left: auto;
+    right: -8px;
+    bottom: -8px;
+    width: 2px;
+    height: 16px;
+  }
+  .lp-step:nth-child(2) .lp-step-sep,
+  .lp-step:nth-child(4) .lp-step-sep { display: none; }
+  .lp-integration-logos { grid-template-columns: repeat(4, 1fr); }
+  .lp-community-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-security-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-footer-content { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Responsive: 600px ───────────────────────────────────── */
+@media (max-width: 600px) {
+  .lp-section {
+    padding: 48px 20px;
+  }
+  .lp-section-title {
+    font-size: 28px;
+  }
+  .lp-section-subtitle {
+    font-size: 15px;
+  }
+  .lp-grid-cols-3,
+  .lp-grid-cols-2 { grid-template-columns: 1fr; }
+  .lp-card {
+    padding: 24px;
+  }
+  .lp-feature-card .lp-card-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .lp-steps {
+    grid-template-columns: 1fr;
+  }
+  .lp-step {
+    padding: 24px 0;
+  }
+  .lp-step-sep { display: none; }
+  .lp-integration-logos { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .lp-community-grid { grid-template-columns: 1fr; }
+  .lp-security-grid { grid-template-columns: 1fr; }
+  .lp-final-cta-buttons { flex-direction: column; }
+  .lp-final-cta-buttons .lp-btn { width: 100%; }
+  .lp-footer-content { grid-template-columns: 1fr; gap: 24px; }
+  .lp-footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+  .lp-cta-box h2 { font-size: 32px; }
+}
+
 /* ── Dark mode ──────────────────────────────────────────── */
 html[data-theme="dark"] {
   --lp-bg: #0b1220;

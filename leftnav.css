@@ -1,0 +1,342 @@
+/* leftnav.css — Shared V4 leftnav styles.
+   Works with two scope conventions:
+   - body.sidebar-expanded  (graphs-hub.html)
+   - .app.leftnav-expanded  (view-mode, editing-mode)
+   Each rule lists both forms so the same markup works on every page. */
+
+/* ── Brand row (logo + collapse toggle) ───────────────────────── */
+.leftnav-brand-row {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+body.sidebar-expanded .leftnav-brand-row,
+.app.leftnav-expanded .leftnav-brand-row {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  gap: 0; padding: 2px 4px 2px 8px;
+}
+.leftnav-brand-row .brand--leftnav { margin-bottom: 0; }
+
+/* ── Nav toggle (chevron) ─────────────────────────────────────── */
+.leftnav .nav-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  border-radius: 6px; background: transparent; border: none;
+  cursor: pointer; color: var(--text-muted);
+  flex-shrink: 0;
+}
+body.sidebar-expanded .leftnav .nav-toggle,
+.app.leftnav-expanded .leftnav .nav-toggle {
+  width: auto; height: auto; padding: 0;
+}
+.leftnav .nav-toggle:hover { background: var(--surface-hover, var(--bg)); color: var(--text-primary); }
+.leftnav .nav-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
+.leftnav .nav-toggle .nav-toggle-close { display: none; }
+body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-open,
+.app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-open { display: none; }
+body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-close,
+.app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-close { display: block; }
+
+/* ── Search box (only visible when expanded) ──────────────────── */
+.leftnav-search {
+  display: flex; align-items: center; gap: 8px;
+  margin: 6px 8px 8px;
+  padding: 7px 10px;
+  background: var(--surface-hover, #f3f4f6);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font: inherit; font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.leftnav-search:hover { border-color: var(--border); color: var(--text-primary); }
+.leftnav-search svg { width: 14px; height: 14px; flex-shrink: 0; }
+.leftnav-search .lns-label { flex: 1; text-align: left; }
+.leftnav-search .lns-kbd {
+  font-size: 11px; color: var(--text-muted);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+body:not(.sidebar-expanded) .leftnav-search,
+.app:not(.leftnav-expanded) .leftnav-search { display: none; }
+
+/* ── Generic nav-item (Home / Community / Settings / + New project) ── */
+.leftnav .nav-item {
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 8px;
+  margin: 1px 8px;
+  border-radius: 7px;
+  background: transparent; border: none;
+  color: var(--text-muted);
+  font: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background .12s, color .12s;
+}
+.leftnav .nav-item:hover { background: var(--surface-hover, var(--bg)); color: var(--primary); }
+.leftnav .nav-item.active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  font-weight: 600;
+}
+.leftnav .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+body:not(.sidebar-expanded) .leftnav .nav-item,
+.app:not(.leftnav-expanded) .leftnav .nav-item {
+  width: 36px; height: 36px;
+  padding: 0;
+  margin: 2px auto;
+  align-self: center;
+  justify-content: center;
+}
+body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
+.app:not(.leftnav-expanded) .leftnav .nav-item .nav-label { display: none; }
+
+/* ── Collapsable sections (Projects, My Teams) ────────────────── */
+.leftnav-collapsable { margin: 0; }
+.leftnav-collapsable .lp-header {
+  display: flex; align-items: center; gap: 10px;
+  margin: 1px 8px;
+  width: calc(100% - 16px);
+  box-sizing: border-box;
+  height: 34px; padding: 0 8px;
+  background: transparent; border: none;
+  border-radius: 7px;
+  color: var(--text-muted);
+  font: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s, color .12s;
+}
+.leftnav-collapsable .lp-header:hover { background: var(--surface-hover, var(--bg)); color: var(--primary); }
+.leftnav-collapsable .lp-folder { width: 18px; height: 18px; flex-shrink: 0; }
+.leftnav-collapsable .lp-title { flex: 1; }
+.leftnav-collapsable .lp-chev {
+  width: 14px; height: 14px; flex-shrink: 0;
+  transition: transform .15s ease;
+}
+.leftnav-collapsable[data-expanded="false"] .lp-chev { transform: rotate(-90deg); }
+
+/* Tree (children) — vertical guide line + curved branches per item */
+.leftnav-collapsable .lp-tree {
+  position: relative;
+  margin: 2px 8px 4px 21px;
+  padding: 0 0 0 14px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.leftnav-collapsable[data-expanded="false"] .lp-tree { display: none; }
+
+.leftnav-collapsable .lp-node {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  margin: 1px 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font: inherit; font-size: 13px;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.2;
+  transition: background .12s, color .12s;
+}
+.leftnav-collapsable .lp-node-label { flex: 1; }
+
+/* Continuous vertical guide on the parent + curved branch on each item */
+.leftnav-collapsable .lp-tree::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.leftnav-collapsable .lp-node::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0;
+  width: 12px;
+  height: 50%;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+.leftnav-collapsable .lp-node:hover { background: var(--surface-hover, var(--bg)); color: var(--text-primary); }
+.leftnav-collapsable .lp-node.active {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-weight: 600;
+}
+.leftnav-collapsable .lp-node.active:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+
+/* Hide collapsable sections in collapsed leftnav */
+body:not(.sidebar-expanded) .leftnav-collapsable,
+.app:not(.leftnav-expanded) .leftnav-collapsable { display: none; }
+
+/* ── Horizontal divider ───────────────────────────────────────── */
+.leftnav .leftnav-divider {
+  border: none;
+  border-top: 1px solid hsl(216 23% 95% / 1);
+  margin: 8px 16px;
+  height: 0;
+}
+body:not(.sidebar-expanded) .leftnav .leftnav-divider,
+.app:not(.leftnav-expanded) .leftnav .leftnav-divider { margin: 8px 8px; }
+
+/* ── Credits chip (footer area) ───────────────────────────────── */
+.leftnav-credits {
+  margin: auto 6px 6px 6px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font: inherit; font-size: 11.5px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.leftnav-credits:hover { border-color: var(--primary); color: var(--primary); }
+.leftnav-credits .lc-ico {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+.leftnav-credits .lc-ico svg { width: 13px; height: 13px; }
+.leftnav-credits .lc-meta {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: left;
+}
+.leftnav-credits .lc-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); font-weight: 600;
+}
+.leftnav-credits .lc-value {
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.leftnav-credits .lc-bar {
+  display: block; width: 100%; height: 3px;
+  background: var(--border); border-radius: 2px; margin-top: 2px;
+  overflow: hidden;
+}
+.leftnav-credits .lc-bar-fill {
+  display: block; height: 100%; background: var(--primary);
+  transition: width .25s ease;
+}
+body:not(.sidebar-expanded) .leftnav-credits,
+.app:not(.leftnav-expanded) .leftnav-credits {
+  margin: auto 8px 8px 8px;
+  padding: 7px;
+  justify-content: center;
+  border: none;
+  background: transparent;
+}
+body:not(.sidebar-expanded) .leftnav-credits .lc-meta,
+.app:not(.leftnav-expanded) .leftnav-credits .lc-meta { display: none; }
+body:not(.sidebar-expanded) .leftnav-credits .lc-ico,
+.app:not(.leftnav-expanded) .leftnav-credits .lc-ico {
+  background: transparent;
+  color: var(--text-muted);
+}
+body:not(.sidebar-expanded) .leftnav-credits:hover .lc-ico,
+.app:not(.leftnav-expanded) .leftnav-credits:hover .lc-ico { color: var(--primary); }
+
+/* ── User tab (footer area) ───────────────────────────────────── */
+.leftnav-user {
+  display: flex; align-items: center; gap: 10px;
+  margin: 4px 8px 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.leftnav-user:hover { background: var(--surface-hover, var(--bg)); border-color: var(--primary); }
+.leftnav-user .lnu-av {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-size: 11px; font-weight: 700;
+}
+.leftnav-user .lnu-name { flex: 1; text-align: left; }
+.leftnav-user .lnu-chev { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+body:not(.sidebar-expanded) .leftnav-user .lnu-name,
+body:not(.sidebar-expanded) .leftnav-user .lnu-chev,
+.app:not(.leftnav-expanded) .leftnav-user .lnu-name,
+.app:not(.leftnav-expanded) .leftnav-user .lnu-chev { display: none; }
+body:not(.sidebar-expanded) .leftnav-user,
+.app:not(.leftnav-expanded) .leftnav-user {
+  justify-content: center;
+  padding: 6px;
+  margin: 4px auto 8px;
+}
+
+/* ── Brand wordmark visibility ────────────────────────────────── */
+body:not(.sidebar-expanded) .brand-wordmark,
+.app:not(.leftnav-expanded) .brand-wordmark { display: none; }
+
+/* ── Top section uses flex column for layout ──────────────────── */
+.leftnav .leftnav-top {
+  display: flex; flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── Explicit expanded overrides for .app.leftnav-expanded ────────
+   body:not(.sidebar-expanded) rules always fire on non-hub pages
+   since body never gets that class. These rules have specificity
+   (0,5,0) which beats the (0,4,1) of the body:not() rules, so they
+   always win when the nav is actually expanded. ───────────────── */
+
+.app.leftnav-expanded .leftnav-search { display: flex; }
+
+.app.leftnav-expanded .leftnav .nav-item {
+  width: auto; height: 34px;
+  padding: 0 8px; margin: 1px 8px;
+  justify-content: flex-start; align-self: auto;
+}
+.app.leftnav-expanded .leftnav .nav-item .nav-label { display: inline; }
+
+.app.leftnav-expanded .leftnav-collapsable { display: block; }
+
+.app.leftnav-expanded .leftnav .leftnav-divider { margin: 8px 16px; }
+
+.app.leftnav-expanded .leftnav-credits {
+  margin: auto 6px 6px 6px;
+  padding: 8px;
+  justify-content: flex-start;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.app.leftnav-expanded .leftnav-credits .lc-meta { display: flex; }
+.app.leftnav-expanded .leftnav-credits .lc-ico {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.app.leftnav-expanded .leftnav-user {
+  justify-content: flex-start;
+  padding: 8px 10px;
+  margin: 4px 8px 8px;
+}
+.app.leftnav-expanded .leftnav-user .lnu-name { display: inline; }
+.app.leftnav-expanded .leftnav-user .lnu-chev { display: inline-flex; }
+
+.app.leftnav-expanded .brand-wordmark { display: inline; }

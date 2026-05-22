@@ -15,69 +15,120 @@
     } catch (_) {}
   </script>
   <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="graphs-hub.css" />
+  <link rel="stylesheet" href="tutorial.css" />
 </head>
 <body>
   <script>if(document.documentElement.dataset.leftnav==='expanded')document.body.classList.add('sidebar-expanded');</script>
   <div class="layout">
-    <aside class="leftnav">
+    <aside class="leftnav" id="leftnav" aria-label="Workspace navigation">
       <div class="leftnav-top">
-        <div class="leftnav-brand-shell">
+        <!-- Logo + collapse toggle -->
+        <div class="leftnav-brand-row">
           <a class="brand brand--leftnav" href="landing-page.html" title="ConnectifyAI home">
             <span class="brand-logo" aria-hidden="true">
               <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
             </span>
             <span class="brand-wordmark nav-label">Connectify</span>
           </a>
-          <button class="nav-toggle" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-            <img class="nav-toggle-open" src="icons/open-drawer.png" alt="" aria-hidden="true" />
-            <img class="nav-toggle-close" src="icons/close-drawer.png" alt="" aria-hidden="true" />
+          <button class="nav-toggle" id="navToggle" type="button" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <svg class="nav-toggle-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            <svg class="nav-toggle-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
         </div>
-        <div class="leftnav-group-label">Workspace</div>
-        <a class="nav-item nav-item-dashboard active" href="graphs-hub.html?tab=dashboard" data-tab="dashboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-          <span class="nav-label">My Graphs</span>
-          <button type="button" class="nav-item-plus" id="leftNavNewGraphBtn" aria-label="Create new graph" title="New Graph">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
+
+        <!-- Search box (expanded only) -->
+        <button type="button" class="leftnav-search" id="leftnavSearch" title="Search (⌘K)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span class="lns-label">Search</span>
+          <span class="lns-kbd">⌘K</span>
+        </button>
+
+        <!-- Primary nav -->
+        <a class="nav-item active" href="graphs-hub.html?tab=dashboard" data-tab="dashboard" title="Home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+          <span class="nav-label">Home</span>
         </a>
-        <a class="nav-item" href="graphs-hub.html?tab=my-team" data-tab="my-team">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <span class="nav-label">My Team</span>
+        <a class="nav-item" href="graphs-hub.html?tab=community" data-tab="community" title="Community">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+          <span class="nav-label">Community</span>
+        </a>
+
+        <hr class="leftnav-divider" />
+
+        <!-- My Teams collapsable section (collapsed by default) -->
+        <div class="leftnav-collapsable" id="leftnavTeams" data-expanded="false">
+          <button class="lp-header" id="ltHeaderToggle" type="button" aria-expanded="false">
+            <svg class="lp-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="lp-title">My Teams</span>
+            <svg class="lp-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+          </button>
+          <div class="lp-tree" id="ltTree">
+            <a class="lp-node" href="#" data-team="research"><span class="lp-node-label">Research</span></a>
+            <a class="lp-node" href="#" data-team="platform"><span class="lp-node-label">Platform</span></a>
+            <a class="lp-node" href="#" data-team="ml-ops"><span class="lp-node-label">ML Ops</span></a>
+          </div>
+        </div>
+
+        <!-- Projects collapsable section with tree (expanded by default) -->
+        <div class="leftnav-collapsable" id="leftnavProjects" data-expanded="true">
+          <button class="lp-header" id="lpHeaderToggle" type="button" aria-expanded="true">
+            <svg class="lp-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <span class="lp-title">Projects</span>
+            <svg class="lp-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+          </button>
+          <div class="lp-tree" id="lpTree">
+            <a class="lp-node" href="#" data-project="segment"><span class="lp-node-label">Segment</span></a>
+            <a class="lp-node" href="#" data-project="codeai"><span class="lp-node-label">CodeAI</span></a>
+            <a class="lp-node" href="#" data-project="current" aria-current="page"><span class="lp-node-label" id="lpCurrentProjectName">Untitled project</span></a>
+          </div>
+        </div>
+
+        <!-- New project — standalone leftnav item below Projects -->
+        <button class="nav-item" id="lpAddProject" type="button" title="New project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="nav-label">New project</span>
+        </button>
+
+        <hr class="leftnav-divider" />
+
+        <a class="nav-item" href="graphs-hub.html?tab=settings" data-tab="settings" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="nav-label">Settings</span>
         </a>
       </div>
-      <div class="leftnav-group-label">Browse</div>
-      <a class="nav-item" href="graphs-hub.html?tab=community" data-tab="community">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
-        <span class="nav-label">Community</span>
-      </a>
-      <div class="leftnav-group-label">Create</div>
-      <a class="nav-item" id="navEditLink" href="graphs-hub.html?tab=dashboard" title="Open most recent graph in edit mode">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-        <span class="nav-label">Edit</span>
-      </a>
-      <a class="nav-item nav-item-stub" href="#" tabindex="-1" title="Benchmark" aria-disabled="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 3 5-7"/></svg>
-        <span class="nav-label">Benchmark</span>
-      </a>
-      <span class="leftnav-theme-slot" data-theme-slot=""></span>
+
+      <!-- Bottom: credits banner + user avatar -->
+      <button type="button" class="leftnav-credits" id="leftnavCredits" title="Cloud credits" data-credits="24.30">
+        <span class="lc-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9"/></svg>
+        </span>
+        <span class="lc-meta">
+          <span class="lc-label">Credits</span>
+          <span class="lc-value" id="leftnavCreditsValue">$24.30 left</span>
+          <span class="lc-bar"><span class="lc-bar-fill" id="leftnavCreditsBar" style="width: 62%"></span></span>
+        </span>
+      </button>
+
+      <button type="button" class="leftnav-user" id="leftnavUser" title="Account">
+        <span class="lnu-av">G</span>
+        <span class="lnu-name">Guest</span>
+        <svg class="lnu-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
     </aside>
 
     <div class="main-col">
     <header class="topbar">
       <div class="topbar-end">
         <span class="topbar-search-slot" data-search-slot=""></span>
-        <button type="button" class="leftnav-avatar topbar-avatar" aria-label="Account">
-          <span class="la-av">GF</span>
-          <svg class="la-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
         </button>
       </div>
     </header>
     <main class="main">
       <div class="header">
         <div>
-          <h1 id="pageTitle">My Graphs</h1>
+          <h1 id="pageTitle">Home</h1>
           <p id="pageDesc">Graphs where you are an owner, admin, or contributor.</p>
         </div>
         <div class="header-actions">
@@ -91,7 +142,7 @@
       <section id="tab-dashboard" class="tab-pane active">
         <div class="section">
           <div class="section-head section-head--dashboard">
-            <div class="topic-pills" id="dashboardSwitcher" role="tablist" aria-label="My Graphs collections">
+            <div class="topic-pills" id="dashboardSwitcher" role="tablist" aria-label="Home collections">
               <button type="button" class="topic-pill" data-view="all" role="tab" aria-selected="false"><span>All graphs</span></button>
               <button type="button" class="topic-pill active" data-view="recent" role="tab" aria-selected="true"><span>Recent only</span></button>
               <button type="button" class="topic-pill" data-view="starred" role="tab" aria-selected="false"><span>Starred</span></button>
@@ -315,8 +366,25 @@
     </div>
   </div>
 
+  <!-- ─── Tutorial overlay (first-time user tour) ─── -->
+  <div class="tutorial-backdrop" id="tutorialBackdrop" aria-hidden="true">
+    <div class="tutorial-highlight" id="tutorialHighlight"></div>
+    <div class="tutorial-tooltip" id="tutorialTooltip" role="dialog" aria-modal="false" aria-labelledby="ttTitle">
+      <button type="button" class="tt-close" data-tt-act="skip" aria-label="Skip tutorial">×</button>
+      <div class="tt-video" data-tt-video></div>
+      <h3 class="tt-title" id="ttTitle" data-tt-title></h3>
+      <p class="tt-text" data-tt-text></p>
+      <div class="tt-meta">
+        <div class="tt-progress">Step <span data-tt-step-num>1</span> of <span data-tt-step-total>14</span></div>
+        <div class="tt-actions" data-tt-actions></div>
+      </div>
+    </div>
+  </div>
+
   <script src="static-graph-loader.js"></script>
   <script src="fork-project.js"></script>
+  <script src="tutorial-system.js"></script>
+  <script src="tutorial-steps.js"></script>
   <script src="graphs-hub.js"></script>
   <script src="theme.js"></script>
 </body>

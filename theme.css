@@ -323,6 +323,7 @@ html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
 .topbar-search {
   width: 34px;
   height: 34px;
+  margin-right: 8px;
   display: inline-flex;
   flex-direction: row-reverse;
   align-items: center;

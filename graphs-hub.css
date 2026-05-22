@@ -132,6 +132,7 @@ body.sidebar-expanded .leftnav .leftnav-theme-slot {
   gap: 6px;
   height: 32px;
   padding: 0 8px 0 4px;
+  margin-right: 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);

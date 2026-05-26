@@ -31,7 +31,7 @@
       text:
         "This is a small starter graph designed for first-time users. Click its Preview button to see how a graph looks before you build your own.",
       selector: '.ng-card[data-graph-slug="onboarding-starter"]',
-      position: 'right',
+      position: 'left',
       highlightPadding: 6,
       video: 'tutorials/step-01-preview-example.mp4',
       actionTrigger: 'preview-clicked',
@@ -44,9 +44,9 @@
       phase: 'view',
       title: 'Fork to make it yours',
       text:
-        "This is read-only view mode — you can explore but not edit. Click the Fork button to create your own copy.",
+        "This is read-only view mode — you can explore but not edit. Click the Fork button to create your own editable copy.",
       selector: '#forkBtn',
-      position: 'left',
+      position: 'right',
       highlightPadding: 6,
       video: 'tutorials/step-02-fork-button.mp4',
       actionTrigger: 'fork-clicked',
@@ -117,7 +117,28 @@
       phase: 'edit',
       title: 'Paths panel',
       text:
-        "Paths trace data flows through your graph — output → input chains you can run as targeted experiments. The panel lives at the top-right when you're tracing.",
+        "Paths trace data flows through your graph — output → input chains you can run as targeted experiments. The panel docks to the top-right when you're tracing.",
+      // Make sure the float panel is visible so we have something to anchor to.
+      onBeforeShow: () => {
+        try {
+          const panel = document.getElementById('pathsFloatPanel');
+          if (panel && panel.hidden) {
+            panel.hidden = false;
+            panel.dataset.ttToggled = '1';
+          }
+        } catch (_) {}
+      },
+      // Re-hide the panel when leaving this step (Next, Back, Skip, or close),
+      // so we don't leave the host UI in a weird state if the user dismisses.
+      onAfterHide: () => {
+        try {
+          const panel = document.getElementById('pathsFloatPanel');
+          if (panel && panel.dataset.ttToggled === '1') {
+            panel.hidden = true;
+            delete panel.dataset.ttToggled;
+          }
+        } catch (_) {}
+      },
       selector: () =>
         document.getElementById('pathsFloatPanel') ||
         document.querySelector('[data-side="right"][data-tab="paths"]') ||
@@ -160,8 +181,12 @@
       title: 'Connect the nodes',
       text:
         "Drag from the Dataset's output port (right side) to the Model's input port (left side) to create a connection.",
-      selector: '#canvasArea',
-      position: 'center',
+      // Anchor to the canvas toolbar so the tooltip sits at the bottom and
+      // doesn't cover the nodes the user needs to drag between.
+      selector: () =>
+        document.getElementById('canvasToolbar') ||
+        document.getElementById('canvasArea'),
+      position: 'top',
       highlight: 'none',
       video: 'tutorials/step-11-connect-nodes.mp4',
       actionTrigger: 'connection-added',

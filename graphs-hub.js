@@ -26,6 +26,12 @@
         wireCollapsable('leftnavProjects', 'lpHeaderToggle');
         wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
+        // Render the projects tree from cfg.customProjects (forks + user-created).
+        // graphs-hub doesn't have a current project, so nothing is marked active.
+        if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.renderProjects === 'function') {
+          window.ConnectifyLeftnav.renderProjects();
+        }
+
         document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
           e.preventDefault();
           window.location.href = 'graphs-hub.html?tab=dashboard&new=1';
@@ -36,8 +42,13 @@
           document.dispatchEvent(ev);
         });
 
-        document.getElementById('leftnavUser')?.addEventListener('click', () => {
-          document.querySelector('.topbar-avatar')?.click();
+        document.getElementById('leftnavAuth')?.addEventListener('click', () => {
+          alert('Log in / Sign up coming soon.');
+        });
+        document.getElementById('leftnavCredits')?.addEventListener('click', () => {
+          if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
+            window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
+          }
         });
       });
     })();
@@ -1415,6 +1426,13 @@
       });
       if (ngState.status === 'recent')  rows = rows.sort((a, b) => a.updatedHours - b.updatedHours);
       if (ngState.status === 'popular') rows = rows.sort((a, b) => b.forks - a.forks);
+      // Always hoist the "Onboarding Starter" card to the top of the modal grid
+      // so first-time users (and the tutorial highlight) see it immediately.
+      const starterIdx = rows.findIndex((g) => graphSlug(g) === 'onboarding-starter');
+      if (starterIdx > 0) {
+        const [starter] = rows.splice(starterIdx, 1);
+        rows.unshift(starter);
+      }
       return rows;
     }
 
@@ -1522,6 +1540,11 @@
         const g = GRAPHS.find(x => graphSlug(x) === slug);
         if (!g) return;
         if (kind === 'preview') {
+          // Let the tutorial know which graph the user previewed; it will
+          // advance Step 1 if the slug matches the onboarding starter.
+          if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+            window.ConnectifyTutorial.notifyAction('preview-clicked', { slug });
+          }
           window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
         } else if (kind === 'fork') {
           forkGraph(g);
@@ -1608,7 +1631,35 @@
       initForkConfirmModal();
       initNewGraphModal();
       switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
-      if (new URLSearchParams(window.location.search).get('new') === '1') {
+
+      // ───── Tutorial wiring (first-time user tour) ─────
+      // Register hub-phase steps so the system can resume on this page.
+      if (window.ConnectifyTutorial && window.ConnectifyTutorialSteps) {
+        window.ConnectifyTutorial.init({
+          page: 'hub',
+          steps: window.ConnectifyTutorialSteps.forPage('hub'),
+        });
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const fromLanding = params.get('new') === '1';
+      const tutParam = params.get('tutorial');         // '1' to force-start
+      if (fromLanding) {
         openNewGraphModal();
+        if (window.ConnectifyTutorial) {
+          const state = window.ConnectifyTutorial.getState();
+          const fresh = !state.started && !state.skipped && !state.completed;
+          // Auto-start the tour on the very first visit from landing,
+          // OR when explicitly asked via `?tutorial=1`.
+          if (fresh || tutParam === '1') {
+            // Delay slightly to let the modal paint and grid render.
+            setTimeout(() => window.ConnectifyTutorial.start(), 250);
+          }
+        }
+      } else if (tutParam === '1' && window.ConnectifyTutorial) {
+        // Manual restart from anywhere on the hub.
+        window.ConnectifyTutorial.reset();
+        openNewGraphModal();
+        setTimeout(() => window.ConnectifyTutorial.start(), 250);
       }
     })();

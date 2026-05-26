@@ -41,22 +41,16 @@
     <div class="topbar-mid-region">
     <div class="topbar-spacer"></div>
     <div class="topbar-mid-actions" id="topbarMidActions" aria-hidden="false">
-    <button class="tb-toggle" id="tglPaths" data-side="right" data-tab="paths">
+    <button class="tb-toggle" id="tglPaths" data-side="right" data-tab="paths" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
       Paths
     </button>
 
-    <span class="tb-sep"></span>
-
-    <!-- Results (Runs) — opens the bottom panel. Kept in view mode because
-         visitors should be able to see experiment outcomes even if they
-         can't kick off new ones. -->
-    <button class="tb-toggle" id="tglResults" data-bottom="true">
+    <!-- Results (Runs) — hidden in view mode per spec. -->
+    <button class="tb-toggle" id="tglResults" data-bottom="true" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
       Results
     </button>
-
-    <span class="tb-sep"></span>
 
     <button class="role-pill" id="rolePillBtn" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -64,8 +58,8 @@
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
     </button>
 
-    <!-- Presence stack — collaborators. No "Comments" button in view mode. -->
-    <div class="presence" id="presenceBtn" title="Active collaborators">
+    <!-- Presence stack — hidden in view mode per spec. -->
+    <div class="presence" id="presenceBtn" title="Active collaborators" hidden>
       <div class="presence-avatars" id="presenceAvatars"></div>
       <span class="presence-count" id="presenceCount">0</span>
     </div>
@@ -143,11 +137,7 @@
           <span class="lp-title">Projects</span>
           <svg class="lp-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
         </button>
-        <div class="lp-tree" id="lpTree">
-          <a class="lp-node" href="#" data-project="segment"><span class="lp-node-label">Segment</span></a>
-          <a class="lp-node" href="#" data-project="codeai"><span class="lp-node-label">CodeAI</span></a>
-          <a class="lp-node active" href="#" data-project="current" aria-current="page"><span class="lp-node-label" id="lpCurrentProjectName">Untitled project</span></a>
-        </div>
+        <div class="lp-tree" id="lpTree"></div>
       </div>
 
       <!-- New project — standalone leftnav item below Projects -->
@@ -164,22 +154,20 @@
       </a>
     </div>
 
-    <!-- Bottom: credits banner + user avatar -->
-    <button type="button" class="leftnav-credits" id="leftnavCredits" title="Cloud credits" data-credits="24.30">
+    <!-- Bottom: credits banner + auth CTA -->
+    <button type="button" class="leftnav-credits" id="leftnavCredits" title="Free trial credits" data-credits="100">
       <span class="lc-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9"/></svg>
       </span>
       <span class="lc-meta">
-        <span class="lc-label">Credits</span>
-        <span class="lc-value" id="leftnavCreditsValue">$24.30 left</span>
-        <span class="lc-bar"><span class="lc-bar-fill" id="leftnavCreditsBar" style="width: 62%"></span></span>
+        <span class="lc-value" id="leftnavCreditsValue">100 credits</span>
+        <span class="lc-bar"><span class="lc-bar-fill" id="leftnavCreditsBar" style="width: 100%"></span></span>
       </span>
     </button>
 
-    <button type="button" class="leftnav-user" id="leftnavUser" title="Account">
-      <span class="lnu-av">G</span>
-      <span class="lnu-name">Guest</span>
-      <svg class="lnu-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+    <button type="button" class="leftnav-auth" id="leftnavAuth" title="Log in or sign up">
+      <svg class="la-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      <span class="la-label">Log in / Sign up</span>
     </button>
   </aside>
 
@@ -430,6 +418,7 @@
 <script src="canvas-new.js"></script>
 <script src="static-graph-loader.js"></script>
 <script src="fork-project.js"></script>
+<script src="leftnav.js"></script>
 <script src="tutorial-system.js"></script>
 <script src="tutorial-steps.js"></script>
 <script src="view-mode.js"></script>

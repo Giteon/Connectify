@@ -425,53 +425,110 @@
 })();
 
 /* ── Interactive Demos ─────────────────────────────────────
-   Tab strip drives video playback. Only the active video is
-   actually playing — others are paused (and `preload="none"`
-   in HTML) so we don't hold ~70MB of decoded frames in
-   memory.
+   Two modes:
+     1. Auto-cycle (default on load) — a setTimeout fires when
+        the current video finishes (duration*1000 ms after
+        playback starts) and activates the next demo in ORDER.
+        Videos keep `loop` ON the whole time so the same clip
+        repeats if our timer's a touch late, AND so Chrome's
+        autoplay policy lets the first one start muted without
+        a user gesture. (`loop` is one of the signals Chrome
+        uses to permit autoplay; without it the browser cuts
+        playback short after ~1s in some sessions.)
+     2. Manual (after user clicks any tab) — auto-cycle timer
+        is cancelled. The clicked tab's video keeps looping.
 
-   On first activation of a video, set the src/preload so the
-   browser starts fetching. Once loaded, kick off playback.
-   Clicking a different tab pauses the current and plays the
-   new one (looping muted, per the autoplay policy). */
+   Memory: only the active video is playing; others are
+   paused, and most start with `preload="none"` so we don't
+   hold ~70MB of decoded frames in memory. First activation
+   bumps preload so the browser fetches it. */
 (() => {
   const tabs = document.querySelectorAll('.lp-demo-tab');
   const videos = document.querySelectorAll('.lp-demo-video');
   if (!tabs.length || !videos.length) return;
 
-  function videoFor(demo) {
-    return [...videos].find(v => v.dataset.demo === demo);
+  // Order tabs cycle through. Matches the HTML tab order so
+  // it reads as a natural authoring flow.
+  const ORDER = [
+    'add-node', 'make-connection', 'auto-type-adaptor',
+    'autolayout', 'make-subgroup', 'make-path',
+    'run-compare', 'version-history', 'fork-project',
+  ];
+
+  let userInteracted = false;
+  let cycleTimer = null;
+
+  function clearCycleTimer() {
+    if (cycleTimer) { clearTimeout(cycleTimer); cycleTimer = null; }
+  }
+
+  // Schedule advance to the next demo. If the video doesn't
+  // know its duration yet, wait for `loadedmetadata` first.
+  function scheduleAdvance(v) {
+    clearCycleTimer();
+    if (userInteracted) return;
+    const dur = v.duration;
+    if (!isFinite(dur) || dur <= 0) {
+      v.addEventListener('loadedmetadata', () => scheduleAdvance(v), { once: true });
+      return;
+    }
+    cycleTimer = setTimeout(() => {
+      if (userInteracted) return;
+      const i = ORDER.indexOf(v.dataset.demo);
+      const next = ORDER[(i + 1) % ORDER.length];
+      activate(next);
+    }, dur * 1000);
   }
 
   function activate(demo) {
+    clearCycleTimer();
     tabs.forEach(t => {
       const on = t.dataset.demo === demo;
       t.classList.toggle('active', on);
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    let activeVid = null;
     videos.forEach(v => {
       const on = v.dataset.demo === demo;
       v.classList.toggle('active', on);
       if (on) {
+        activeVid = v;
         // First-time activation: unlock preload so it actually
         // fetches. Subsequent times the browser uses its cache.
         if (v.preload === 'none') v.preload = 'auto';
-        // play() returns a promise; swallow rejection (mostly
-        // hits when user navigates away mid-load).
+        // Restart from the beginning so each cycle shows the
+        // full demo, not whatever frame it was paused on.
+        try { v.currentTime = 0; } catch (_) {}
         const p = v.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } else {
         v.pause();
       }
     });
+    if (activeVid && !userInteracted) scheduleAdvance(activeVid);
   }
 
-  tabs.forEach(t => {
-    t.addEventListener('click', () => activate(t.dataset.demo));
+  // If a video fails to load (network/codec), don't get stuck
+  // on it — skip to the next one.
+  videos.forEach(v => {
+    v.addEventListener('error', () => {
+      if (userInteracted || !v.classList.contains('active')) return;
+      const i = ORDER.indexOf(v.dataset.demo);
+      const next = ORDER[(i + 1) % ORDER.length];
+      activate(next);
+    });
   });
 
-  // Kick off the first video. Autoplay needs muted (already
-  // set in HTML) — most browsers honor it.
+  tabs.forEach(t => {
+    t.addEventListener('click', () => {
+      userInteracted = true;
+      clearCycleTimer();
+      activate(t.dataset.demo);
+    });
+  });
+
+  // Kick off the first video. Autoplay needs muted+loop
+  // (already set in HTML) — Chrome honors that combination.
   activate('add-node');
 })();
 
@@ -520,4 +577,65 @@
       smoothScrollTo(y);
     });
   });
+
+  /* ── Dev tour toggle ───────────────────────────────────────
+     Reflects/edits the `cfg.tutorialState` localStorage key that the
+     onboarding tutorial reads in graphs-hub / view-mode / editing-mode.
+       ON  → state cleared, so next "Start building" begins a fresh tour.
+       OFF → state.skipped = true, so the tour stays suppressed.
+     The tour is considered ON by default (no state, or started+!skipped+!completed).
+  */
+  (function initTourToggle() {
+    const btn = document.getElementById('lpTourToggle');
+    if (!btn) return;
+    const STATE_KEY = 'cfg.tutorialState';
+    const labelEl = btn.querySelector('[data-tour-state]');
+
+    function readState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (_) { return null; }
+    }
+
+    function isTourEnabled() {
+      const s = readState();
+      // No state at all → tour is ON (default for first-time users).
+      if (!s) return true;
+      // Explicitly skipped or completed → tour is OFF.
+      if (s.skipped || s.completed) return false;
+      return true;
+    }
+
+    function paint(on) {
+      btn.classList.toggle('on', on);
+      btn.classList.toggle('off', !on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (labelEl) labelEl.textContent = on ? 'ON' : 'OFF';
+      btn.title = on
+        ? "Onboarding tour is ON — clicking 'Start building' will start the tour."
+        : "Onboarding tour is OFF — the tour stays suppressed.";
+    }
+
+    function setEnabled(on) {
+      try {
+        if (on) {
+          // Clear all state so the next visit auto-starts fresh.
+          localStorage.removeItem(STATE_KEY);
+        } else {
+          // Mark as skipped to suppress auto-start. Keep currentStep so a
+          // future re-enable can resume where the user left off if desired.
+          const s = readState() || {};
+          s.skipped = true;
+          s.completed = false;
+          s.lastActivity = Date.now();
+          localStorage.setItem(STATE_KEY, JSON.stringify(s));
+        }
+      } catch (_) {}
+      paint(on);
+    }
+
+    paint(isTourEnabled());
+    btn.addEventListener('click', () => setEnabled(!isTourEnabled()));
+  })();
 })();

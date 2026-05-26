@@ -216,3 +216,12 @@
 [data-theme="dark"] .tutorial-tooltip {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
+
+/* ── Forced-visible overlays on tutorial-targeted elements ──
+   Cards in the New Graph modal normally hide their Preview/Fork
+   buttons until hover. When the tutorial is highlighting one of
+   those cards, surface the overlay so users can actually see and
+   click the button the tooltip references. */
+.ng-card.tt-target .ng-card-overlay {
+  display: flex !important;
+}

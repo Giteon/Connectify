@@ -14,7 +14,11 @@
     grid-template-rows: var(--topbar-h) calc(var(--variant-h) + var(--variant-detail-h)) 1fr 0fr;
   }
 
-  .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); transition: width .18s ease; min-height: 0; }
+  /* No width transition: the outer width animates over 180ms while inner
+     item layouts (item width, label display) flip instantly via class
+     change, which makes labels squeeze + ellipsize mid-animation. Snap
+     the width and the inner layout together so nothing reflows visibly. */
+  .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); min-height: 0; }
   .drawer-left   { grid-column: 2; grid-row: 3; min-height: 0; }
   .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; min-height: 0; }
   .drawer-right  { grid-column: 4; grid-row: 3; min-height: 0; }
@@ -858,16 +862,16 @@
 
   /* ── On-canvas comment cards (ported from old build) ───────
      Per-commenter theming via --cmt-* CSS variables so adding a new
-     author color later is just a palette swap. z-index is very high so
-     a comment never gets buried under a node; ports/edges stay below
-     but floating drawers/modals are above thanks to their own stacking
-     context. */
+     author color later is just a palette swap. z-index sits above ALL
+     canvas content (nodes, edges, anchor points, subgraph drags top
+     out at 15460) but below floating drawers/modals which have their
+     own higher stacking contexts. */
   .comment-card {
     position: absolute; min-width: 220px; max-width: 280px;
     background: var(--cmt-bg, #f5f8fc);
     border: 1px solid var(--cmt-border, #d8e3ef);
     border-radius: 10px;
-    font-size: 12.5px; color: var(--text-primary); z-index: 4800;
+    font-size: 12.5px; color: var(--text-primary); z-index: 16000;
     box-shadow: 0 2px 8px rgba(15,23,42,0.10);
     user-select: none; transition: box-shadow 0.15s ease;
   }
@@ -2869,10 +2873,19 @@
   /* ── Topbar v2: project title chip ──────────────────────────── */
   .topbar--v2 .breadcrumb { display: none; }
   .project-title {
-    display: inline-flex; align-items: center; gap: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
     padding: 0 4px 0 2px;
     font-size: 13px; font-weight: 600; color: var(--text-primary);
     min-width: 0;
+  }
+  .project-title .pt-owner {
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-primary); opacity: 0.5; font-weight: 500;
+    padding: 1px 4px; margin: -1px -4px; border-radius: 4px;
+  }
+  .project-title .pt-sep {
+    color: var(--text-muted); font-weight: 400; opacity: 0.7;
+    user-select: none;
   }
   .project-title .pt-name {
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -3585,7 +3598,7 @@
     display: flex; align-items: center; gap: 8px;
     margin: 6px 8px 8px;
     padding: 7px 10px;
-    background: var(--surface-hover, #f3f4f6);
+    background: var(--bg);
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--text-secondary);
@@ -3636,7 +3649,16 @@
     margin: 2px 8px 4px 21px;     /* aligns with folder icon center */
     padding: 0 0 0 14px;
     display: flex; flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 205px;            /* 6.5 rows; 7+ scrolls so footer stays */
+    scrollbar-width: thin;
+  }
+  /* Applied via JS when row count > 8. Mask the bottom so the
+     half-visible 9th item fades to 0 opacity as a scroll affordance. */
+  .leftnav-collapsable .lp-tree.is-scrollable {
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
+    mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
   }
   .leftnav-collapsable[data-expanded="false"] .lp-tree { display: none; }
 
@@ -3655,8 +3677,9 @@
     text-align: left;
     line-height: 1.2;
     transition: background .12s, color .12s;
+    min-width: 0;
   }
-  .leftnav-collapsable .lp-node-label { flex: 1; }
+  .leftnav-collapsable .lp-node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
   /* Continuous vertical guide on the parent + curved branch on each item. */
   .leftnav-collapsable .lp-tree::before {
@@ -3696,7 +3719,7 @@
   /* Horizontal section divider in leftnav */
   .leftnav .leftnav-divider {
     border: none;
-    border-top: 1px solid hsl(216 23% 95% / 1);
+    border-top: 1px solid var(--border);
     margin: 8px 16px;
     height: 0;
   }
@@ -3719,36 +3742,28 @@
 
   /* Hide entire projects section in collapsed leftnav */
 
-  /* User avatar tab at bottom of leftnav */
-  .leftnav-user {
-    display: flex; align-items: center; gap: 10px;
+  /* Auth CTA at bottom of leftnav (replaces user avatar tab for guests) */
+  .leftnav-auth {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
     margin: 4px 8px 8px;
-    padding: 8px 10px;
-    background: transparent;
-    border: 1px solid var(--border);
+    padding: 9px 10px;
+    background: var(--primary);
+    border: 1px solid var(--primary);
     border-radius: 8px;
-    color: var(--text-primary);
-    font: inherit; font-size: 13px; font-weight: 500;
+    color: #fff;
+    font: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer;
-    transition: background .12s, border-color .12s;
+    transition: background .12s, border-color .12s, opacity .12s;
   }
-  .leftnav-user:hover { background: var(--surface-hover); border-color: var(--primary); }
-  .leftnav-user .lnu-av {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; flex-shrink: 0;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-    color: var(--primary);
-    font-size: 11px; font-weight: 700;
-  }
-  .leftnav-user .lnu-name { flex: 1; text-align: left; }
-  .leftnav-user .lnu-chev { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
-  .app:not(.leftnav-expanded) .leftnav-user .lnu-name,
-  .app:not(.leftnav-expanded) .leftnav-user .lnu-chev { display: none; }
-  .app:not(.leftnav-expanded) .leftnav-user {
+  .leftnav-auth:hover { background: var(--primary-hover, var(--primary)); border-color: var(--primary-hover, var(--primary)); opacity: 0.95; }
+  .leftnav-auth .la-icon { width: 16px; height: 16px; flex-shrink: 0; }
+  .leftnav-auth .la-label { text-align: left; }
+  .app:not(.leftnav-expanded) .leftnav-auth .la-label { display: none; }
+  .app:not(.leftnav-expanded) .leftnav-auth {
     justify-content: center;
-    padding: 6px;
+    padding: 8px;
     margin: 4px auto 8px;
+    width: 36px; height: 36px;
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -3777,7 +3792,8 @@
   .float-palette .fp-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
   .float-palette .fp-btn.active { background: var(--primary-soft); color: var(--primary); }
   .float-palette .fp-btn svg { width: 16px; height: 16px; }
-  .float-palette .fp-btn img { width: 16px; height: 16px; display: block; }
+  .float-palette .fp-btn img { width: 16px; height: 16px; display: block; opacity: 0.55; }
+  html[data-theme="dark"] .float-palette .fp-btn img { filter: invert(1); opacity: 0.7; }
   .float-palette .fp-sep {
     display: block;
     height: 1px;

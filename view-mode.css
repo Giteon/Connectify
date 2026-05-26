@@ -10,7 +10,9 @@
        add content, so there's nothing to hide here.
      - No "add" tools, no run button, no comments button in topbar. */
 
-  .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); transition: width .18s ease; }
+  /* No width transition — see editing-mode.css for the rationale (inner item
+     layouts flip instantly, so the 180ms width animation made labels reflow). */
+  .leftnav       { grid-column: 1; grid-row: 1 / 4; width: var(--leftnav-w); }
   .info-panel    { grid-column: 2; grid-row: 3; width: var(--info-w); }
   .canvas-area   { grid-column: 3; grid-row: 3; min-width: 0; }
   .drawer-right  { grid-column: 4; grid-row: 3; }

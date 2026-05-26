@@ -2271,6 +2271,37 @@ function initApp() {
 
   // Persist on unload so pending edits survive the tab closing.
   window.addEventListener('beforeunload', snapshotActiveVariant);
+
+}
+
+/* ── Tutorial wiring (resumes Steps 4-14 in edit mode) ──
+   Runs independently of initApp() so it survives unrelated init
+   errors elsewhere in the host app. The tooltip only needs DOM
+   elements (canvasArea, leftnav, palette, toolbar) — not the
+   project data — so we can wire it as soon as the document is
+   parsed. We defer slightly to let the canvas paint first so
+   getBoundingClientRect returns real numbers. */
+function _initTutorialForEditing() {
+  if (!window.ConnectifyTutorial || !window.ConnectifyTutorialSteps) return;
+  try { window.ConnectifyTutorial.init({
+    page: 'edit',
+    steps: window.ConnectifyTutorialSteps.forPage('edit'),
+  }); } catch (_) { return; }
+  // If a fresh fork just landed and the tutorial state is on a view-phase
+  // step (e.g. user landed here without going through normal fork flow),
+  // bump them forward to the canvas tour.
+  setTimeout(() => {
+    const s = window.ConnectifyTutorial.getState();
+    if (s.started && !s.skipped && !s.completed && s.currentStep < 4) {
+      window.ConnectifyTutorial.advanceTo(4);
+    }
+  }, 300);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initTutorialForEditing);
+} else {
+  // Defer one tick so editing-mode.js finishes wiring up its own listeners first.
+  setTimeout(_initTutorialForEditing, 0);
 }
 
 // Copy the live canvas state into the active variant slot. Called
@@ -2895,6 +2926,10 @@ function initPresence(P) {
   const avatarsEl = document.getElementById('presenceAvatars');
   const countEl = document.getElementById('presenceCount');
   const dropdown = document.getElementById('presenceDropdown');
+  // Presence UI is optional (e.g. hidden via HTML for MVP). Skip wiring
+  // when any required element is missing so initApp can finish and the
+  // rest of the canvas (Run, palette, role pill, share, etc.) stays alive.
+  if (!btn || !avatarsEl || !countEl || !dropdown) return;
 
   const all = (P.contributors || []).slice(0, 8);
   const stackSize = Math.min(3, all.length);
@@ -3672,6 +3707,10 @@ function addCatalogNode(item) {
     el.classList.remove('drop-in');
     applyNewNodeBadge(el);
   }, 700);
+  // Tutorial Steps 9-10: notify after a Dataset/Model/Logic is added via the palette.
+  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+    window.ConnectifyTutorial.notifyAction('node-added', { type: item.type, id: node.id });
+  }
 }
 
 /* ── History (mocked timeline) ─────────────────────────────
@@ -4479,6 +4518,10 @@ function pathDrawSave() {
     renderPaths();
     requestAnimationFrame(() => focusSavedPath(savedPathId));
   }
+  // Tutorial Step 12: notify that a path was saved.
+  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+    window.ConnectifyTutorial.notifyAction('path-saved', { pathId: savedPathId });
+  }
 }
 
 // Three-state canvas highlighting — see CSS for visuals.
@@ -5072,9 +5115,10 @@ const COMMENTS = {
   items: [],
 };
 // Stand-in for real auth. Every comment/reply is attributed to this user
-// for now; swap these values in when session is wired up.
+// for now; swap these values in when session is wired up. Matches the
+// "Guest" identity shown elsewhere in the leftnav user tab.
 const CURRENT_USER = {
-  name: 'John Smith', letter: 'J',
+  name: 'Guest', letter: 'G',
   color: '#3b82f6', colorDeep: '#1e40af',
   bg: '#eff6ff', border: '#bfdbfe'
 };
@@ -6445,6 +6489,10 @@ function showRunComparison(aId, bId) {
 // so switching variants mid-run doesn't pollute another variant's feed.
 function startRun(opts) {
   if (ACTIVE_RUN) return; // one at a time (wireframe constraint)
+  // Tutorial Step 13: notify when a run is kicked off.
+  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+    window.ConnectifyTutorial.notifyAction('run-started', { opts: opts || {} });
+  }
   const cfg = opts || {};
   const vid = ACTIVE_VID;
   const variants = readJSON(KEY.variants) || [];
@@ -7013,9 +7061,19 @@ function initHistoryStack() {
   // a change fires. This matches what users expect from ⌘Z ("undo the
   // thing I just did").
   let lastState = captureCanvasState();
-  Canvas.onChange(() => {
+  Canvas.onChange((kind) => {
     renderSubgraphs();
     CANVAS_CHANGE_EPOCH += 1;
+    // Tutorial Step 11: an edge was just drawn between two nodes.
+    // Skip while history is being applied — undo/redo, variant switches and
+    // demo-path seeding all replay 'add-connection' under HISTORY_APPLYING, and
+    // those should NOT count as the user dragging a new edge.
+    if (kind === 'add-connection'
+        && !HISTORY_APPLYING
+        && window.ConnectifyTutorial
+        && window.ConnectifyTutorial.isActive()) {
+      window.ConnectifyTutorial.notifyAction('connection-added', { kind });
+    }
     if (HISTORY_APPLYING) { lastState = captureCanvasState(); return; }
     UNDO_STACK.push(lastState);
     if (UNDO_STACK.length > MAX_UNDO) UNDO_STACK.shift();
@@ -7357,6 +7415,29 @@ function initProjectTitle(P) {
   const lpCur = document.getElementById('lpCurrentProjectName');
   if (lpCur) lpCur.textContent = projectName;
 
+  // Owner breadcrumb: prefer explicit org/owner field, else the first
+  // contributor with role Owner, else the first contributor, else "Guest".
+  const ownerEl = document.getElementById('ptOwner');
+  const sepEl = document.querySelector('.project-title .pt-sep');
+  if (ownerEl) {
+    let ownerName = '';
+    if (P) {
+      if (typeof P.org === 'string' && P.org.trim()) ownerName = P.org.trim();
+      else if (typeof P.owner === 'string' && P.owner.trim()) ownerName = P.owner.trim();
+      else if (Array.isArray(P.contributors) && P.contributors.length) {
+        const owner = P.contributors.find(c => c && String(c.role) === 'Owner');
+        ownerName = (owner && owner.name) || (P.contributors[0] && P.contributors[0].name) || '';
+      }
+    }
+    if (!ownerName) ownerName = 'Guest';
+    ownerEl.textContent = ownerName;
+    ownerEl.title = ownerName;
+    // Hide both owner + slash if for some reason ownerName is blank.
+    const hideOwner = !ownerName;
+    ownerEl.hidden = hideOwner;
+    if (sepEl) sepEl.hidden = hideOwner;
+  }
+
   // Mirror the variant chip with the active variant tab.
   function syncVariant() {
     const active = document.querySelector('.variant-tab.active .tab-name');
@@ -7394,13 +7475,14 @@ function initVariantsToggle() {
   }
 }
 
-/* ── Leftnav credits (placeholder modal) ───────────────────── */
+/* ── Leftnav credits (centered overlay modal) ──────────────── */
 function initLeftnavCredits() {
   const btn = document.getElementById('leftnavCredits');
   if (!btn) return;
   btn.addEventListener('click', () => {
-    // Lightweight prompt for now — wire to a real billing modal later.
-    alert('Cloud credits\n\n$24.30 remaining of $40.00 monthly cap.\nResets in 18 days.\n\nUsage breakdown:\n• Model inference  $12.40\n• Datasets         $1.85\n• Storage          $1.45\n\n(Wire to real billing surface later.)');
+    if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
+      window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
+    }
   });
 }
 
@@ -8229,6 +8311,15 @@ function initFloatPalette() {
 
 // V4: Collapsable section toggles in leftnav (Projects, My Teams)
 function initLeftnavProjects() {
+  // Render the projects tree from cfg.customProjects. Current project is
+  // highlighted. If the active project isn't in the customs (e.g. bundled),
+  // it still won't appear in the tree — by design: the tree shows the user's
+  // own projects, forked or created.
+  if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.renderProjects === 'function') {
+    const activeSlug = (window.PROJECT && window.PROJECT.slug) || slug || '';
+    window.ConnectifyLeftnav.renderProjects(activeSlug);
+  }
+
   function wireCollapsable(wrapId, toggleId) {
     const wrap = document.getElementById(wrapId);
     const toggle = document.getElementById(toggleId);
@@ -8253,8 +8344,9 @@ function initLeftnavProjects() {
     document.dispatchEvent(ev);
   });
 
-  document.getElementById('leftnavUser')?.addEventListener('click', () => {
-    document.querySelector('.topbar-avatar')?.click();
+  document.getElementById('leftnavAuth')?.addEventListener('click', () => {
+    // Auth backend stub — surface a friendly placeholder until login is wired.
+    alert('Log in / Sign up coming soon.');
   });
 }
 

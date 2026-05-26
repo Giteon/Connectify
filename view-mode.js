@@ -41,6 +41,32 @@ function _activeVariantIdForSlug(targetSlug, variants) {
   return variants[0] && variants[0].id ? variants[0].id : null;
 }
 
+/** Is the current viewer the owner/admin of this project?
+ *  Custom projects live in cfg.customProjects and are user-owned by definition
+ *  (forks make you Admin; user-created projects make you Owner). Bundled
+ *  community graphs are not owned by the viewer. */
+function _isOwnerOfSlug(targetSlug) {
+  if (!targetSlug) return false;
+  const rows = _readJSONStore('cfg.customProjects', []);
+  if (!Array.isArray(rows)) return false;
+  return rows.some((r) => r && r.slug === targetSlug);
+}
+
+/** True if this project has at least one persisted run across any variant. */
+function _hasAnyRunsForSlug(targetSlug) {
+  if (!targetSlug) return false;
+  const prefix = 'cfg.runs.' + targetSlug + '.';
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith(prefix)) continue;
+    try {
+      const v = JSON.parse(localStorage.getItem(k));
+      if (Array.isArray(v) && v.length > 0) return true;
+    } catch (_) { /* ignore parse errors */ }
+  }
+  return false;
+}
+
 /** Merge saved variant state (same keys as edit mode) so view matches last edit session. */
 function _buildCanvasProjectFromVariantBase(slug, baseP) {
   const variants = _readJSONStore('cfg.variants.' + slug, null);
@@ -63,7 +89,11 @@ if (!slug) {
   const custom = _readCustomProjectBySlug(slug);
   if (custom) {
     window.PROJECT = Object.assign({ slug }, custom, { slug });
-    initApp();
+    // Defer to a microtask so module-level const declarations further down
+    // (MOCK_RUNS, etc.) finish initializing before initApp() reads them.
+    // Without this, the synchronous call hits a TDZ error and halts before
+    // wiring half of the UI.
+    queueMicrotask(() => initApp());
   } else {
     const fail = () => {
       document.body.innerHTML = `<p style="padding:40px;font-family:sans-serif">Could not load project "${esc(slug)}". <a href="graphs-hub.html?tab=dashboard">Go to Home</a></p>`;
@@ -273,6 +303,14 @@ function initApp() {
   initRequestContributorModal(P);
   initForkFromView(P);
 
+  // ───── Tutorial wiring (resumes Steps 2-3 in view mode) ─────
+  if (window.ConnectifyTutorial && window.ConnectifyTutorialSteps) {
+    window.ConnectifyTutorial.init({
+      page: 'view',
+      steps: window.ConnectifyTutorialSteps.forPage('view'),
+    });
+  }
+
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (!Canvas.getAllNodes().length) {
       const inner = Canvas.getCanvasInner();
@@ -335,6 +373,52 @@ function initInfoPanel(P) {
     toggleEl.style.display = overflowing ? 'inline-flex' : 'none';
   });
 
+  // Owners/Admins can edit the description inline. Click → contenteditable,
+  // commit on blur/Enter, revert on Escape. Persists to cfg.customProjects.
+  if (_isOwnerOfSlug(slug) && !descEl.dataset.editableBound) {
+    descEl.dataset.editableBound = '1';
+    descEl.title = 'Click to edit description';
+    descEl.style.cursor = 'text';
+    descEl.addEventListener('click', () => {
+      if (descEl.isContentEditable) return;
+      const original = (descEl.textContent || '').trim();
+      descEl.classList.remove('clamp');
+      descEl.setAttribute('contenteditable', 'true');
+      descEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(descEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      const commit = () => {
+        descEl.removeEventListener('blur', commit);
+        descEl.removeEventListener('keydown', onKey);
+        descEl.removeAttribute('contenteditable');
+        const next = (descEl.textContent || '').trim();
+        _persistProjectDescription(slug, next);
+        if (P) P.description = next;
+        if (!next) descEl.textContent = 'No description provided.';
+        descEl.classList.add('clamp');
+      };
+      const onKey = (ke) => {
+        if (ke.key === 'Enter' && !ke.shiftKey) { ke.preventDefault(); descEl.blur(); }
+        if (ke.key === 'Escape') { ke.preventDefault(); descEl.textContent = original; descEl.blur(); }
+      };
+      descEl.addEventListener('blur', commit);
+      descEl.addEventListener('keydown', onKey);
+    });
+  }
+
+  // Run summary: only show when the project has real persisted runs. New
+  // projects (custom forks/created without any run history) hide the panel
+  // so an empty summary doesn't take up real estate.
+  const summaryEl = document.getElementById('ipRunSummary');
+  if (!_hasAnyRunsForSlug(slug)) {
+    summaryEl.hidden = true;
+    summaryEl.innerHTML = '';
+    return;
+  }
+  summaryEl.hidden = false;
   const latestRuns = (typeof MOCK_RUNS !== 'undefined' ? MOCK_RUNS : []).slice(0, 3);
   const successRate = latestRuns.length
     ? Math.round((latestRuns.filter(r => String(r.status).toLowerCase() === 'success').length / latestRuns.length) * 100)
@@ -342,12 +426,25 @@ function initInfoPanel(P) {
   const avgRuntime = latestRuns.length
     ? Math.round(latestRuns.reduce((sum, r) => sum + Number(r.runtimeMin || 0), 0) / latestRuns.length)
     : 0;
-  const summaryEl = document.getElementById('ipRunSummary');
   summaryEl.innerHTML = `
     <div class="row"><span class="k">Run Results Summary</span><span class="v">${latestRuns.length} recent runs</span></div>
     <div class="row"><span class="k">Success rate</span><span class="v">${successRate}%</span></div>
     <div class="row"><span class="k">Avg runtime</span><span class="v">${avgRuntime} min</span></div>
   `;
+}
+
+/** Persist an edited description to cfg.customProjects for this slug. */
+function _persistProjectDescription(targetSlug, nextDesc) {
+  try {
+    const rows = JSON.parse(localStorage.getItem('cfg.customProjects') || '[]');
+    if (!Array.isArray(rows)) return;
+    const idx = rows.findIndex((r) => r && r.slug === targetSlug);
+    if (idx < 0) return;
+    const row = rows[idx] || {};
+    const proj = Object.assign({}, row.project || {}, { description: nextDesc });
+    rows[idx] = Object.assign({}, row, { project: proj });
+    localStorage.setItem('cfg.customProjects', JSON.stringify(rows));
+  } catch (_) { /* storage */ }
 }
 
 /* ── Variants (read-only — switch but no add/rename/delete) ── */
@@ -721,13 +818,10 @@ function initLeftNav(P) {
   wireCollapsable('leftnavProjects', 'lpHeaderToggle');
   wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
-  // Set the active project node to show the current project name
-  const activeNode = document.querySelector('.leftnav-collapsable .lp-node.active');
-  if (activeNode && P) {
-    const nameEl = activeNode.querySelector('#lpCurrentProjectName');
-    if (nameEl) nameEl.textContent = P.title || slug || 'Untitled project';
-    activeNode.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
-    activeNode.title = P.title || 'Current project';
+  // Render the projects tree from cfg.customProjects (forks + user-created).
+  // These are the user's own projects, so clicks go straight to edit mode.
+  if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.renderProjects === 'function') {
+    window.ConnectifyLeftnav.renderProjects(slug);
   }
 
   document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
@@ -741,8 +835,13 @@ function initLeftNav(P) {
     document.dispatchEvent(ev);
   });
 
-  document.getElementById('leftnavUser')?.addEventListener('click', () => {
-    document.querySelector('.topbar-avatar')?.click();
+  document.getElementById('leftnavAuth')?.addEventListener('click', () => {
+    alert('Log in / Sign up coming soon.');
+  });
+  document.getElementById('leftnavCredits')?.addEventListener('click', () => {
+    if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
+      window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
+    }
   });
   const editLink = document.getElementById('navEditLink');
   if (editLink) {
@@ -802,6 +901,18 @@ function initRequestContributorModal(P) {
   const openBtn = document.getElementById('contributeBtn');
   if (!modal || !closeBtn || !cancelBtn || !submitBtn || !recipEl || !openBtn) return;
 
+  // Owners/Admins skip the contribute-request flow. The button becomes "edit"
+  // (same lightning bolt) and links straight to the editor.
+  if (_isOwnerOfSlug(slug)) {
+    openBtn.classList.remove('primary');
+    openBtn.classList.add('primary'); // keep primary blue
+    openBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg> edit`;
+    openBtn.addEventListener('click', () => {
+      window.location.href = 'editing-mode-new.html?project=' + encodeURIComponent(slug);
+    });
+    return;
+  }
+
   function recipientNames() {
     const owners = (P.contributors || []).filter(
       (c) => c && (String(c.role) === 'Owner' || String(c.role) === 'Admin')
@@ -848,11 +959,31 @@ function initRequestContributorModal(P) {
   });
 }
 
-/** Fork public/custom graph into My Graphs; user becomes Admin on the copy. */
+/** Fork public/custom graph into My Graphs; user becomes Admin on the copy.
+ *  For owned/admin projects, the same button becomes "duplicate" and always
+ *  creates a fresh copy (bypassing the fork-dedup) since the user is asking
+ *  for an explicit duplicate of their own project. */
 function initForkFromView(P) {
   const btn = document.getElementById('forkBtn');
   const modal = document.getElementById('forkConfirmModal');
-  if (!btn || !slug || !window.ConnectifyFork || !modal) return;
+  if (!btn || !slug || !window.ConnectifyFork) return;
+
+  if (_isOwnerOfSlug(slug)) {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg> duplicate`;
+    btn.title = 'Duplicate this project';
+    btn.addEventListener('click', () => {
+      window.ConnectifyFork.forkProjectToMyGraphs(slug, {
+        title: P?.title || 'Project',
+        owner: 'You',
+        domain: (P?.tags || [])[0] || '',
+        method: (P?.tags || [])[1] || '',
+        abstract: P?.description || '',
+      }, { forceCreate: true });
+    });
+    return;
+  }
+
+  if (!modal) return;
 
   function forkBodyText() {
     const t = ((P && P.title) || 'this graph').trim() || 'this graph';
@@ -891,7 +1022,13 @@ function initForkFromView(P) {
     });
   }
 
-  btn.addEventListener('click', () => openForkModal());
+  btn.addEventListener('click', () => {
+    // Notify tutorial Step 2 (fork-clicked) before the modal opens.
+    if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+      window.ConnectifyTutorial.notifyAction('fork-clicked', { slug });
+    }
+    openForkModal();
+  });
 
   if (modal.dataset.forkBound === '1') return;
   modal.dataset.forkBound = '1';
@@ -902,6 +1039,11 @@ function initForkFromView(P) {
     if (e.target === modal) closeForkModal();
   });
   document.getElementById('forkConfirmOk')?.addEventListener('click', () => {
+    // Notify tutorial Step 3 (fork-confirmed). The page is about to
+    // redirect into editing mode, so persist state immediately.
+    if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+      window.ConnectifyTutorial.notifyAction('fork-confirmed', { slug });
+    }
     closeForkModal();
     runFork();
   });

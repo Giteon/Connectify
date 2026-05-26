@@ -40,7 +40,7 @@ body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-close,
   display: flex; align-items: center; gap: 8px;
   margin: 6px 8px 8px;
   padding: 7px 10px;
-  background: var(--surface-hover, #f3f4f6);
+  background: var(--bg);
   border: 1px solid transparent;
   border-radius: 8px;
   color: var(--text-secondary);
@@ -118,13 +118,25 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
 }
 .leftnav-collapsable[data-expanded="false"] .lp-chev { transform: rotate(-90deg); }
 
-/* Tree (children) — vertical guide line + curved branches per item */
+/* Tree (children) — vertical guide line + curved branches per item.
+   Caps at 6.5 rows: at 7+ items the 7th appears half-faded so users
+   discover that the list scrolls. The leftnav footer (Settings, credits,
+   user tab) stays put regardless of project count. */
 .leftnav-collapsable .lp-tree {
   position: relative;
   margin: 2px 8px 4px 21px;
   padding: 0 0 0 14px;
   display: flex; flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 205px;
+  scrollbar-width: thin;
+}
+/* Applied via JS when row count > 6. Mask the bottom so the
+   partially-visible 7th item fades to 0 opacity. */
+.leftnav-collapsable .lp-tree.is-scrollable {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
 }
 .leftnav-collapsable[data-expanded="false"] .lp-tree { display: none; }
 
@@ -143,8 +155,9 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
   text-align: left;
   line-height: 1.2;
   transition: background .12s, color .12s;
+  min-width: 0;
 }
-.leftnav-collapsable .lp-node-label { flex: 1; }
+.leftnav-collapsable .lp-node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 /* Continuous vertical guide on the parent + curved branch on each item */
 .leftnav-collapsable .lp-tree::before {
@@ -183,7 +196,7 @@ body:not(.sidebar-expanded) .leftnav-collapsable,
 /* ── Horizontal divider ───────────────────────────────────────── */
 .leftnav .leftnav-divider {
   border: none;
-  border-top: 1px solid hsl(216 23% 95% / 1);
+  border-top: 1px solid var(--border);
   margin: 8px 16px;
   height: 0;
 }
@@ -253,39 +266,30 @@ body:not(.sidebar-expanded) .leftnav-credits .lc-ico,
 body:not(.sidebar-expanded) .leftnav-credits:hover .lc-ico,
 .app:not(.leftnav-expanded) .leftnav-credits:hover .lc-ico { color: var(--primary); }
 
-/* ── User tab (footer area) ───────────────────────────────────── */
-.leftnav-user {
-  display: flex; align-items: center; gap: 10px;
+/* ── Auth CTA (footer area) ───────────────────────────────────── */
+.leftnav-auth {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   margin: 4px 8px 8px;
-  padding: 8px 10px;
-  background: transparent;
-  border: 1px solid var(--border);
+  padding: 9px 10px;
+  background: var(--primary);
+  border: 1px solid var(--primary);
   border-radius: 8px;
-  color: var(--text-primary);
-  font: inherit; font-size: 13px; font-weight: 500;
+  color: #fff;
+  font: inherit; font-size: 13px; font-weight: 600;
   cursor: pointer;
-  transition: background .12s, border-color .12s;
+  transition: background .12s, border-color .12s, opacity .12s;
 }
-.leftnav-user:hover { background: var(--surface-hover, var(--bg)); border-color: var(--primary); }
-.leftnav-user .lnu-av {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; flex-shrink: 0;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
-  color: var(--primary);
-  font-size: 11px; font-weight: 700;
-}
-.leftnav-user .lnu-name { flex: 1; text-align: left; }
-.leftnav-user .lnu-chev { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
-body:not(.sidebar-expanded) .leftnav-user .lnu-name,
-body:not(.sidebar-expanded) .leftnav-user .lnu-chev,
-.app:not(.leftnav-expanded) .leftnav-user .lnu-name,
-.app:not(.leftnav-expanded) .leftnav-user .lnu-chev { display: none; }
-body:not(.sidebar-expanded) .leftnav-user,
-.app:not(.leftnav-expanded) .leftnav-user {
+.leftnav-auth:hover { background: var(--primary-hover, var(--primary)); border-color: var(--primary-hover, var(--primary)); opacity: 0.95; }
+.leftnav-auth .la-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.leftnav-auth .la-label { text-align: left; }
+body:not(.sidebar-expanded) .leftnav-auth .la-label,
+.app:not(.leftnav-expanded) .leftnav-auth .la-label { display: none; }
+body:not(.sidebar-expanded) .leftnav-auth,
+.app:not(.leftnav-expanded) .leftnav-auth {
   justify-content: center;
-  padding: 6px;
+  padding: 8px;
   margin: 4px auto 8px;
+  width: 36px; height: 36px;
 }
 
 /* ── Brand wordmark visibility ────────────────────────────────── */

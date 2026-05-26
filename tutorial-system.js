@@ -71,6 +71,7 @@
   let resizeBound = false;
   let observerBound = false;
   let waitForElTimer = 0;
+  let markedTargetEl = null;     // element currently tagged with .tt-target
 
   // ---- DOM lookup helpers ----
   function getOverlay() { return document.getElementById('tutorialBackdrop'); }
@@ -157,7 +158,15 @@
 
   api.back = function back() {
     const s = readState();
-    const prevId = Math.max(1, s.currentStep - 1);
+    let prevId = Math.max(1, s.currentStep - 1);
+    // Clamp to the lowest step ID that exists on the current page. Going to a
+    // step that belongs to a different page would just hide the overlay silently
+    // (its selector wouldn't be found), which feels broken to users.
+    const lowestOnPage = registeredSteps.reduce(
+      (acc, step) => (step && step.id < acc ? step.id : acc),
+      Infinity
+    );
+    if (isFinite(lowestOnPage) && prevId < lowestOnPage) prevId = lowestOnPage;
     s.currentStep = prevId;
     writeState(s);
     showStep(prevId);
@@ -202,6 +211,12 @@
 
   // ---- Show / hide ----
   function showStep(stepId) {
+    // Fire onAfterHide for the step we're leaving so it can clean up any
+    // DOM state it temporarily mutated (e.g. force-revealing a hidden panel).
+    const leavingStep = findStep(activeStepId);
+    if (leavingStep && leavingStep.id !== stepId && typeof leavingStep.onAfterHide === 'function') {
+      try { leavingStep.onAfterHide(); } catch (_) {}
+    }
     activeStepId = stepId;
     const step = findStep(stepId);
     if (!step) {
@@ -217,17 +232,28 @@
       positionOverlay(step);
       bindResize();
       observeDom(step);
+      // Re-position once content has settled. The tooltip starts with
+      // opacity:0 and may grow as the video loads or fonts swap.
+      setTimeout(() => { if (activeStepId === step.id) positionOverlay(step); }, 80);
+      setTimeout(() => { if (activeStepId === step.id) positionOverlay(step); }, 320);
       try { step.onShow && step.onShow(); } catch (_) {}
     });
   }
 
   function hideOverlay() {
+    // Fire onAfterHide for the step we're leaving (skip / complete / reset)
+    // so it can undo any DOM tweaks (e.g. revealed panels).
+    const leavingStep = findStep(activeStepId);
+    if (leavingStep && typeof leavingStep.onAfterHide === 'function') {
+      try { leavingStep.onAfterHide(); } catch (_) {}
+    }
     activeStepId = 0;
     const ovl = getOverlay();
     if (ovl) {
       ovl.classList.remove('active');
       ovl.setAttribute('aria-hidden', 'true');
     }
+    setMarkedTarget(null);
     unbindResize();
     disconnectObserver();
     clearWaitTimer();
@@ -277,10 +303,15 @@
     if (stepNumEl) stepNumEl.textContent = String(step.id);
     if (stepTotalEl) stepTotalEl.textContent = String(totalStepCount());
 
-    // Actions
+    // Actions. Disable Back when there's no earlier step available on the
+    // current page (a) globally first step, or (b) first step of this page —
+    // since `back()` clamps to lowest-on-page, hitting Back here would no-op.
     if (actionsEl) {
-      const s = readState();
-      const isFirst = step.id <= 1;
+      const lowestOnPage = registeredSteps.reduce(
+        (acc, st) => (st && st.id < acc ? st.id : acc),
+        Infinity
+      );
+      const isFirst = step.id <= 1 || step.id <= lowestOnPage;
       const isLast = step.id >= totalStepCount();
       const waitsForAction = !!step.actionTrigger;
       actionsEl.innerHTML = `
@@ -305,13 +336,30 @@
   }
 
   // ---- Positioning ----
-  function getTargetRect(step) {
-    if (!step.selector || step.highlight === 'none') return null;
-    const el = typeof step.selector === 'function'
+  // The target element is used for BOTH the highlight box AND tooltip
+  // anchoring. `highlight: 'none'` only suppresses the visible box — the
+  // tooltip is still anchored to the selector if one is provided. To force
+  // a centered tooltip (no anchor), set selector: null on the step.
+  function getTargetEl(step) {
+    if (!step.selector) return null;
+    return typeof step.selector === 'function'
       ? step.selector()
       : document.querySelector(step.selector);
-    if (!el) return null;
-    return el.getBoundingClientRect();
+  }
+  function getTargetRect(step) {
+    const el = getTargetEl(step);
+    return el ? el.getBoundingClientRect() : null;
+  }
+
+  function setMarkedTarget(el) {
+    if (markedTargetEl === el) return;
+    if (markedTargetEl) {
+      try { markedTargetEl.classList.remove('tt-target'); } catch (_) {}
+    }
+    markedTargetEl = el;
+    if (el) {
+      try { el.classList.add('tt-target'); } catch (_) {}
+    }
   }
 
   function positionOverlay(step) {
@@ -322,11 +370,14 @@
       const tip = getTooltip();
       if (!ovl || !hl || !tip) return;
 
-      const rect = getTargetRect(step);
+      const el = getTargetEl(step);
+      setMarkedTarget(el);
+      const rect = el ? el.getBoundingClientRect() : null;
       const pad = step.highlightPadding != null ? step.highlightPadding : 8;
       const pos = step.position || 'auto';
+      const showHighlight = step.highlight !== 'none' && !!rect;
 
-      if (rect) {
+      if (showHighlight) {
         // Highlight
         const x = Math.max(4, rect.left - pad);
         const y = Math.max(4, rect.top - pad);
@@ -337,20 +388,40 @@
         hl.style.top = y + 'px';
         hl.style.width = w + 'px';
         hl.style.height = h + 'px';
+        // Match the target's border-radius so round buttons get round halos.
+        // Add the highlight padding so the curve hugs the offset rect cleanly.
+        try {
+          const cs = getComputedStyle(el);
+          const raw = parseFloat(cs.borderTopLeftRadius) || 0;
+          // For pill-shaped targets (radius >= half height), keep it pill.
+          const isPill = raw >= Math.min(rect.width, rect.height) / 2 - 1;
+          const r = isPill
+            ? (Math.min(w, h) / 2)
+            : Math.max(6, Math.min(28, raw + pad));
+          hl.style.borderRadius = r + 'px';
+        } catch (_) {
+          hl.style.borderRadius = '12px';
+        }
       } else {
         hl.style.display = 'none';
       }
 
-      // Tooltip placement
+      // Tooltip placement.
+      // offsetWidth/Height return the laid-out size even when opacity is 0
+      // (which it is on the first frame because of our fade-in). Falling
+      // back to fixed 340/280 produced misplaced tooltips on the first
+      // render of every step.
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const tipRect = tip.getBoundingClientRect();
-      const tipW = tipRect.width || 340;
-      const tipH = tipRect.height || 280;
+      const tipW = tip.offsetWidth || 340;
+      const tipH = tip.offsetHeight || 280;
       const gap = 14;
       let left, top;
 
-      if (!rect || pos === 'center' || step.highlight === 'none') {
+      // Center the tooltip only when there's truly nothing to anchor against
+      // (no target selector at all) OR the step explicitly asks for center.
+      // `highlight: 'none'` no longer forces centering — it only hides the box.
+      if (!rect || pos === 'center') {
         left = Math.max(16, (vw - tipW) / 2);
         top = Math.max(16, (vh - tipH) / 2);
       } else {
@@ -414,18 +485,41 @@
   // ---- Wait for target element to appear (for transitions like modal opening) ----
   function waitForElement(step, cb) {
     clearWaitTimer();
-    if (!step.selector || step.highlight === 'none') { cb(); return; }
+    // No selector at all → nothing to wait for (e.g. final completion modal).
+    // Steps with `highlight: 'none'` still need their selector resolved so the
+    // tooltip can anchor against it; we keep waiting for those.
+    if (!step.selector) { cb(); return; }
     const find = () => {
       const el = typeof step.selector === 'function'
         ? step.selector()
         : document.querySelector(step.selector);
       return el && el.getBoundingClientRect().width > 0 ? el : null;
     };
-    if (find()) { cb(); return; }
+    const ready = (el) => {
+      // Scroll target into view if it's off-screen, then call cb on next frame
+      // so positionOverlay sees the updated rect.
+      try {
+        const r = el.getBoundingClientRect();
+        const vh = window.innerHeight;
+        const vw = window.innerWidth;
+        const offscreen =
+          r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw;
+        if (offscreen && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+          // Give scroll a chance to settle before positioning.
+          setTimeout(cb, 350);
+          return;
+        }
+      } catch (_) {}
+      cb();
+    };
+    const hit = find();
+    if (hit) { ready(hit); return; }
     let attempts = 0;
     const tick = () => {
       attempts++;
-      if (find()) { cb(); return; }
+      const el = find();
+      if (el) { ready(el); return; }
       if (attempts > 60) { cb(); return; }   // give up after ~6s; show overlay anyway
       waitForElTimer = setTimeout(tick, 100);
     };
@@ -435,22 +529,40 @@
     if (waitForElTimer) { clearTimeout(waitForElTimer); waitForElTimer = 0; }
   }
 
-  // ---- Observe DOM for layout-changing mutations under the target ----
+  // ---- Observe DOM for layout-changing mutations near the target ----
+  // We only watch a narrow subtree (the target's nearest scrollable/positioned
+  // ancestor or BODY) and **exclude** mutations originating from inside the
+  // tutorial overlay itself. Watching all of document.body with `attributes:true`
+  // creates an infinite re-position loop because positioning writes style attrs
+  // back to the tooltip/highlight, which the observer would then react to.
+  let _observer = null;
   function observeDom(step) {
     disconnectObserver();
     if (!step || !step.selector) return;
     try {
-      const target = document.body;
-      const mo = new MutationObserver(() => onLayoutChange());
-      mo.observe(target, { childList: true, subtree: true, attributes: true });
-      api._observer = mo;
+      const targetEl = getTargetEl(step);
+      const watchRoot = (targetEl && targetEl.parentElement) || document.body;
+      const overlay = getOverlay();
+      const mo = new MutationObserver((mutations) => {
+        // Ignore mutations rooted inside the tutorial overlay — those are
+        // changes we caused ourselves.
+        for (const m of mutations) {
+          if (overlay && (m.target === overlay || overlay.contains(m.target))) continue;
+          onLayoutChange();
+          return;
+        }
+      });
+      // childList + subtree catches insertions / removals near the target.
+      // We deliberately skip `attributes:true` to avoid pathological churn.
+      mo.observe(watchRoot, { childList: true, subtree: true });
+      _observer = mo;
       observerBound = true;
     } catch (_) {}
   }
   function disconnectObserver() {
-    if (api._observer) {
-      try { api._observer.disconnect(); } catch (_) {}
-      api._observer = null;
+    if (_observer) {
+      try { _observer.disconnect(); } catch (_) {}
+      _observer = null;
     }
     observerBound = false;
   }
@@ -471,13 +583,8 @@
       else if (kind === 'complete') api.complete();
       else if (kind === 'close') api.skip();
     });
-    document.addEventListener('keydown', (e) => {
-      if (!api.isActive()) return;
-      if (e.key === 'Escape') {
-        // Allow Escape to dismiss tutorial without breaking app shortcuts
-        api.skip();
-      }
-    });
+    // Escape is reserved for closing modals/dropdowns in the host app;
+    // tutorial dismissal is intentional via the × button or "Skip" action.
   }
 
   // Expose

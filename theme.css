@@ -320,6 +320,10 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #2d3b5a; }
 html[data-theme="dark"] .theme-toggle .ico-sun  { display: block; }
 html[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
 
+/* Topbar search hidden for now — re-enable when search is wired up. */
+.topbar-search-slot,
+.topbar-search { display: none !important; }
+
 .topbar-search {
   width: 34px;
   height: 34px;

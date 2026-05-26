@@ -30,6 +30,15 @@
     </nav>
 
     <div class="lp-nav-cta">
+      <!-- Dev-only toggle: forces the onboarding tutorial on/off for the
+           next "Start building" click. State persists in localStorage
+           (cfg.tutorialState). ON clears any skipped/completed flag so the
+           tour runs fresh; OFF marks it skipped so it stays suppressed. -->
+      <button type="button" class="lp-tour-toggle" id="lpTourToggle"
+              role="switch" aria-checked="true" aria-label="Toggle onboarding tour">
+        <span class="lp-tour-toggle-dot" aria-hidden="true"></span>
+        <span class="lp-tour-toggle-label">Tour: <span data-tour-state>ON</span></span>
+      </button>
       <a class="lp-btn lp-btn-ghost" href="graphs-hub.html?tab=dashboard">Login</a>
       <a class="lp-btn lp-btn-primary" href="graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
     </div>
@@ -161,6 +170,12 @@
           </div>
     
           <div class="lp-demo-stage" role="tabpanel">
+            <!-- `loop` stays ON so Chrome's autoplay policy lets the video
+                 start muted without a user gesture. In auto-cycle mode the
+                 JS schedules a setTimeout(duration*1000) to advance to the
+                 next demo before the loop wraps. Once the user clicks a
+                 tab, the JS cancels that timer and the video just loops in
+                 place. -->
             <video class="lp-demo-video active" data-demo="add-node" muted loop playsinline preload="metadata">
               <source src="images/videos/add-node.mp4" type="video/mp4">
             </video>

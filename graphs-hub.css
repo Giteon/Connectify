@@ -208,7 +208,8 @@ body.sidebar-expanded { --nav-w: 180px; }
   display: grid;
   grid-template-columns: var(--nav-w, 52px) 1fr;
   height: 100vh;
-  transition: grid-template-columns .18s ease;
+  /* No grid transition — inner item layouts flip instantly on class change,
+     so the 180ms width animation made labels reflow visibly mid-flight. */
 }
 .main-col {
   display: flex; flex-direction: column; min-width: 0; height: 100vh;

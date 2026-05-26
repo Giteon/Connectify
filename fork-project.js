@@ -85,9 +85,22 @@
    * @param {string} sourceSlug
    * @param {{title?:string,owner?:string,domain?:string,method?:string,abstract?:string}} meta
    */
-  async function forkProjectToMyGraphs(sourceSlug, meta) {
+  async function forkProjectToMyGraphs(sourceSlug, meta, opts) {
     meta = meta || {};
+    opts = opts || {};
     const customs = readCustomProjects();
+    // If this source has already been forked, open the existing fork instead
+    // of creating a duplicate row in the leftnav projects tree. Callers can
+    // opt out by passing { forceCreate: true } (used by the "duplicate"
+    // action on user-owned projects, which should always make a fresh copy).
+    if (!opts.forceCreate) {
+      const existingFork = customs.find((r) => r && r.forkedFrom === sourceSlug);
+      if (existingFork && existingFork.slug) {
+        global.location.href =
+          'editing-mode-new.html?project=' + encodeURIComponent(existingFork.slug);
+        return;
+      }
+    }
     const row = customs.find((r) => r && r.slug === sourceSlug);
     let base = null;
     if (row && row.project) {

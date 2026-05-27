@@ -203,7 +203,7 @@ body:not(.sidebar-expanded) .leftnav .leftnav-avatar {
   border: 1px solid transparent; background: transparent;
 }
 
-body.sidebar-expanded { --nav-w: 180px; }
+body.sidebar-expanded { --nav-w: 210px; }
 .layout {
   display: grid;
   grid-template-columns: var(--nav-w, 52px) 1fr;

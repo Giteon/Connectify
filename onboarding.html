@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connectify — Welcome</title>
+  <script>
+    try {
+      if (localStorage.getItem('cfg.theme') !== 'light') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <!-- Reuse landing-page styles for the dot-matrix bg + topnav. -->
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="landing-page.css" />
+  <link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+
+  <!-- Minimal topnav: brand + a single Skip control. No nav links —
+       the user is mid-flow and we don't want them sidetracked. -->
+  <header class="lp-topnav ob-topnav">
+    <a class="lp-brand" href="index.html">
+      <img src="icons/logo.png" width="32" height="32" alt="" decoding="async" />
+      <span class="lp-brand-wordmark">Connectify</span>
+    </a>
+    <span></span><!-- center cell empty to keep the .lp-topnav grid (1fr auto 1fr) -->
+    <div class="lp-nav-cta">
+      <button type="button" class="ob-skip" id="obSkip">Skip for now</button>
+    </div>
+  </header>
+
+  <main class="ob-main">
+    <!-- ── Progress bar ─────────────────────────────────────────
+         Visible during the questionnaire; replaced by the "personalizing"
+         experience overlay when the user finishes/skips. -->
+    <div class="ob-progress" data-step-progress>
+      <div class="ob-progress-track">
+        <div class="ob-progress-fill" id="obProgressFill"></div>
+      </div>
+      <div class="ob-progress-meta">
+        <span id="obStepLabel">Step 1 of 4</span>
+      </div>
+    </div>
+
+    <!-- ── Question stack ───────────────────────────────────────
+         Each .ob-step contains one question. JS toggles which one is
+         active. Options carry data-value (single-select) or data-multi
+         (multi-select). -->
+    <div class="ob-stage" id="obStage">
+
+      <!-- Q1: role -->
+      <section class="ob-step is-active" data-step="role" data-mode="single">
+        <h2 class="ob-q">What best describes you?</h2>
+        <p class="ob-sub">We'll tailor examples and templates to match.</p>
+        <div class="ob-options" role="radiogroup" aria-label="Role">
+          <button type="button" class="ob-option" data-value="researcher" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🔬</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">ML / AI Researcher</span>
+              <span class="ob-option-desc">I run experiments and publish results.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="data-scientist" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">📊</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Data Scientist</span>
+              <span class="ob-option-desc">I model, analyze, and derive insights from data.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="ml-engineer" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">⚙️</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">ML Engineer / MLOps</span>
+              <span class="ob-option-desc">I ship and operate ML systems in production.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="software-engineer" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">💻</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Software Engineer</span>
+              <span class="ob-option-desc">I build the apps and services around the models.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="student" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🎓</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Student / Learner</span>
+              <span class="ob-option-desc">I'm learning how AI workflows fit together.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="educator" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">👩‍🏫</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Educator</span>
+              <span class="ob-option-desc">I teach others how to build with ML.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="hobbyist" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🛠️</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Hobbyist / Just exploring</span>
+              <span class="ob-option-desc">Curious about what this thing can do.</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Q2: familiarity -->
+      <section class="ob-step" data-step="familiarity" data-mode="single">
+        <h2 class="ob-q">How familiar are you with node-based / visual graph tools?</h2>
+        <p class="ob-sub">Tools like Comfy UI, n8n, Figma's prototyping graphs, Unreal Blueprints, etc.</p>
+        <div class="ob-options" role="radiogroup" aria-label="Familiarity">
+          <button type="button" class="ob-option" data-value="new" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🌱</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Brand new to this</span>
+              <span class="ob-option-desc">I've never used a node-based editor.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="some" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🌿</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">I've tried one or two</span>
+              <span class="ob-option-desc">Comfortable with the basics, still learning.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="regular" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🌳</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">I use them regularly</span>
+              <span class="ob-option-desc">They're part of my normal workflow.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="expert" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🌲</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Expert</span>
+              <span class="ob-option-desc">I build complex pipelines with these tools.</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Q3: goals (multi-select) -->
+      <section class="ob-step" data-step="goals" data-mode="multi">
+        <h2 class="ob-q">What do you want to do with Connectify?</h2>
+        <p class="ob-sub">Pick all that apply — we'll surface the right starters first.</p>
+        <div class="ob-options ob-options--multi" role="group" aria-label="Goals">
+          <button type="button" class="ob-option" data-value="build-pipelines">
+            <span class="ob-option-emoji" aria-hidden="true">🧪</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Build research pipelines</span>
+              <span class="ob-option-desc">Data loading, training, eval, all wired up.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="prototype">
+            <span class="ob-option-emoji" aria-hidden="true">⚡</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Prototype new architectures</span>
+              <span class="ob-option-desc">Try out ideas without writing boilerplate.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="ablations">
+            <span class="ob-option-emoji" aria-hidden="true">🔀</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Run ablations &amp; compare variants</span>
+              <span class="ob-option-desc">A/B branches of the same graph.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="explore">
+            <span class="ob-option-emoji" aria-hidden="true">🌐</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Explore the community library</span>
+              <span class="ob-option-desc">Fork and build on what others have made.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="collaborate">
+            <span class="ob-option-emoji" aria-hidden="true">👥</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Collaborate with my team</span>
+              <span class="ob-option-desc">Shared graphs, comments, versioning.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="learn">
+            <span class="ob-option-emoji" aria-hidden="true">📚</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Learn how AI workflows work</span>
+              <span class="ob-option-desc">See real pipelines end-to-end.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="teach">
+            <span class="ob-option-emoji" aria-hidden="true">🧑‍🏫</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Teach or present concepts</span>
+              <span class="ob-option-desc">Walk others through a workflow visually.</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Q4: team size -->
+      <section class="ob-step" data-step="team" data-mode="single">
+        <h2 class="ob-q">How will you mostly work?</h2>
+        <p class="ob-sub">Helps us pick the right collaboration defaults.</p>
+        <div class="ob-options" role="radiogroup" aria-label="Team size">
+          <button type="button" class="ob-option" data-value="solo" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🧑‍💻</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Solo</span>
+              <span class="ob-option-desc">Just me, for now.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="small-team" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">👥</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Small team (2–5)</span>
+              <span class="ob-option-desc">A tight group sharing one workspace.</span>
+            </span>
+          </button>
+          <button type="button" class="ob-option" data-value="org" role="radio">
+            <span class="ob-option-emoji" aria-hidden="true">🏢</span>
+            <span class="ob-option-text">
+              <span class="ob-option-title">Larger organization (6+)</span>
+              <span class="ob-option-desc">Multiple teams or sub-orgs.</span>
+            </span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── Footer nav ─────────────────────────────────────────── -->
+    <div class="ob-footer" data-step-progress>
+      <button type="button" class="ob-btn ob-btn-ghost" id="obBack" disabled>Back</button>
+      <button type="button" class="ob-btn ob-btn-primary" id="obNext" disabled>Next</button>
+    </div>
+  </main>
+
+  <!-- ── Personalization overlay ──────────────────────────────
+       Shown after the last step or skip. Plays a brief animation,
+       cycles through reassuring status lines, then redirects. -->
+  <div class="ob-finish" id="obFinish" hidden>
+    <div class="ob-finish-inner">
+      <div class="ob-finish-spinner" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <h2 class="ob-finish-title">Personalizing your experience</h2>
+      <p class="ob-finish-status" id="obFinishStatus">Setting up your workspace…</p>
+      <div class="ob-finish-bar"><div class="ob-finish-bar-fill" id="obFinishBarFill"></div></div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    /* ─────────────────────────────────────────────────────────────
+       Onboarding controller
+
+       4-step questionnaire with single-select and multi-select steps,
+       a Skip-for-now affordance in the topnav, Back/Next buttons,
+       and a personalization animation that always plays before the
+       redirect (even on skip — it makes the transition feel cared-
+       for rather than abrupt).
+       ───────────────────────────────────────────────────────────── */
+    (function() {
+      const Auth = window.ConnectifyAuth;
+      // Where to send the user when onboarding wraps. The user finishes
+      // (or skips) into the "Start a new project" panel on graphs-hub.
+      const params = new URLSearchParams(location.search);
+      let returnTo = params.get('return') || 'graphs-hub.html?tab=dashboard&new=1';
+      if (/(^|\/)(auth|onboarding)\.html/i.test(returnTo)) {
+        returnTo = 'graphs-hub.html?tab=dashboard&new=1';
+      }
+      // Ensure we always land on the new-graph panel by appending new=1
+      // when the caller didn't include it. (Login flow may pass through
+      // a plain dashboard URL.)
+      try {
+        const u = new URL(returnTo, location.origin);
+        if (!u.searchParams.get('new')) {
+          u.searchParams.set('new', '1');
+          // Strip the origin so relative-URL behaviour is preserved.
+          returnTo = u.pathname.replace(/^\//, '') + (u.search || '');
+        }
+      } catch (_) {}
+
+      const steps = Array.from(document.querySelectorAll('.ob-step'));
+      const answers = {};
+      let stepIdx = 0;
+
+      const fill = document.getElementById('obProgressFill');
+      const label = document.getElementById('obStepLabel');
+      const backBtn = document.getElementById('obBack');
+      const nextBtn = document.getElementById('obNext');
+      const skipBtn = document.getElementById('obSkip');
+
+      function updateProgress() {
+        const total = steps.length;
+        const pct = ((stepIdx + 1) / total) * 100;
+        fill.style.width = pct + '%';
+        label.textContent = `Step ${stepIdx + 1} of ${total}`;
+        backBtn.disabled = stepIdx === 0;
+        const step = steps[stepIdx];
+        nextBtn.textContent = (stepIdx === steps.length - 1) ? 'Finish' : 'Next';
+        nextBtn.disabled = !hasAnswer(step);
+      }
+
+      function hasAnswer(step) {
+        const key = step.dataset.step;
+        const v = answers[key];
+        if (step.dataset.mode === 'multi') return Array.isArray(v) && v.length > 0;
+        return v != null && v !== '';
+      }
+
+      function showStep(i) {
+        stepIdx = Math.max(0, Math.min(steps.length - 1, i));
+        steps.forEach((s, k) => s.classList.toggle('is-active', k === stepIdx));
+        updateProgress();
+      }
+
+      // Wire option buttons. Single-select sets the value and advances
+      // to the next step on a short delay (snappier than requiring a
+      // separate "Next" click for radio-style answers). Multi-select
+      // toggles into a set and stays on the step.
+      steps.forEach(step => {
+        const key = step.dataset.step;
+        const mode = step.dataset.mode;
+        const opts = step.querySelectorAll('.ob-option');
+        opts.forEach(opt => {
+          opt.addEventListener('click', () => {
+            if (mode === 'single') {
+              answers[key] = opt.dataset.value;
+              opts.forEach(o => o.classList.toggle('is-selected', o === opt));
+              updateProgress();
+              // Auto-advance shortly — feels like a typeform.
+              setTimeout(() => {
+                if (stepIdx < steps.length - 1) showStep(stepIdx + 1);
+              }, 220);
+            } else {
+              // multi
+              const set = new Set(Array.isArray(answers[key]) ? answers[key] : []);
+              if (set.has(opt.dataset.value)) {
+                set.delete(opt.dataset.value);
+                opt.classList.remove('is-selected');
+              } else {
+                set.add(opt.dataset.value);
+                opt.classList.add('is-selected');
+              }
+              answers[key] = Array.from(set);
+              updateProgress();
+            }
+          });
+        });
+      });
+
+      backBtn.addEventListener('click', () => {
+        if (stepIdx > 0) showStep(stepIdx - 1);
+      });
+      nextBtn.addEventListener('click', () => {
+        if (!hasAnswer(steps[stepIdx])) return;
+        if (stepIdx < steps.length - 1) showStep(stepIdx + 1);
+        else finish({ skipped: false });
+      });
+      skipBtn.addEventListener('click', () => finish({ skipped: true }));
+
+      // ── Personalization animation + redirect ────────────────
+      // Two seconds is enough to feel like "something happened" without
+      // dragging. Status lines rotate through to suggest behind-the-
+      // scenes work.
+      function finish({ skipped }) {
+        // Persist what we have (even partial) so it's still useful if
+        // the user came back through here.
+        if (Auth && typeof Auth.setOnboarding === 'function') {
+          Auth.setOnboarding(Object.assign({}, answers, { skipped: !!skipped }));
+        }
+        const overlay = document.getElementById('obFinish');
+        const status = document.getElementById('obFinishStatus');
+        const bar = document.getElementById('obFinishBarFill');
+        overlay.hidden = false;
+        // Trigger CSS transition by reading layout then adding the class.
+        // Defer one frame so the `hidden` removal lands first.
+        requestAnimationFrame(() => overlay.classList.add('is-open'));
+
+        const lines = skipped
+          ? ['Setting up your workspace…', 'Loading starter templates…', 'Ready!']
+          : [
+              'Setting up your workspace…',
+              'Tuning recommendations for your role…',
+              'Loading example graphs you might like…',
+              'Almost there…',
+            ];
+        let li = 0;
+        status.textContent = lines[li];
+        const rotate = setInterval(() => {
+          li = Math.min(li + 1, lines.length - 1);
+          status.textContent = lines[li];
+        }, 600);
+
+        // Animate the bar to 100% over the same window.
+        requestAnimationFrame(() => { bar.style.width = '100%'; });
+
+        const DURATION = skipped ? 1600 : 2400;
+        setTimeout(() => {
+          clearInterval(rotate);
+          location.href = returnTo;
+        }, DURATION);
+      }
+
+      // Boot
+      showStep(0);
+    })();
+  </script>
+</body>
+</html>

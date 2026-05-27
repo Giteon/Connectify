@@ -8275,6 +8275,22 @@ function initFloatPalette() {
       DISCOVER.activeType = activeType;
       if (typeof renderDiscover === 'function') renderDiscover();
     }
+    const leftEl = document.getElementById('drawerLeft');
+    const isOpen = !!leftEl && leftEl.classList.contains('open');
+    const activeTab = leftEl?.querySelector('.drawer-tab.active')?.dataset?.tab;
+    // If the drawer is already open on Discover, palette button clicks
+    // act like the in-drawer type tabs — switch type, don't toggle the
+    // drawer closed. Same goes for switching FROM another tab (Uploads,
+    // History) to Discover with a specific type pre-selected.
+    if (isOpen) {
+      if (activeTab !== 'discover') {
+        leftEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'discover'));
+        leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelDiscover'));
+        const ds = document.getElementById('discoverSearch');
+        if (ds) ds.style.display = 'flex';
+      }
+      return;
+    }
     const tgl = document.getElementById('toolDiscover');
     if (tgl) tgl.click();
   }
@@ -8320,16 +8336,9 @@ function initLeftnavProjects() {
     window.ConnectifyLeftnav.renderProjects(activeSlug);
   }
 
-  function wireCollapsable(wrapId, toggleId) {
-    const wrap = document.getElementById(wrapId);
-    const toggle = document.getElementById(toggleId);
-    if (!wrap || !toggle) return;
-    toggle.addEventListener('click', () => {
-      const expanded = wrap.dataset.expanded === 'true';
-      wrap.dataset.expanded = expanded ? 'false' : 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-    });
-  }
+  // Persist projects/teams collapsable state across page navigations via
+  // the shared helper in leftnav.js.
+  const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
   wireCollapsable('leftnavProjects', 'lpHeaderToggle');
   wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
@@ -8344,10 +8353,11 @@ function initLeftnavProjects() {
     document.dispatchEvent(ev);
   });
 
-  document.getElementById('leftnavAuth')?.addEventListener('click', () => {
-    // Auth backend stub — surface a friendly placeholder until login is wired.
-    alert('Log in / Sign up coming soon.');
-  });
+  // Auth: render chip + wire click → login modal or account menu. See
+  // auth.js for the full surface.
+  if (window.ConnectifyAuth && typeof window.ConnectifyAuth.wireLeftnavAuth === 'function') {
+    window.ConnectifyAuth.wireLeftnavAuth();
+  }
 }
 
 // V4: Topbar history button → opens left drawer history tab

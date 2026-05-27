@@ -638,4 +638,48 @@
     paint(isTourEnabled());
     btn.addEventListener('click', () => setEnabled(!isTourEnabled()));
   })();
+
+  /* ── Pre-arm the tour on "Start building" ──────────────────
+     The hub used to rely on `?new=1` in the URL to auto-start the tour, but
+     some static-file servers (notably `npx serve` with clean-URLs) drop the
+     query string when redirecting `/foo.html` → `/foo`. To make step 1 fire
+     reliably regardless of URL rewriting, we write the tutorial state to
+     localStorage BEFORE navigating away from landing. The hub's existing
+     resume-on-load logic then picks it up and shows step 1 (its
+     onBeforeShow self-heals by opening the New Graph modal if needed).
+  */
+  (function preArmTourOnStartBuilding() {
+    const STATE_KEY = 'cfg.tutorialState';
+    function readState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (_) { return null; }
+    }
+    function tourOn() {
+      const s = readState();
+      if (!s) return true;
+      return !(s.skipped || s.completed);
+    }
+    // Match any link/button that opens the New Graph modal — the landing
+    // page has several copies of "Start building".
+    const triggers = document.querySelectorAll(
+      'a[href*="new=1"], [data-auth-action="signup"]'
+    );
+    triggers.forEach((el) => {
+      el.addEventListener('click', () => {
+        if (!tourOn()) return;
+        try {
+          localStorage.setItem(STATE_KEY, JSON.stringify({
+            started: true,
+            currentStep: 1,
+            completedSteps: [],
+            skipped: false,
+            completed: false,
+            lastActivity: Date.now(),
+          }));
+        } catch (_) {}
+      });
+    });
+  })();
 })();

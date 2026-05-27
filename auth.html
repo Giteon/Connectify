@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connectify — Log in or sign up</title>
+  <script>
+    /* Match the landing-page default: dark unless the user explicitly
+       picked light. Other in-app pages default to light, but the auth
+       page lives in the marketing surface so it follows the landing
+       convention. */
+    try {
+      if (localStorage.getItem('cfg.theme') !== 'light') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (_) {}
+  </script>
+  <!-- Pull in the same landing-page styles so we inherit the dot-matrix
+       page background, the .lp-topnav layout, and the .lp-* tokens. -->
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="landing-page.css" />
+  <link rel="stylesheet" href="auth.css" />
+</head>
+<body>
+
+  <!-- Topnav mirrors the landing page exactly. -->
+  <header class="lp-topnav">
+    <a class="lp-brand" href="index.html">
+      <img src="icons/logo.png" width="32" height="32" alt="" decoding="async" />
+      <span class="lp-brand-wordmark">Connectify</span>
+    </a>
+
+    <nav class="lp-nav-links" aria-label="Primary">
+      <a class="lp-nav-link" href="index.html#features">Product</a>
+      <a class="lp-nav-link" href="index.html#use-cases">Solutions</a>
+      <a class="lp-nav-link" href="index.html#how-it-works">Resources</a>
+    </nav>
+
+    <div class="lp-nav-cta">
+      <!-- Same dev tour toggle as the landing page. Mirrors the
+           `cfg.tutorialState` localStorage key so flipping it here
+           affects what happens when "Start building" is clicked. -->
+      <button type="button" class="lp-tour-toggle" id="lpTourToggle"
+              role="switch" aria-checked="true" aria-label="Toggle onboarding tour">
+        <span class="lp-tour-toggle-dot" aria-hidden="true"></span>
+        <span class="lp-tour-toggle-label">Tour: <span data-tour-state>ON</span></span>
+      </button>
+      <a class="lp-btn lp-btn-primary" href="graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+    </div>
+  </header>
+
+  <main class="auth-main">
+    <!-- ── Form column ──────────────────────────────────────────── -->
+    <section class="auth-pane">
+      <div class="auth-content">
+        <!-- Sign up sits first so it's the primary path for new users.
+             Default initial tab is also signup (overridable via ?view=). -->
+        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button type="button" class="auth-tab" data-view="signup" role="tab">Sign up</button>
+          <button type="button" class="auth-tab" data-view="login" role="tab">Log in</button>
+        </div>
+
+        <!-- ─── Sign up ───────────────────────────────────────── -->
+        <form class="auth-form" data-view="signup" novalidate autocomplete="on">
+          <h1 class="auth-title">Create your account</h1>
+          <p class="auth-sub">Free demo — your account lives in this browser.</p>
+
+          <label class="auth-field" data-field="email">
+            <span class="auth-label">Email</span>
+            <span class="auth-input-wrap">
+              <input class="auth-input" type="email" name="email" autocomplete="email" required spellcheck="false"
+                     placeholder="you@example.com" />
+            </span>
+            <span class="auth-hint" data-hint="email"></span>
+          </label>
+
+          <label class="auth-field" data-field="password">
+            <span class="auth-label">Create a password</span>
+            <span class="auth-input-wrap">
+              <input class="auth-input" type="password" name="password" autocomplete="new-password" minlength="8" required
+                     placeholder="At least 8 characters" />
+            </span>
+            <div class="auth-strength" data-strength hidden>
+              <span class="auth-strength-bar"><span class="auth-strength-fill" data-strength-fill></span></span>
+              <span class="auth-strength-label" data-strength-label></span>
+            </div>
+            <span class="auth-hint" data-hint="password"></span>
+          </label>
+
+          <button type="submit" class="auth-submit">Create account</button>
+          <p class="auth-form-err" data-form-err></p>
+        </form>
+
+        <!-- ─── Log in ────────────────────────────────────────── -->
+        <form class="auth-form" data-view="login" novalidate autocomplete="on" hidden>
+          <h1 class="auth-title">Welcome back</h1>
+          <p class="auth-sub">Pick up where you left off.</p>
+
+          <label class="auth-field">
+            <span class="auth-label">Email</span>
+            <span class="auth-input-wrap">
+              <input class="auth-input" type="email" name="identifier" autocomplete="email" required spellcheck="false" />
+            </span>
+            <span class="auth-hint" data-hint="identifier"></span>
+          </label>
+
+          <label class="auth-field">
+            <span class="auth-label">Password</span>
+            <span class="auth-input-wrap">
+              <input class="auth-input" type="password" name="password" autocomplete="current-password" required />
+            </span>
+            <span class="auth-hint" data-hint="password"></span>
+          </label>
+
+          <button type="submit" class="auth-submit">Log in</button>
+          <p class="auth-form-err" data-form-err></p>
+        </form>
+
+        <p class="auth-fine">
+          By continuing, you agree to Connectify's demo terms.
+          Accounts live only in this browser — clear site data and they're gone.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Slideshow column ─────────────────────────────────────
+         Loops through demo videos rather than static screenshots,
+         so the right edge of the page stays in motion. Each video
+         is muted, looped, autoplaying, and only the active one is
+         actually playing — the rest are paused to save memory. -->
+    <aside class="auth-slideshow" aria-hidden="true">
+      <div class="auth-slide is-active" data-slide="add-node">
+        <video muted loop playsinline preload="metadata">
+          <source src="images/videos/add-node.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="make-connection">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/make-connection.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="auto-type-adaptor">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/auto-type-adaptor.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="autolayout">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/autolayout.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="make-subgroup">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/make-subgroup.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="make-path">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/make-path.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="run-compare">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/run+compare.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="version-history">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/version-history.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="auth-slide" data-slide="fork-project">
+        <video muted loop playsinline preload="none">
+          <source src="images/videos/fork-project.mp4" type="video/mp4">
+        </video>
+      </div>
+    </aside>
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+    /* ── Dev tour toggle (mirrors landing-page.js) ──────────────
+       Reflects/edits the `cfg.tutorialState` localStorage key. */
+    (function() {
+      const btn = document.getElementById('lpTourToggle');
+      if (!btn) return;
+      const STATE_KEY = 'cfg.tutorialState';
+      const labelEl = btn.querySelector('[data-tour-state]');
+      function readState() {
+        try { const raw = localStorage.getItem(STATE_KEY); return raw ? JSON.parse(raw) : null; }
+        catch (_) { return null; }
+      }
+      function isOn() {
+        const s = readState();
+        if (!s) return true;
+        if (s.skipped || s.completed) return false;
+        return true;
+      }
+      function paint(on) {
+        btn.classList.toggle('on', on);
+        btn.classList.toggle('off', !on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        if (labelEl) labelEl.textContent = on ? 'ON' : 'OFF';
+        btn.title = on
+          ? "Onboarding tour is ON — clicking 'Start building' will start the tour."
+          : "Onboarding tour is OFF — the tour stays suppressed.";
+      }
+      function setOn(on) {
+        try {
+          if (on) localStorage.removeItem(STATE_KEY);
+          else {
+            const s = readState() || {};
+            s.skipped = true; s.completed = false; s.lastActivity = Date.now();
+            localStorage.setItem(STATE_KEY, JSON.stringify(s));
+          }
+        } catch (_) {}
+        paint(on);
+      }
+      paint(isOn());
+      btn.addEventListener('click', () => setOn(!isOn()));
+    })();
+
+    /* ── Slideshow (videos) ────────────────────────────────────
+       Cross-fade between demo videos every ~6.5s. Only the active
+       video plays. */
+    (function() {
+      const slides = Array.from(document.querySelectorAll('.auth-slide'));
+      if (!slides.length) return;
+      const videos = slides.map(s => s.querySelector('video'));
+      let idx = 0;
+      const ROTATE_MS = 6500;
+      let timer = null;
+
+      function activate(i) {
+        slides.forEach((s, k) => s.classList.toggle('is-active', k === i));
+        videos.forEach((v, k) => {
+          if (!v) return;
+          if (k === i) {
+            try { v.currentTime = 0; } catch (_) {}
+            const p = v.play(); if (p && p.catch) p.catch(() => {});
+          } else { try { v.pause(); } catch (_) {} }
+        });
+      }
+      function advance() { idx = (idx + 1) % slides.length; activate(idx); }
+      function startTimer() { stopTimer(); timer = setInterval(advance, ROTATE_MS); }
+      function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+      activate(0); startTimer();
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopTimer();
+          videos.forEach(v => { try { v && v.pause(); } catch (_) {} });
+        } else { activate(idx); startTimer(); }
+      });
+    })();
+
+    /* ── Form + validation ──────────────────────────────────────
+       After successful signup the user is sent to onboarding.html
+       instead of the return URL — onboarding will eventually land
+       them at the same return URL (or graphs-hub with new=1) once
+       they finish or skip the questionnaire. Login bypasses
+       onboarding entirely. */
+    (function() {
+      const Auth = window.ConnectifyAuth;
+      if (!Auth) return;
+
+      const params = new URLSearchParams(location.search);
+      let returnTo = params.get('return') || 'graphs-hub.html?tab=dashboard&new=1';
+      if (/(^|\/)auth\.html/i.test(returnTo)) {
+        returnTo = 'graphs-hub.html?tab=dashboard&new=1';
+      }
+
+      if (Auth.isLoggedIn()) {
+        location.replace(returnTo);
+        return;
+      }
+
+      const tabs = document.querySelectorAll('.auth-tab');
+      const forms = document.querySelectorAll('.auth-form');
+      // Default to signup; ?view=login switches it.
+      const initialView = params.get('view') === 'login' ? 'login' : 'signup';
+
+      function setView(view) {
+        view = view === 'login' ? 'login' : 'signup';
+        tabs.forEach(t => {
+          const on = t.dataset.view === view;
+          t.classList.toggle('active', on);
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        forms.forEach(f => { f.hidden = f.dataset.view !== view; });
+        const url = new URL(location.href);
+        url.searchParams.set('view', view);
+        history.replaceState(null, '', url.toString());
+        requestAnimationFrame(() => {
+          const inp = document.querySelector(`.auth-form[data-view="${view}"] .auth-input`);
+          if (inp) inp.focus();
+        });
+      }
+
+      tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+
+      const touched = new WeakMap();
+
+      function setFieldState(field, state, msg) {
+        if (!field) return;
+        const input = field.querySelector('.auth-input');
+        const hint = field.querySelector('[data-hint]');
+        field.classList.remove('is-valid', 'is-invalid');
+        if (state === 'valid') field.classList.add('is-valid');
+        else if (state === 'invalid') field.classList.add('is-invalid');
+        if (input) {
+          if (state === 'invalid') input.setAttribute('aria-invalid', 'true');
+          else input.removeAttribute('aria-invalid');
+        }
+        if (hint) hint.textContent = msg || '';
+      }
+
+      function renderStrength(field, score) {
+        const wrap = field.querySelector('[data-strength]');
+        const fill = field.querySelector('[data-strength-fill]');
+        const label = field.querySelector('[data-strength-label]');
+        if (!wrap || !fill || !label) return;
+        if (score == null || score <= 0) { wrap.hidden = true; return; }
+        wrap.hidden = false;
+        const pct = Math.max(8, (score / 5) * 100);
+        fill.style.width = pct + '%';
+        const labels = ['Weak', 'Weak', 'Okay', 'Good', 'Strong', 'Strong'];
+        const klass = ['weak', 'weak', 'ok', 'good', 'strong', 'strong'][Math.min(5, score)];
+        fill.className = 'auth-strength-fill is-' + klass;
+        label.textContent = labels[Math.min(5, score)];
+        label.className = 'auth-strength-label is-' + klass;
+      }
+
+      function evaluate(view, name, value) {
+        if (view === 'signup') {
+          if (name === 'email') {
+            const r = Auth.validators.email(value);
+            if (!r.ok) return { ok: false, msg: r.msg };
+            if (Auth.isEmailTaken(value)) return { ok: false, msg: 'An account with that email already exists.' };
+            return { ok: true, msg: '' };
+          }
+          if (name === 'password') {
+            const r = Auth.validators.password(value);
+            return { ok: r.ok, msg: r.ok ? '' : r.msg, strength: r.strength };
+          }
+        } else {
+          if (name === 'identifier') {
+            if (!value || !value.trim()) return { ok: false, msg: 'Email is required.' };
+            return { ok: true, msg: '' };
+          }
+          if (name === 'password') {
+            if (!value) return { ok: false, msg: 'Password is required.' };
+            return { ok: true, msg: '' };
+          }
+        }
+        return { ok: false, msg: '' };
+      }
+
+      function wireForm(form) {
+        const view = form.dataset.view;
+        const submit = form.querySelector('.auth-submit');
+        const formErr = form.querySelector('[data-form-err]');
+        const inputs = form.querySelectorAll('.auth-input');
+        touched.set(form, {});
+
+        function renderField(inp, opts) {
+          const force = !!(opts && opts.force);
+          const field = inp.closest('.auth-field');
+          if (!field) return;
+          const value = inp.value;
+          const wasTouched = !!touched.get(form)[inp.name] || force;
+          const res = evaluate(view, inp.name, value);
+
+          // Login: never show ✓/✗ visuals; surface errors as text only,
+          // and only after a submit attempt.
+          if (view === 'login') {
+            setFieldState(field, 'neutral', (force && !res.ok) ? res.msg : '');
+            return;
+          }
+
+          if (inp.name === 'password') {
+            renderStrength(field, value ? res.strength : 0);
+          }
+
+          if (res.ok) setFieldState(field, 'valid', '');
+          else if (wasTouched) setFieldState(field, 'invalid', res.msg);
+          else setFieldState(field, 'neutral', '');
+        }
+
+        inputs.forEach(inp => {
+          inp.addEventListener('input', () => {
+            renderField(inp);
+            if (formErr) formErr.textContent = '';
+          });
+          inp.addEventListener('blur', () => {
+            if (inp.value && inp.value.length > 0) {
+              touched.get(form)[inp.name] = true;
+            }
+            renderField(inp);
+          });
+        });
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const t = touched.get(form);
+          let allOk = true;
+          inputs.forEach(inp => {
+            t[inp.name] = true;
+            renderField(inp, { force: true });
+            const res = evaluate(view, inp.name, inp.value);
+            if (!res.ok) allOk = false;
+          });
+          if (!allOk) return;
+
+          if (formErr) formErr.textContent = '';
+          const data = new FormData(form);
+          const originalLabel = submit.textContent;
+          submit.disabled = true;
+          submit.textContent = view === 'signup' ? 'Creating…' : 'Logging in…';
+
+          try {
+            if (view === 'signup') {
+              await Auth.signup({
+                email: data.get('email'),
+                password: data.get('password'),
+              });
+              // New user → onboarding. Carry the return URL along so
+              // onboarding lands them at the right place when done.
+              location.href = 'onboarding.html?return=' + encodeURIComponent(returnTo);
+            } else {
+              await Auth.login({
+                identifier: data.get('identifier'),
+                password: data.get('password'),
+              });
+              location.href = returnTo;
+            }
+          } catch (err) {
+            submit.textContent = originalLabel;
+            submit.disabled = false;
+            if (err && err.field) {
+              const target = form.querySelector(`[name="${err.field}"]`)?.closest('.auth-field');
+              if (view === 'login') {
+                formErr.textContent = err.message;
+              } else if (target) {
+                setFieldState(target, 'invalid', err.message);
+              } else {
+                formErr.textContent = err.message;
+              }
+            } else {
+              formErr.textContent = (err && err.message) || 'Something went wrong.';
+            }
+          }
+        });
+      }
+
+      forms.forEach(wireForm);
+      setView(initialView);
+    })();
+  </script>
+</body>
+</html>

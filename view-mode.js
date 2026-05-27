@@ -804,17 +804,9 @@ function initLeftNav(P) {
     });
   }
 
-  // Wire leftnav collapsable sections (Projects, My Teams)
-  function wireCollapsable(wrapId, toggleId) {
-    const wrap = document.getElementById(wrapId);
-    const toggle = document.getElementById(toggleId);
-    if (!wrap || !toggle) return;
-    toggle.addEventListener('click', () => {
-      const expanded = wrap.dataset.expanded === 'true';
-      wrap.dataset.expanded = expanded ? 'false' : 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-    });
-  }
+  // Persist projects/teams collapsable state across page navigations via
+  // the shared helper in leftnav.js.
+  const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
   wireCollapsable('leftnavProjects', 'lpHeaderToggle');
   wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
@@ -835,9 +827,12 @@ function initLeftNav(P) {
     document.dispatchEvent(ev);
   });
 
-  document.getElementById('leftnavAuth')?.addEventListener('click', () => {
-    alert('Log in / Sign up coming soon.');
-  });
+  // Auth: render chip + wire click → login modal or account menu. See
+  // auth.js for the full surface. Falls back silently if auth.js is not
+  // loaded on this page.
+  if (window.ConnectifyAuth && typeof window.ConnectifyAuth.wireLeftnavAuth === 'function') {
+    window.ConnectifyAuth.wireLeftnavAuth();
+  }
   document.getElementById('leftnavCredits')?.addEventListener('click', () => {
     if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
       window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });

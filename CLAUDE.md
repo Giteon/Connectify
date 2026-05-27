@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-**ConnectifyAI** is a visual graph editor for AI/ML workflows. Users create nodes (Dataset, Model, Logic, Custom), connect them with edges, and build computational pipelines. The app runs entirely in the browser with localStorage persistence. Four pages: `landing-page.html` (entry), `graphs-hub.html` (project browser), `editing-mode-new.html` (editor), `view-mode-new.html` (read-only).
+**ConnectifyAI** is a visual graph editor for AI/ML workflows. Users create nodes (Dataset, Model, Logic, Custom), connect them with edges, and build computational pipelines. The app runs entirely in the browser with localStorage persistence. Four pages: `index.html` (landing page — served at the site root), `graphs-hub.html` (project browser), `editing-mode-new.html` (editor), `view-mode-new.html` (read-only). `landing-page.html` remains as a legacy redirect shim pointing back to the root.
 
 ## Getting Started
 
@@ -18,7 +18,8 @@ Navigate to http://localhost:8000/editing-mode-new.html
 - `editing-mode-new.html`, `editing-mode.js`, `editing-mode.css` — Main graph editor
 - `canvas-new.js` — 2D rendering, pan/zoom, nodes/edges, type system (2KB LOC)
 - `graphs-hub.html`, `graphs-hub.js` — Project browser and catalog
-- `landing-page.html`, `landing-page.js` — Entry point with redirect
+- `index.html`, `landing-page.js`, `landing-page.css` — Landing page served at the site root
+- `landing-page.html` — Legacy redirect shim → `./`
 - `view-mode-new.html`, `view-mode.js` — Read-only graph viewer
 - `graphs/` — 30+ example graphs (catalog.json indexes them)
 - `tools/` — Build scripts (bundled layouts, community graphs)
@@ -247,7 +248,7 @@ Functions are redeclared at EOF to override (hoisting). Used for V3: `initV2Layo
 - `canvas-new.js` — ~2KB (2007 lines) — 2D rendering & type system
 - `graphs-hub.js` — ~1.6KB (1584 lines) — Project browser
 - `view-mode.js` — ~860 lines — Read-only viewer
-- `landing-page.js` — ~425 lines — Entry redirect
+- `landing-page.js` — ~425 lines — Landing page interactions (used by `index.html`)
 
 ## Development Workflow
 

@@ -30,6 +30,22 @@
       title: 'Preview the starter graph',
       text:
         "This is a small starter graph designed for first-time users. Click its Preview button to see how a graph looks before you build your own.",
+      // Self-healing: if the New-Graph modal isn't open (e.g. user landed on
+      // hub without ?new=1 and the tour is mid-restart), force it open so the
+      // starter card can render before the tooltip tries to anchor to it.
+      onBeforeShow: () => {
+        try {
+          const modal = document.getElementById('newGraphModal');
+          if (modal && modal.hidden) {
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            // Trigger the regular open path if available so the grid actually
+            // renders (the modal element being un-hidden alone won't populate it).
+            const openFn = window.openNewGraphModal_ || null;
+            if (typeof openFn === 'function') openFn();
+          }
+        } catch (_) {}
+      },
       selector: '.ng-card[data-graph-slug="onboarding-starter"]',
       position: 'left',
       highlightPadding: 6,
@@ -77,15 +93,16 @@
       video: 'tutorials/step-04-canvas-overview.mp4',
     },
     {
+      // NEW: Topnav orientation. Briefly explains what lives across the top.
       id: 5,
       phase: 'edit',
-      title: 'Left navigation',
+      title: 'Top bar',
       text:
-        "Browse community graphs, manage your projects, and explore your teams from this rail. Click the hamburger to expand it.",
-      selector: '.leftnav',
-      position: 'right',
-      highlightPadding: 4,
-      video: 'tutorials/step-05-leftnav.mp4',
+        "Up here: your project title and variant switcher on the left, the Run button + Runs/History/Role/Share on the right. Everything you need to drive an experiment.",
+      selector: '.topbar',
+      position: 'bottom',
+      highlightPadding: 0,
+      video: 'tutorials/step-05-topnav.mp4',
     },
     {
       id: 6,
@@ -147,10 +164,28 @@
       highlightPadding: 6,
       video: 'tutorials/step-08-paths-panel.mp4',
     },
+    {
+      // Moved: Left navigation is now the last orientation step before the
+      // hands-on build phase begins.
+      id: 9,
+      phase: 'edit',
+      title: 'Left navigation',
+      text:
+        "Browse community graphs, manage your projects, and explore your teams from this rail. Click the hamburger to expand it.",
+      // Anchor to the inner content column instead of the whole `.leftnav`,
+      // which has a wider hit-box than its visible chrome and would let the
+      // highlight bleed past the right edge of the sidebar.
+      selector: () =>
+        document.querySelector('.leftnav .leftnav-top') ||
+        document.querySelector('.leftnav'),
+      position: 'right',
+      highlightPadding: 2,
+      video: 'tutorials/step-09-leftnav.mp4',
+    },
 
     // ───── Phase 4: building actions ─────
     {
-      id: 9,
+      id: 10,
       phase: 'edit',
       title: 'Add a Dataset node',
       text:
@@ -158,12 +193,12 @@
       selector: '#fpDataset',
       position: 'right',
       highlightPadding: 4,
-      video: 'tutorials/step-09-add-dataset.mp4',
+      video: 'tutorials/step-10-add-dataset.mp4',
       actionTrigger: 'node-added',
       actionGuard: (ctx) => ctx && ctx.type === 'Dataset',
     },
     {
-      id: 10,
+      id: 11,
       phase: 'edit',
       title: 'Add a Model node',
       text:
@@ -171,12 +206,12 @@
       selector: '#fpModel',
       position: 'right',
       highlightPadding: 4,
-      video: 'tutorials/step-10-add-model.mp4',
+      video: 'tutorials/step-11-add-model.mp4',
       actionTrigger: 'node-added',
       actionGuard: (ctx) => ctx && ctx.type === 'Model',
     },
     {
-      id: 11,
+      id: 12,
       phase: 'edit',
       title: 'Connect the nodes',
       text:
@@ -188,33 +223,22 @@
         document.getElementById('canvasArea'),
       position: 'top',
       highlight: 'none',
-      video: 'tutorials/step-11-connect-nodes.mp4',
+      video: 'tutorials/step-12-connect-nodes.mp4',
       actionTrigger: 'connection-added',
     },
     {
-      id: 12,
-      phase: 'edit',
-      title: 'Create a Path',
-      text:
-        "Click the Path tool in the palette, then click two or more connected nodes in order (output → input). Save the path to trace this flow.",
-      selector: '#fpPath',
-      position: 'right',
-      highlightPadding: 4,
-      video: 'tutorials/step-12-create-path.mp4',
-      actionTrigger: 'path-saved',
-    },
-    {
+      // Was step 13 in the original deck; the explicit "Create a path" step
+      // was removed per simpler-onboarding feedback. The top-bar Run button
+      // runs the whole connected graph, so the user can run without first
+      // saving a path.
       id: 13,
       phase: 'edit',
       title: 'Run an experiment',
       text:
-        "Click 'Run experiment' on your saved path to execute it. Watch the bottom panel for results and the edges for animated run-flow.",
-      selector: () =>
-        document.querySelector('.path-item .path-item-run') ||
-        document.getElementById('pathsFloatPanel') ||
-        document.getElementById('canvasArea'),
-      position: 'left',
-      highlightPadding: 6,
+        "Click the Run button to execute the graph. Watch the bottom panel for results and the edges for animated run-flow.",
+      selector: '#runBtn',
+      position: 'bottom',
+      highlightPadding: 4,
       video: 'tutorials/step-13-run-experiment.mp4',
       actionTrigger: 'run-started',
     },
@@ -225,7 +249,7 @@
       phase: 'edit',
       title: "You're all set!",
       text:
-        "You've learned the basics — preview, fork, build, connect, trace, and run. Explore more node types, variants, and collaborators when you're ready.",
+        "You've learned the basics — preview, fork, build, connect, and run. Explore more node types, variants, paths, and collaborators when you're ready.",
       selector: null,
       position: 'center',
       highlight: 'none',

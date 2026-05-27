@@ -79,12 +79,13 @@
   pointer-events: auto;
   z-index: 5001;
   opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.18s ease, transform 0.18s ease, left 0.22s ease, top 0.22s ease;
+  /* Snap between step positions — no left/top transition. Only opacity fades.
+     Previously included translateY + animated left/top, which felt bouncy as
+     the card glided between steps. */
+  transition: opacity 0.18s ease;
 }
 .tutorial-backdrop.active .tutorial-tooltip {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .tutorial-tooltip .tt-close {

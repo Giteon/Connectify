@@ -5,7 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ConnectifyAI — Graphs Hub</title>
   <script>
+    /* First-visit defaults for the in-app pages (hub/view/edit):
+       - light theme
+       - leftnav expanded
+       Existing user prefs are preserved — we only write when the key is unset. */
     try {
+      if (!localStorage.getItem('cfg.theme')) {
+        localStorage.setItem('cfg.theme', 'light');
+      }
+      if (!localStorage.getItem('cfg.leftnav.expanded')) {
+        localStorage.setItem('cfg.leftnav.expanded', '1');
+      }
       if (localStorage.getItem('cfg.theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
@@ -26,7 +36,7 @@
       <div class="leftnav-top">
         <!-- Logo + collapse toggle -->
         <div class="leftnav-brand-row">
-          <a class="brand brand--leftnav" href="landing-page.html" title="ConnectifyAI home">
+          <a class="brand brand--leftnav" href="index.html" title="ConnectifyAI home">
             <span class="brand-logo" aria-hidden="true">
               <img src="icons/logo.png" width="28" height="28" alt="" decoding="async" />
             </span>
@@ -65,9 +75,7 @@
             <svg class="lp-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
           </button>
           <div class="lp-tree" id="ltTree">
-            <a class="lp-node" href="#" data-team="research"><span class="lp-node-label">Research</span></a>
-            <a class="lp-node" href="#" data-team="platform"><span class="lp-node-label">Platform</span></a>
-            <a class="lp-node" href="#" data-team="ml-ops"><span class="lp-node-label">ML Ops</span></a>
+            <a class="lp-node" href="#" data-team="my-team"><span class="lp-node-label">My team</span></a>
           </div>
         </div>
 
@@ -378,6 +386,7 @@
   <script src="static-graph-loader.js"></script>
   <script src="fork-project.js"></script>
   <script src="leftnav.js"></script>
+  <script src="auth.js"></script>
   <script src="tutorial-system.js"></script>
   <script src="tutorial-steps.js"></script>
   <script src="graphs-hub.js"></script>

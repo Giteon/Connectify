@@ -1,0 +1,286 @@
+/*
+ * onboarding.css — Onboarding questionnaire.
+ *
+ * Layered on landing-page.css so we inherit the dot-matrix page
+ * background and the .lp-* tokens (colors, brand, topnav). This
+ * file owns the questionnaire body, options grid, and the
+ * "personalizing your experience" overlay.
+ */
+
+/* ── Topnav variant: stretched left/right, no center nav links ─ */
+.ob-topnav { padding: 14px 32px; }
+.ob-skip {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--lp-text-soft);
+  padding: 8px 14px;
+  font: inherit; font-size: 13px; font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.ob-skip:hover { background: var(--lp-bg-soft); color: var(--lp-text); }
+
+/* ── Main layout ──────────────────────────────────────────────── */
+.ob-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: flex; flex-direction: column;
+  gap: 28px;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────── */
+.ob-progress {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.ob-progress-track {
+  height: 4px;
+  background: var(--lp-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ob-progress-fill {
+  height: 100%;
+  background: var(--lp-primary);
+  border-radius: 999px;
+  width: 0%;
+  transition: width .35s cubic-bezier(.4, 0, .2, 1);
+}
+.ob-progress-meta {
+  font-size: 12px; font-weight: 600;
+  color: var(--lp-text-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Question stack ───────────────────────────────────────────── */
+.ob-stage { position: relative; }
+.ob-step {
+  display: none;
+  animation: ob-fadein .3s ease both;
+}
+.ob-step.is-active { display: block; }
+
+@keyframes ob-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ob-q {
+  margin: 0 0 6px;
+  font-size: 26px; font-weight: 700;
+  letter-spacing: -0.012em;
+  color: var(--lp-text);
+  line-height: 1.18;
+}
+.ob-sub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--lp-text-soft);
+}
+
+/* ── Options grid ─────────────────────────────────────────────── */
+.ob-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 560px) {
+  .ob-options { grid-template-columns: 1fr; }
+}
+
+.ob-option {
+  appearance: none;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  padding: 14px 14px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font: inherit;
+  transition: background .12s, border-color .12s, transform .04s, box-shadow .12s;
+}
+.ob-option:hover {
+  border-color: var(--lp-text-muted);
+  background: var(--lp-bg-soft);
+}
+.ob-option:active { transform: translateY(1px); }
+.ob-option.is-selected {
+  border-color: var(--lp-primary);
+  background: color-mix(in srgb, var(--lp-primary) 9%, var(--lp-bg));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-primary) 18%, transparent);
+}
+
+.ob-option-emoji {
+  flex: 0 0 auto;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--lp-bg-soft);
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+.ob-option.is-selected .ob-option-emoji {
+  background: color-mix(in srgb, var(--lp-primary) 18%, var(--lp-bg));
+}
+
+.ob-option-text {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ob-option-title {
+  font-size: 14px; font-weight: 600;
+  color: var(--lp-text);
+}
+.ob-option-desc {
+  font-size: 12.5px;
+  color: var(--lp-text-soft);
+  line-height: 1.4;
+}
+
+/* Multi-select gets a check-style affordance instead of just border. */
+.ob-options--multi .ob-option {
+  position: relative;
+  padding-right: 38px;
+}
+.ob-options--multi .ob-option::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--lp-border);
+  border-radius: 5px;
+  background: var(--lp-bg);
+  transition: background .12s, border-color .12s;
+}
+.ob-options--multi .ob-option.is-selected::after {
+  border-color: var(--lp-primary);
+  background-color: var(--lp-primary);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 13px 13px;
+}
+
+/* ── Footer nav ───────────────────────────────────────────────── */
+.ob-footer {
+  display: flex; justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.ob-btn {
+  appearance: none;
+  padding: 11px 22px;
+  border-radius: 9px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .12s, color .12s, border-color .12s, opacity .12s;
+  min-width: 100px;
+}
+.ob-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.ob-btn-ghost {
+  background: transparent;
+  color: var(--lp-text);
+  border-color: var(--lp-border);
+}
+.ob-btn-ghost:hover:not([disabled]) { background: var(--lp-bg-soft); }
+.ob-btn-primary {
+  background: var(--lp-text);
+  color: var(--lp-bg);
+  border-color: var(--lp-text);
+}
+.ob-btn-primary:hover:not([disabled]) { opacity: 0.92; }
+html[data-theme="dark"] .ob-btn-primary {
+  background: var(--lp-primary);
+  color: #fff;
+  border-color: var(--lp-primary);
+}
+html[data-theme="dark"] .ob-btn-primary:hover:not([disabled]) {
+  background: var(--lp-primary-hover);
+  border-color: var(--lp-primary-hover);
+  opacity: 1;
+}
+
+/* ── Personalizing overlay ────────────────────────────────────── */
+/* Full-screen scrim over the page with a subtle three-dot spinner,
+   a status line that rotates through reassuring messages, and a
+   progress bar that fills to 100% over the duration. */
+.ob-finish {
+  position: fixed; inset: 0;
+  background: var(--lp-bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.ob-finish.is-open { opacity: 1; }
+
+.ob-finish-inner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  max-width: 380px;
+  padding: 24px;
+  text-align: center;
+}
+
+.ob-finish-title {
+  margin: 0;
+  font-size: 22px; font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lp-text);
+}
+.ob-finish-status {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--lp-text-soft);
+  min-height: 18px;
+  /* Soft fade between messages — JS swaps textContent so we just
+     animate the parent. */
+  transition: color .25s;
+}
+
+.ob-finish-bar {
+  width: 220px;
+  height: 4px;
+  background: var(--lp-border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.ob-finish-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--lp-primary);
+  border-radius: 999px;
+  transition: width 2.2s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* Three-dot pulse spinner */
+.ob-finish-spinner {
+  display: inline-flex; gap: 6px;
+  margin-bottom: 4px;
+}
+.ob-finish-spinner span {
+  display: block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--lp-primary);
+  animation: ob-pulse 1.05s infinite ease-in-out;
+}
+.ob-finish-spinner span:nth-child(2) { animation-delay: .15s; }
+.ob-finish-spinner span:nth-child(3) { animation-delay: .3s; }
+@keyframes ob-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40%       { opacity: 1;   transform: scale(1.0); }
+}

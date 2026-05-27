@@ -11,18 +11,10 @@
         apply();
       });
 
-      // Wire leftnav collapsable sections (Projects, My Teams)
-      function wireCollapsable(wrapId, toggleId) {
-        const wrap = document.getElementById(wrapId);
-        const toggle = document.getElementById(toggleId);
-        if (!wrap || !toggle) return;
-        toggle.addEventListener('click', () => {
-          const expanded = wrap.dataset.expanded === 'true';
-          wrap.dataset.expanded = expanded ? 'false' : 'true';
-          toggle.setAttribute('aria-expanded', String(!expanded));
-        });
-      }
+      // Persist projects/teams collapsable state across page navigations
+      // via the shared helper in leftnav.js.
       document.addEventListener('DOMContentLoaded', () => {
+        const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
         wireCollapsable('leftnavProjects', 'lpHeaderToggle');
         wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
@@ -42,9 +34,12 @@
           document.dispatchEvent(ev);
         });
 
-        document.getElementById('leftnavAuth')?.addEventListener('click', () => {
-          alert('Log in / Sign up coming soon.');
-        });
+        // Auth: render chip + wire click → login modal (logged-out) or
+        // account menu (logged-in). All UI lives in auth.js; this just
+        // boots it so the leftnav reflects the current session.
+        if (window.ConnectifyAuth && typeof window.ConnectifyAuth.wireLeftnavAuth === 'function') {
+          window.ConnectifyAuth.wireLeftnavAuth();
+        }
         document.getElementById('leftnavCredits')?.addEventListener('click', () => {
           if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
             window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
@@ -91,6 +86,9 @@
     };
     /** Node counts for bundled demo graphs (graphs hub demo slugs). Custom rows use project.nodes.length. */
     const DEMO_NODE_COUNT_BY_SLUG = {
+      // Onboarding starter is hardcoded so the card has a node-count badge
+      // even when graphs/catalog.json fails to load.
+      'onboarding-starter': 5,
       'public-health-monitoring': 60,
       'neurological-disease-analysis': 10,
       'autonomous-vehicle-navigation': 11,
@@ -212,6 +210,13 @@
     };
 
     const GRAPHS = [
+      // ─── Onboarding starter ────────────────────────────────
+      // Hardcoded so the New Graph modal always has the card available for
+      // the tutorial's step 1 — independent of whether `graphs/catalog.json`
+      // loads (network errors, file://, slow fetches all leave the catalog
+      // out of GRAPHS). loadBundledCatalog() will match this entry by slug
+      // and skip re-adding it. Synced with `graphs/onboarding-starter/graph.json`.
+      { title:'Onboarding Starter', slug:'onboarding-starter', owner:'Connectify', shortOwner:'Connectify', domain:'Tutorial', modality:'—', method:'Getting Started', role:'Public', status:'Stable', license:'MIT', updatedHours:1, forks:0, stars:0, downloads:0, activity:100, openContrib:true, team:'Connectify', abstract:"A small starter graph designed for first-time users. Fork it to learn the basics.", starred:false, recentRank:0, editedAgo:'just now', editedBy:'Connectify Team', collaborators:['CF'], collaboratorExtra:0 },
       { title:'Neurological Disease Analysis', owner:'RazLab', shortOwner:'you · RazLab', domain:'Neuroscience', modality:'MRI', method:'Disease Detection', role:'Admin', status:'Experimental', license:'MIT', updatedHours:6, forks:38, stars:214, downloads:12000, activity:57, openContrib:true, team:'Neuron Forge', abstract:'MRI/PET workflow for lesion segmentation and progression scoring.', starred:true, recentRank:1, editedAgo:'2 hours ago', editedBy:'Jesh B.', collaborators:['LR','MK','SP'], collaboratorExtra:38 },
       { title:'Human Genome Analysis', owner:'Broad Institute', shortOwner:'you · Broad Institute', domain:'Genomics', modality:'Sequence', method:'Bioinformatics', role:'Admin', status:'Stable', license:'CC-BY-4.0', updatedHours:14, forks:14, stars:88, downloads:0, activity:66, openContrib:true, team:'Genome Guild', abstract:'Population-scale variant analysis with explainable ranking stages.', starred:false, recentRank:2, editedAgo:'6 hours ago', editedBy:'Mina K.', collaborators:['AM','TP','JW'], collaboratorExtra:12 },
       { title:'Autonomous Vehicle Navigation', owner:'Waymo', shortOwner:'Waymo', domain:'Autonomous Driving', modality:'LiDAR+Vision', method:'Perception', role:'View Only', status:'Stable', license:'Apache-2.0', updatedHours:2, forks:200, stars:1200, downloads:0, activity:98, openContrib:false, team:'Vector Lab', abstract:'Perception-to-planning graph with branch-level ablation tracing.', starred:true, recentRank:3, editedAgo:'1 day ago', editedBy:'Ria S.', collaborators:['RC','DN','YK'], collaboratorExtra:22 },
@@ -283,27 +288,15 @@
     const CARDS_LAYOUT_KEY = 'cfg.graphCardsLayout';
     const AVATAR_COLORS = ['var(--avatar-1)', 'var(--avatar-2)', 'var(--avatar-3)', 'var(--avatar-4)', 'var(--avatar-5)', 'var(--avatar-6)'];
 
+    // Default team: every user (guest or logged in) starts as a solo team
+    // of one — "My team" — with no graphs, no pending requests, and no
+    // open opportunities. This is the source of truth for the Team
+    // Workspace tab and the leftnav "My Teams" picker.
     const TEAM_DATA = {
-      'Vector Lab': {
-        graphs:['Public Health Monitoring', 'Autonomous Vehicle Navigation'],
-        requests:[
-          'A. Chen requested contributor access to Public Health Monitoring.',
-          'N. Patel requested write access to Autonomous Vehicle Navigation.'
-        ],
-        opportunities:[
-          'Public Health Monitoring needs review on intervention policy branch.',
-          'Autonomous Vehicle Navigation has an open issue: uncertainty calibration.'
-        ]
-      },
-      'Neuron Forge': {
-        graphs:['Neurological Disease Analysis'],
-        requests:['K. Yu requested permission to run private imaging benchmark set.'],
-        opportunities:['Neurological Disease Analysis has 3 open tasks in segmentation QA lane.']
-      },
-      'Genome Guild': {
-        graphs:['Human Genome Analysis'],
-        requests:['R. Singh requested maintainer role for variant-ranking module.'],
-        opportunities:['Human Genome Analysis seeks contributor for reproducibility docs refresh.']
+      'My team': {
+        graphs: [],
+        requests: [],
+        opportunities: []
       }
     };
 
@@ -1468,17 +1461,23 @@
         </button>`;
       const cards = ngFilteredGraphs().map(g => {
         const slug = graphSlug(g);
+        // The onboarding-starter card is the entry point for the tutorial.
+        // Forking it directly from the hub would bypass the view-mode + fork
+        // confirmation steps (#2 / #3), so we only expose the Preview action
+        // and rely on the tutorial to walk users through the fork.
+        const isStarter = slug === 'onboarding-starter';
+        const forkBtn = isStarter ? '' : `
+            <button type="button" class="ng-overlay-btn ng-overlay-btn--fork" data-ng-action="fork" data-graph-slug="${esc(slug)}">
+              <img src="icons/fork.png" alt="" aria-hidden="true" />
+              Fork
+            </button>`;
         return `<div class="ng-card" data-ng-card data-graph-slug="${esc(slug)}">
           ${renderCard({ ...g, role: 'Public', shortOwner: g.owner }, { showManageActions: false, hideFooter: true, readOnlyTitle: true })}
           <div class="ng-card-overlay">
             <button type="button" class="ng-overlay-btn" data-ng-action="preview" data-graph-slug="${esc(slug)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
               Preview
-            </button>
-            <button type="button" class="ng-overlay-btn ng-overlay-btn--fork" data-ng-action="fork" data-graph-slug="${esc(slug)}">
-              <img src="icons/fork.png" alt="" aria-hidden="true" />
-              Fork
-            </button>
+            </button>${forkBtn}
           </div>
         </div>`;
       }).join('');
@@ -1496,6 +1495,9 @@
       const search = document.getElementById('ngSearch');
       if (search) { search.value = ngState.search; setTimeout(() => search.focus(), 50); }
     }
+    // Expose globally so the tutorial system can self-heal step 1
+    // (force-open the modal if it isn't already showing the starter card).
+    window.openNewGraphModal_ = openNewGraphModal;
 
     function closeNewGraphModal() {
       const modal = document.getElementById('newGraphModal');
@@ -1644,20 +1646,25 @@
       const params = new URLSearchParams(window.location.search);
       const fromLanding = params.get('new') === '1';
       const tutParam = params.get('tutorial');         // '1' to force-start
-      if (fromLanding) {
+
+      // Open the modal whenever the user explicitly asked for it (?new=1) OR
+      // the tour is pre-armed at step 1 (set by the landing page's
+      // "Start building" click BEFORE navigating away). The pre-arm path is
+      // what keeps step 1 reliable when static-file servers (e.g. `npx serve`
+      // with clean-URLs) strip the query string during the .html→clean-url
+      // redirect.
+      const tutState = window.ConnectifyTutorial && window.ConnectifyTutorial.getState();
+      const tourPreArmed = !!(tutState && tutState.started && tutState.currentStep === 1
+        && !tutState.skipped && !tutState.completed);
+      if (fromLanding || tourPreArmed) {
         openNewGraphModal();
-        if (window.ConnectifyTutorial) {
-          const state = window.ConnectifyTutorial.getState();
-          const fresh = !state.started && !state.skipped && !state.completed;
-          // Auto-start the tour on the very first visit from landing,
-          // OR when explicitly asked via `?tutorial=1`.
-          if (fresh || tutParam === '1') {
-            // Delay slightly to let the modal paint and grid render.
-            setTimeout(() => window.ConnectifyTutorial.start(), 250);
-          }
-        }
-      } else if (tutParam === '1' && window.ConnectifyTutorial) {
-        // Manual restart from anywhere on the hub.
+      }
+
+      // Explicit restart via `?tutorial=1` — clears state and starts at step 1.
+      // The pre-armed path doesn't need anything here: ConnectifyTutorial.init()
+      // already queued a resume() that will showStep(1) on its own, and step 1's
+      // onBeforeShow self-heals the modal-open if we didn't open it above.
+      if (tutParam === '1' && window.ConnectifyTutorial) {
         window.ConnectifyTutorial.reset();
         openNewGraphModal();
         setTimeout(() => window.ConnectifyTutorial.start(), 250);

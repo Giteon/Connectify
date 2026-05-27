@@ -1,0 +1,348 @@
+/*
+ * auth.css — Auth page styles, layered on top of landing-page.css.
+ *
+ * The auth page reuses the landing page's topnav (.lp-topnav), dot-
+ * matrix body background, and color tokens (--lp-*). This file only
+ * adds the form column + slideshow column on top.
+ *
+ * Layout is a two-column grid with a stable height (calc(100vh -
+ * topbar)) so the slideshow stays vertically anchored regardless of
+ * which form (login vs signup) is active — they used to drift because
+ * the column heights tracked content.
+ */
+
+/* ── Main two-column layout ───────────────────────────────────── */
+.auth-main {
+  /* Topnav is ~63px (14px padding × 2 + ~35px content). Reserve that
+     so the auth-main always fills the viewport; the slideshow then
+     gets a stable height that doesn't change when the user switches
+     between login (shorter) and signup (taller) forms. */
+  min-height: calc(100vh - 63px);
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) 1fr;
+  align-items: stretch;
+}
+
+/* Form column — flat, no card.
+   Top-anchored (not centered) so the tabs stay at a fixed y position
+   when the user toggles between login (shorter) and signup (taller).
+   Centering the column would mean the whole block shifted up by half
+   the height difference on every switch — visually jarring. */
+.auth-pane {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 56px 48px 64px;
+}
+.auth-content {
+  width: 100%;
+  max-width: 440px;
+}
+
+/* ── Tabs (pill toggle) ───────────────────────────────────────── */
+.auth-tabs {
+  display: inline-flex;
+  background: var(--lp-bg-soft);
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 26px;
+}
+.auth-tab {
+  appearance: none;
+  background: transparent; border: none;
+  padding: 7px 18px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--lp-text-soft);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .14s, color .14s, box-shadow .14s;
+}
+.auth-tab:hover { color: var(--lp-text); }
+.auth-tab.active {
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  box-shadow: var(--lp-shadow-sm);
+}
+
+/* ── Title / sub ──────────────────────────────────────────────── */
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--lp-text);
+}
+.auth-sub {
+  margin: 0 0 22px;
+  font-size: 14px;
+  color: var(--lp-text-soft);
+}
+
+/* ── SSO buttons ──────────────────────────────────────────────── */
+.auth-sso {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.auth-sso-btn {
+  appearance: none;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  border: 1px solid var(--lp-border);
+  border-radius: 9px;
+  font: inherit; font-size: 13.5px; font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .04s;
+}
+.auth-sso-btn:hover {
+  background: var(--lp-bg-soft);
+  border-color: var(--lp-text-muted);
+}
+.auth-sso-btn:active { transform: translateY(1px); }
+.auth-sso-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  font-size: 16px; line-height: 1;
+}
+.auth-sso-icon svg { width: 18px; height: 18px; display: block; }
+
+/* ── OR divider ───────────────────────────────────────────────── */
+.auth-divider {
+  display: flex; align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  font-size: 11px; font-weight: 600;
+  color: var(--lp-text-soft);
+  letter-spacing: 0.1em;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--lp-border);
+}
+
+/* ── Form field ───────────────────────────────────────────────── */
+.auth-form { margin: 0; }
+.auth-field {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.auth-label {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--lp-text);
+}
+
+/* Wrapper hosts the absolutely-positioned status icon so it can be
+   vertically centered against the input (not against the field,
+   which would skew it because of the label/hint above and below). */
+.auth-input-wrap {
+  position: relative;
+  display: block;
+}
+.auth-input {
+  appearance: none;
+  width: 100%;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  border: 1px solid var(--lp-border);
+  border-radius: 9px;
+  padding: 11px 38px 11px 12px; /* room for the status icon on the right */
+  font: inherit; font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color .12s, box-shadow .12s;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--lp-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-primary) 18%, transparent);
+}
+.auth-input::placeholder {
+  color: var(--lp-text-muted); opacity: 0.85;
+}
+
+/* Status icon — pinned to the input. */
+.auth-input-wrap::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.auth-field.is-valid .auth-input-wrap::after {
+  opacity: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>");
+}
+.auth-field.is-invalid .auth-input-wrap::after {
+  opacity: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'/><line x1='6' y1='6' x2='18' y2='18'/></svg>");
+}
+.auth-field.is-valid .auth-input { border-color: #16a34a; }
+.auth-field.is-invalid .auth-input { border-color: #dc2626; }
+.auth-field.is-valid .auth-input:focus {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+.auth-field.is-invalid .auth-input:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+
+.auth-hint {
+  font-size: 11.5px;
+  color: var(--lp-text-soft);
+  line-height: 1.4;
+}
+.auth-hint:empty { display: none; }
+.auth-field.is-invalid .auth-hint { color: #dc2626; }
+
+/* ── Password strength meter ──────────────────────────────────── */
+.auth-strength {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 2px;
+}
+.auth-strength-bar {
+  flex: 1 1 auto;
+  height: 5px;
+  background: var(--lp-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.auth-strength-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #94a3b8;
+  border-radius: 3px;
+  transition: width .15s ease, background .15s ease;
+}
+.auth-strength-fill.is-weak   { background: #dc2626; }
+.auth-strength-fill.is-ok     { background: #f59e0b; }
+.auth-strength-fill.is-good   { background: #16a34a; }
+.auth-strength-fill.is-strong { background: #059669; }
+.auth-strength-label {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--lp-text-soft);
+}
+.auth-strength-label.is-weak   { color: #dc2626; }
+.auth-strength-label.is-ok     { color: #b45309; }
+.auth-strength-label.is-good   { color: #15803d; }
+.auth-strength-label.is-strong { color: #047857; }
+
+/* ── Submit button ────────────────────────────────────────────── */
+/* Light mode: dark button with white text. Dark mode: primary-blue
+   button, still white text (user request — keep the CTA text white). */
+.auth-submit {
+  appearance: none;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  background: var(--lp-text);
+  color: var(--lp-bg);
+  border: 1px solid var(--lp-text);
+  border-radius: 9px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: opacity .12s, transform .04s;
+}
+.auth-submit:hover { opacity: 0.92; }
+.auth-submit:active { transform: translateY(1px); }
+.auth-submit[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Form-level error ─────────────────────────────────────────── */
+.auth-form-err {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: #dc2626;
+  min-height: 16px;
+  text-align: center;
+}
+.auth-form-err:empty { display: none; }
+
+/* ── Fine print ───────────────────────────────────────────────── */
+.auth-fine {
+  margin: 24px 0 0;
+  font-size: 11.5px; line-height: 1.55;
+  color: var(--lp-text-soft);
+  text-align: center;
+}
+
+/* ── Right column: slideshow ──────────────────────────────────── */
+/* No background, no border-left — the slideshow column is invisible
+   apart from the videos themselves. Its only job is to hold the
+   absolutely-positioned videos and clip their right halves against
+   the viewport edge via overflow:hidden.
+
+   The column has a STABLE height (auth-main has min-height pinned to
+   the viewport), so the centered video stays put when the visible
+   form is short (login) or tall (signup). */
+.auth-slideshow {
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+}
+
+.auth-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .9s ease;
+  pointer-events: none;
+}
+.auth-slide.is-active { opacity: 1; }
+
+.auth-slide video {
+  position: absolute;
+  /* Left-anchor so the right side spills past the viewport edge. */
+  left: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  /* Sized so the videos feel hero-scale without dominating. The
+     natural aspect ratio pushes the right edge past the column
+     boundary, where overflow:hidden clips it against the viewport. */
+  height: clamp(480px, 78vh, 860px);
+  width: auto;
+  max-width: none;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg);
+}
+
+/* ── Dark theme overrides ─────────────────────────────────────── */
+html[data-theme="dark"] .auth-submit {
+  background: var(--lp-primary);
+  color: #ffffff;
+  border-color: var(--lp-primary);
+}
+html[data-theme="dark"] .auth-submit:hover {
+  background: var(--lp-primary-hover);
+  border-color: var(--lp-primary-hover);
+  opacity: 1;
+}
+/* (no dark-mode shadow on videos — kept flat for both themes) */
+
+/* ── Responsive collapse ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .auth-main {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .auth-slideshow { display: none; }
+  .auth-pane { padding: 24px 20px 48px; }
+  .auth-title { font-size: 24px; }
+}
+@media (max-width: 480px) {
+  .auth-pane { padding: 16px 16px 40px; }
+}

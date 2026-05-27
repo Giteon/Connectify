@@ -5,9 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ConnectifyAI — Editing (new)</title>
   <script>
-    // Pre-paint theme + leftnav state so the page doesn't flash before JS runs.
+    /* Pre-paint theme + leftnav state so the page doesn't flash before JS runs.
+       First-visit defaults: light theme, leftnav expanded. Existing prefs preserved. */
     try {
-      if (!localStorage.getItem('cfg.theme')) localStorage.setItem('cfg.theme', 'light');
+      if (!localStorage.getItem('cfg.theme')) {
+        localStorage.setItem('cfg.theme', 'light');
+      }
+      if (!localStorage.getItem('cfg.leftnav.expanded')) {
+        localStorage.setItem('cfg.leftnav.expanded', '1');
+      }
       if (localStorage.getItem('cfg.theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
@@ -149,9 +155,7 @@
           <svg class="lp-chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
         </button>
         <div class="lp-tree" id="ltTree">
-          <a class="lp-node" href="#" data-team="research"><span class="lp-node-label">Research</span></a>
-          <a class="lp-node" href="#" data-team="platform"><span class="lp-node-label">Platform</span></a>
-          <a class="lp-node" href="#" data-team="ml-ops"><span class="lp-node-label">ML Ops</span></a>
+          <a class="lp-node" href="#" data-team="my-team"><span class="lp-node-label">My team</span></a>
         </div>
       </div>
 
@@ -763,6 +767,7 @@
 <script src="catalog-data.js"></script>
 <script src="static-graph-loader.js"></script>
 <script src="leftnav.js"></script>
+<script src="auth.js"></script>
 <script src="tutorial-system.js"></script>
 <script src="tutorial-steps.js"></script>
 <script src="editing-mode.js?v=13"></script>

@@ -78,7 +78,7 @@ body {
   --variant-detail-h: 0px;
 }
 
-.app.leftnav-expanded { --leftnav-w: 180px; }
+.app.leftnav-expanded { --leftnav-w: 210px; }
 
 /* Leftnav now spans the full height of the app shell. The topbar and
    variant strip start in column 2 so the leftnav reads as a continuous

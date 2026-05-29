@@ -1,55 +1,75 @@
 /* ============================================================
-   tutorial-steps.js — Step definitions for the 14-step tour.
+   tutorial-steps.js — Step definitions for the guided tour.
    Loaded after tutorial-system.js. Exposes:
      ConnectifyTutorialSteps.forPage('hub' | 'view' | 'edit')
    Each page passes its filtered slice into ConnectifyTutorial.init.
 
    Each step:
-     id              — 1..14
+     id              — sequential 1..N (must match array order)
      phase           — 'hub' | 'view' | 'edit'
      title           — short header
      text            — body copy (1–2 short sentences)
      selector        — CSS selector or function returning Element; null = no target
      position        — 'top' | 'bottom' | 'left' | 'right' | 'auto' | 'center'
+                      | 'top-left' | 'top-right' | 'page-top-left'
      highlight       — 'box' (default) | 'none'
      highlightPadding— extra px around target rect
-     video           — optional MP4 URL (tutorials/...)
+     dimCanvasOnly   — dim the canvas itself (so highlighted nodes pop) instead
+                       of the full-screen backdrop
+     noDim           — suppress all backdrop/canvas dimming (canvas stays bright)
+     video           — optional MP4 URL (images/videos/...)
+     videoInline     — render the video small/zoomed inside the tooltip body
+     videoZoom       — inline-video CSS zoom factor
      actionTrigger   — name passed to notifyAction() that advances this step
                        (omit/null = step advances on "Next" button click)
      actionGuard     — optional function(ctx) returning truthy when payload matches
-     onBeforeShow    — optional pre-show hook (e.g. open modal, switch tab)
+     onBeforeShow    — optional pre-show hook (e.g. open a panel, switch a tab)
+     onAfterHide     — optional teardown hook (undo temporary DOM tweaks)
+
+   Action steps show no advance button (they advance on the user's action);
+   the user can leave the tour any time via the × in the tooltip corner.
    ============================================================ */
 (function (global) {
   'use strict';
+
+  // Edit-page-only helpers; guarded so hub/view pages don't blow up.
+  const H = () => global.TutorialHooks || null;
 
   const STEPS = [
     // ───── Phase 1: hub (start-new-graph modal) ─────
     {
       id: 1,
       phase: 'hub',
-      title: 'Preview the starter graph',
+      title: 'Preview the Tutorial Graph',
       text:
-        "This is a small starter graph designed for first-time users. Click its Preview button to see how a graph looks before you build your own.",
-      // Self-healing: if the New-Graph modal isn't open (e.g. user landed on
-      // hub without ?new=1 and the tour is mid-restart), force it open so the
-      // starter card can render before the tooltip tries to anchor to it.
+        "This is a small graph built for first-time users. Click its Preview button to see how a graph looks before you build your own.",
       onBeforeShow: () => {
         try {
           const modal = document.getElementById('newGraphModal');
           if (modal && modal.hidden) {
             modal.hidden = false;
             document.body.style.overflow = 'hidden';
-            // Trigger the regular open path if available so the grid actually
-            // renders (the modal element being un-hidden alone won't populate it).
             const openFn = window.openNewGraphModal_ || null;
             if (typeof openFn === 'function') openFn();
           }
+          // Force the card's hover overlay open so the Preview button (the
+          // highlight target) is actually visible.
+          const card = document.querySelector('.ng-card[data-graph-slug="onboarding-starter"]');
+          if (card) card.classList.add('tt-force-overlay');
         } catch (_) {}
       },
-      selector: '.ng-card[data-graph-slug="onboarding-starter"]',
+      onAfterHide: () => {
+        try {
+          document.querySelectorAll('.ng-card.tt-force-overlay')
+            .forEach(c => c.classList.remove('tt-force-overlay'));
+        } catch (_) {}
+      },
+      // Highlight the Preview button itself (pulses, since this is an action step).
+      selector: () =>
+        document.querySelector('.ng-card[data-graph-slug="onboarding-starter"] [data-ng-action="preview"]') ||
+        document.querySelector('.ng-card[data-graph-slug="onboarding-starter"]'),
       position: 'left',
       highlightPadding: 6,
-      video: 'tutorials/step-01-preview-example.mp4',
       actionTrigger: 'preview-clicked',
       actionGuard: (ctx) => ctx && ctx.slug === 'onboarding-starter',
     },
@@ -60,200 +80,305 @@
       phase: 'view',
       title: 'Fork to make it yours',
       text:
-        "This is read-only view mode — you can explore but not edit. Click the Fork button to create your own editable copy.",
+        "View mode is read-only. Click Fork to create your own editable copy — we'll drop you straight onto the canvas.",
       selector: '#forkBtn',
       position: 'right',
       highlightPadding: 6,
-      video: 'tutorials/step-02-fork-button.mp4',
+      video: 'images/videos/fork-project.mp4',
+      videoZoom: 2,
+      // Advance the moment Fork is clicked (the fork + redirect happen next).
       actionTrigger: 'fork-clicked',
     },
+
+    // ───── Phase 3: editing-mode canvas ─────
     {
       id: 3,
-      phase: 'view',
-      title: 'Confirm the fork',
-      text:
-        "Confirm to create your own editable copy. The graph and its history will be cloned to your account.",
-      selector: '#forkConfirmOk',
-      position: 'top',
-      highlightPadding: 6,
-      video: 'tutorials/step-03-confirm-fork.mp4',
-      actionTrigger: 'fork-confirmed',
-    },
-
-    // ───── Phase 3: editing-mode canvas tour ─────
-    {
-      id: 4,
       phase: 'edit',
       title: 'Welcome to the canvas',
       text:
-        "This is your editing canvas. Nodes are connected by edges that carry data. Pan with mouse drag and zoom with scroll. You'll build on this graph next.",
+        "This is your editing canvas. Nodes are connected by edges that carry data. Pan by dragging and zoom with scroll. Let's finish building this pipeline, then run it.",
       selector: '#canvasArea',
       position: 'center',
       highlight: 'none',
-      video: 'tutorials/step-04-canvas-overview.mp4',
-    },
-    {
-      // NEW: Topnav orientation. Briefly explains what lives across the top.
-      id: 5,
-      phase: 'edit',
-      title: 'Top bar',
-      text:
-        "Up here: your project title and variant switcher on the left, the Run button + Runs/History/Role/Share on the right. Everything you need to drive an experiment.",
-      selector: '.topbar',
-      position: 'bottom',
-      highlightPadding: 0,
-      video: 'tutorials/step-05-topnav.mp4',
-    },
-    {
-      id: 6,
-      phase: 'edit',
-      title: 'Inspector panel',
-      text:
-        "Click any node to open the Inspector on the right — it shows config, run data, and variables. The tab on the right edge reopens it after you close it.",
-      selector: () =>
-        document.querySelector('.inspector-edge-tab') ||
-        document.getElementById('drawerRight') ||
-        document.querySelector('.canvas-area'),
-      position: 'left',
-      highlightPadding: 6,
-      video: 'tutorials/step-06-inspector-panel.mp4',
-    },
-    {
-      id: 7,
-      phase: 'edit',
-      title: 'Canvas toolbar',
-      text:
-        "Select nodes, draw marquees, undo/redo, zoom, and auto-layout from this floating toolbar at the bottom of the canvas.",
-      selector: '#canvasToolbar',
-      position: 'top',
-      highlightPadding: 6,
-      video: 'tutorials/step-07-canvas-toolbar.mp4',
-    },
-    {
-      id: 8,
-      phase: 'edit',
-      title: 'Paths panel',
-      text:
-        "Paths trace data flows through your graph — output → input chains you can run as targeted experiments. The panel docks to the top-right when you're tracing.",
-      // Make sure the float panel is visible so we have something to anchor to.
-      onBeforeShow: () => {
-        try {
-          const panel = document.getElementById('pathsFloatPanel');
-          if (panel && panel.hidden) {
-            panel.hidden = false;
-            panel.dataset.ttToggled = '1';
-          }
-        } catch (_) {}
-      },
-      // Re-hide the panel when leaving this step (Next, Back, Skip, or close),
-      // so we don't leave the host UI in a weird state if the user dismisses.
-      onAfterHide: () => {
-        try {
-          const panel = document.getElementById('pathsFloatPanel');
-          if (panel && panel.dataset.ttToggled === '1') {
-            panel.hidden = true;
-            delete panel.dataset.ttToggled;
-          }
-        } catch (_) {}
-      },
-      selector: () =>
-        document.getElementById('pathsFloatPanel') ||
-        document.querySelector('[data-side="right"][data-tab="paths"]') ||
-        document.getElementById('canvasArea'),
-      position: 'left',
-      highlightPadding: 6,
-      video: 'tutorials/step-08-paths-panel.mp4',
-    },
-    {
-      // Moved: Left navigation is now the last orientation step before the
-      // hands-on build phase begins.
-      id: 9,
-      phase: 'edit',
-      title: 'Left navigation',
-      text:
-        "Browse community graphs, manage your projects, and explore your teams from this rail. Click the hamburger to expand it.",
-      // Anchor to the inner content column instead of the whole `.leftnav`,
-      // which has a wider hit-box than its visible chrome and would let the
-      // highlight bleed past the right edge of the sidebar.
-      selector: () =>
-        document.querySelector('.leftnav .leftnav-top') ||
-        document.querySelector('.leftnav'),
-      position: 'right',
-      highlightPadding: 2,
-      video: 'tutorials/step-09-leftnav.mp4',
     },
 
-    // ───── Phase 4: building actions ─────
+    // ── Build: open the catalog, add a dataset, inspect it, chain it in ──
     {
-      id: 10,
+      id: 4,
       phase: 'edit',
-      title: 'Add a Dataset node',
+      title: 'Open the catalog',
       text:
-        "Now you'll build. Click the Dataset icon in the floating palette on the left to add a new Dataset node.",
+        "This graph still needs an input. Click the Dataset tool in the palette to open the catalog drawer.",
       selector: '#fpDataset',
       position: 'right',
       highlightPadding: 4,
-      video: 'tutorials/step-10-add-dataset.mp4',
+      actionTrigger: 'drawer-opened',
+      actionGuard: (ctx) => ctx && ctx.type === 'Dataset',
+    },
+    {
+      id: 5,
+      phase: 'edit',
+      title: "Add the dataset",
+      text:
+        "Click Add on the Sample Dataset — it drops onto the canvas, tagged as your Start node, and its Inspector opens automatically.",
+      // Safety: make sure the Datasets tab is showing even if the drawer was
+      // toggled. (No-op if it's already there.)
+      onBeforeShow: () => { try { H() && H().openDatasetCatalog(); } catch (_) {} },
+      selector: () =>
+        document.querySelector('[data-tutorial-id="dataset"] .add-btn') ||
+        document.getElementById('panelDiscover'),
+      position: 'right',
+      highlightPadding: 6,
+      video: 'images/videos/add-node.mp4',
+      videoInline: true,
+      videoZoom: 2,
       actionTrigger: 'node-added',
       actionGuard: (ctx) => ctx && ctx.type === 'Dataset',
     },
     {
-      id: 11,
+      id: 6,
       phase: 'edit',
-      title: 'Add a Model node',
+      title: 'The Inspector',
       text:
-        "Now add a Model node. Click the Model icon in the palette — models process data from datasets.",
-      selector: '#fpModel',
-      position: 'right',
-      highlightPadding: 4,
-      video: 'tutorials/step-11-add-model.mp4',
-      actionTrigger: 'node-added',
-      actionGuard: (ctx) => ctx && ctx.type === 'Model',
+        "Adding a node opens its Inspector automatically — your home for a node's config, run data, and variables. Reopen it any time by clicking a node, or via the tab on the right edge.",
+      // Collapse the catalog now that the dataset is placed. Don't dim the
+      // canvas here, so the dataset the user just added stays bright.
+      onBeforeShow: () => { try { H() && H().closeLeftDrawer(); } catch (_) {} },
+      selector: () =>
+        document.getElementById('inspectorShell') ||
+        document.getElementById('drawerRight'),
+      position: 'left',
+      highlight: 'none',
+      dimCanvasOnly: true,
     },
     {
-      id: 12,
+      id: 7,
       phase: 'edit',
-      title: 'Connect the nodes',
+      title: 'Chain them up',
       text:
-        "Drag from the Dataset's output port (right side) to the Model's input port (left side) to create a connection.",
-      // Anchor to the canvas toolbar so the tooltip sits at the bottom and
-      // doesn't cover the nodes the user needs to drag between.
-      selector: () =>
-        document.getElementById('canvasToolbar') ||
-        document.getElementById('canvasArea'),
-      position: 'top',
+        "Drag from the new dataset's output anchor to the transformer model's input anchor to connect them, like this:",
+      onBeforeShow: () => {
+        try {
+          const h = H(); if (!h) return;
+          h.collapseAllDrawers();
+          setTimeout(() => {
+            try { h.fitForWiring(); h.markWireNodes(); h.markWirePorts(); } catch (_) {}
+          }, 80);
+        } catch (_) {}
+      },
+      onAfterHide: () => {
+        try { const h = H(); if (h) { h.clearWirePorts(); h.clearPathTargets(); } } catch (_) {}
+      },
+      // Tooltip tucked into the top-left corner so it never sits over the two
+      // centered nodes the user is wiring together.
+      selector: () => document.getElementById('canvasArea'),
+      position: 'top-left',
       highlight: 'none',
-      video: 'tutorials/step-12-connect-nodes.mp4',
+      noDim: true,
+      video: 'images/videos/connection%20(zoomed).mp4',
+      videoInline: true,
+      videoZoom: 2,
       actionTrigger: 'connection-added',
     },
+
+    // ── Run an experiment: build a path, save it, run it ──
     {
-      // Was step 13 in the original deck; the explicit "Create a path" step
-      // was removed per simpler-onboarding feedback. The top-bar Run button
-      // runs the whole connected graph, so the user can run without first
-      // saving a path.
-      id: 13,
+      id: 8,
       phase: 'edit',
-      title: 'Run an experiment',
+      title: "Let's run an experiment",
       text:
-        "Click the Run button to execute the graph. Watch the bottom panel for results and the edges for animated run-flow.",
+        "Now make a path — the slice of the graph you want to run. Click the Path tool in the toolbar to start tracing.",
+      selector: '#fpPath',
+      position: 'right',
+      highlightPadding: 4,
+      actionTrigger: 'path-mode-started',
+    },
+    {
+      id: 9,
+      phase: 'edit',
+      title: 'Click along the path',
+      text:
+        "Click the highlighted node to add it to the path. Work left to right through all three nodes — the dataset first, then each one downstream.",
+      onBeforeShow: () => {
+        try {
+          global._tutorialPathStepActive = true;
+          H() && H().collapseAllDrawers();
+          H() && H().markPathTargets();
+        } catch (_) {}
+      },
+      onAfterHide: () => {
+        try { global._tutorialPathStepActive = false; H() && H().clearPathTargets(); } catch (_) {}
+      },
+      // Top-left corner keeps the tooltip clear of the mid-canvas nodes the
+      // user has to click. The make-path video plays here, while they trace.
+      selector: () => document.getElementById('canvasArea'),
+      position: 'top-left',
+      highlight: 'none',
+      dimCanvasOnly: true,
+      video: 'images/videos/make-path.mp4',
+      videoInline: true,
+      videoZoom: 2,
+      actionTrigger: 'path-node-picked',
+      actionGuard: (ctx) => ctx && ctx.count >= 3,
+    },
+    {
+      id: 10,
+      phase: 'edit',
+      title: 'Save the path',
+      text:
+        "All three nodes are chained. Click Save path to keep this trace so you can run and re-run it as an experiment.",
+      selector: () => {
+        const btns = Array.from(document.querySelectorAll('[data-pd-act="save"]'));
+        return btns.find(b => b.getBoundingClientRect().width > 0) || btns[0] ||
+          document.getElementById('pathsFloatPanel');
+      },
+      position: 'left',
+      highlightPadding: 6,
+      actionTrigger: 'path-saved',
+    },
+    {
+      id: 11,
+      phase: 'edit',
+      title: 'Run it',
+      text:
+        "Now click Run to execute your path. Watch the edges animate as data flows through the graph.",
       selector: '#runBtn',
       position: 'bottom',
       highlightPadding: 4,
-      video: 'tutorials/step-13-run-experiment.mp4',
       actionTrigger: 'run-started',
     },
 
-    // ───── Phase 5: completion ─────
+    // ── Runs panel: underway → summary → close ──
+    {
+      id: 12,
+      phase: 'edit',
+      title: 'Your run is underway',
+      text:
+        "The Runs panel peeks up from the bottom while your run progresses. When it finishes, it grows to full height automatically.",
+      onBeforeShow: () => { try { H() && H().ensureRunsOpen(); } catch (_) {} },
+      selector: () => document.getElementById('bottomPanel'),
+      position: 'top',
+      highlight: 'none',
+      noDim: true,
+      // Auto-advances to the summary when the run completes.
+      actionTrigger: 'run-finished',
+    },
+    {
+      id: 13,
+      phase: 'edit',
+      title: 'Run summary',
+      text:
+        "Here's the output of your run — accuracy, F1, loss, and the per-class breakdown. Every run you kick off is saved with results like these.",
+      // Spotlight the expanded drawer; tooltip sits at the page top-left.
+      selector: () => document.getElementById('bottomPanel'),
+      position: 'page-top-left',
+      highlightPadding: 4,
+    },
     {
       id: 14,
       phase: 'edit',
+      title: 'Close the Runs panel',
+      text:
+        "When you're done reviewing, close the panel with the × in its top-right corner to get your canvas back.",
+      selector: () => document.getElementById('bpClose'),
+      position: 'left',
+      highlightPadding: 6,
+      actionTrigger: 'runs-panel-closed',
+    },
+
+    // ── Organize what you ran: group the three nodes, then collapse it ──
+    {
+      id: 15,
+      phase: 'edit',
+      title: 'Create a subgroup',
+      text:
+        'Subgroups keep related nodes together. Click the Subgroup tool in the palette to start.',
+      selector: '#fpMarquee',
+      position: 'right',
+      highlightPadding: 4,
+      actionTrigger: 'marquee-tool-selected',
+    },
+    {
+      id: 16,
+      phase: 'edit',
+      title: 'Draw a subgroup',
+      text:
+        'Drag a box around all three nodes to select them, then confirm the subgroup — like this:',
+      selector: () => document.getElementById('canvasArea'),
+      position: 'top-left',
+      highlight: 'none',
+      noDim: true,
+      video: 'images/videos/make-subgroup.mp4',
+      videoInline: true,
+      videoZoom: 2,
+      actionTrigger: 'subgraph-created',
+    },
+    {
+      id: 17,
+      phase: 'edit',
+      title: 'Collapse the subgroup',
+      text:
+        "Nice — that's your subgroup. Click the collapse toggle on its header to tuck the nodes away into a single tidy block.",
+      selector: () => {
+        const boxes = document.querySelectorAll('.subgraph-box');
+        const box = boxes.length ? boxes[boxes.length - 1] : null;
+        return box ? box.querySelector('.sg-toggle') : null;
+      },
+      position: 'right',
+      highlightPadding: 6,
+      noDim: true,
+      actionTrigger: 'subgroup-collapsed',
+    },
+
+    // ── Organize: variant, snapshot ──
+    {
+      id: 18,
+      phase: 'edit',
+      title: 'Make a variant',
+      text:
+        "Variants are parallel copies of your graph for ablation studies — tweak one thing, run it, and compare. Open the variants row in the top bar if it's collapsed, then click + to spin up a fresh one.",
+      onBeforeShow: () => { try { H() && H().openVariantRow(); } catch (_) {} },
+      selector: () => document.getElementById('variantAdd'),
+      position: 'bottom',
+      highlightPadding: 6,
+      actionTrigger: 'variant-created',
+    },
+    {
+      id: 19,
+      phase: 'edit',
+      title: 'Open version history',
+      text:
+        "Version history lets you save and revert snapshots of your graph. Click History in the top bar to open it.",
+      selector: () => document.getElementById('tbHistoryBtn'),
+      position: 'bottom',
+      highlightPadding: 6,
+      actionTrigger: 'history-opened',
+    },
+    {
+      id: 20,
+      phase: 'edit',
+      title: 'Save a snapshot',
+      text:
+        "Now click Save snapshot to capture this moment. You can always revert to it later.",
+      selector: () => document.getElementById('historySave'),
+      position: 'right',
+      highlightPadding: 6,
+      video: 'images/videos/version-history.mp4',
+      videoInline: true,
+      videoZoom: 2,
+      actionTrigger: 'snapshot-saved',
+    },
+
+    // ───── Phase 4: completion ─────
+    {
+      id: 21,
+      phase: 'edit',
       title: "You're all set!",
       text:
-        "You've learned the basics — preview, fork, build, connect, and run. Explore more node types, variants, paths, and collaborators when you're ready.",
+        "You've previewed, forked, built a pipeline, run an experiment, and organized it. Explore more node types, paths, and collaborators when you're ready.",
       selector: null,
       position: 'center',
       highlight: 'none',
-      video: null,
     },
   ];
 

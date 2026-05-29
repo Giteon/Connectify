@@ -241,10 +241,12 @@ function openAdaptorDetailsPopover(opts) {
 
 // ── Load project data then init ────────────────────────────
 // Determine which project to load. `?project=…` is the primary source; fall
-// back to a `cfg.navHint.project` sessionStorage hint for environments where
-// the query string is dropped during URL rewriting (e.g. `npx serve` with
-// clean-URLs). The hint is cleared after first read.
+// back to sessionStorage hint, tutorial fork slug, and last-edited custom
+// project when static-file servers strip the query string.
 const slug = (() => {
+  if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.resolveProjectSlug === 'function') {
+    return window.ConnectifyLeftnav.resolveProjectSlug();
+  }
   const fromQuery = new URLSearchParams(location.search).get('project');
   if (fromQuery) return fromQuery;
   try {
@@ -268,9 +270,60 @@ function _readCustomProjectBySlug(targetSlug) {
     return null;
   }
 }
+
+// The onboarding starter (and any fork of it) is a throwaway sandbox for the
+// guided tour. Every time it's opened we wipe its variant-scoped state so it
+// returns to the pristine graph from data.js — as if the user had never
+// touched it. The custom row's `project` stays pristine (graph edits live in
+// cfg.variants, which we clear), so initApp re-seeds it fresh.
+function _isOnboardingStarterSlug(s) {
+  if (!s) return false;
+  if (s === 'onboarding-starter') return true;
+  if (s.indexOf('fork-onboarding-starter-') === 0) return true;
+  try {
+    const rows = JSON.parse(localStorage.getItem('cfg.customProjects') || '[]');
+    const row = Array.isArray(rows) ? rows.find(r => r && r.slug === s) : null;
+    if (row && row.forkedFrom === 'onboarding-starter') return true;
+  } catch (_) {}
+  return false;
+}
+function _resetOnboardingStarterStateIfNeeded(s) {
+  if (!_isOnboardingStarterSlug(s)) return;
+  const esc = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    '^cfg\\.(variants|activeVariant|variantPanelOpen)\\.' + esc + '$' +
+    '|^cfg\\.(paths|runs|history)\\.' + esc + '\\.'
+  );
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && re.test(k)) keys.push(k);
+  }
+  keys.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+
+  // Ensure the pristine fork row still seeds at least one baseline run so the
+  // tour's "compare runs" step has something to compare against (older forks
+  // may predate the data.js fix that set this to 1).
+  try {
+    const rows = JSON.parse(localStorage.getItem('cfg.customProjects') || '[]');
+    if (Array.isArray(rows)) {
+      const idx = rows.findIndex(r => r && r.slug === s);
+      if (idx >= 0 && rows[idx].project) {
+        const proj = rows[idx].project;
+        // The onboarding starter begins with no prior runs — the user's own
+        // run is the first thing in the Runs panel.
+        proj.demoRunCountByVariant = Object.assign({}, proj.demoRunCountByVariant, { v1: 0 });
+        rows[idx].project = proj;
+        localStorage.setItem('cfg.customProjects', JSON.stringify(rows));
+      }
+    }
+  } catch (_) {}
+}
+
 if (!slug) {
   document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">No project specified. <a href="graphs-hub.html?tab=dashboard">Go to My Graphs</a></p>';
 } else {
+  _resetOnboardingStarterStateIfNeeded(slug);
   const customProject = _readCustomProjectBySlug(slug);
   if (customProject) {
     IS_CUSTOM_PROJECT = true;
@@ -421,9 +474,13 @@ const SUBGRAPHS = {
 let _subgraphListenersBound = false;
 
 function setPaletteTool(name) {
+  const wasMarquee = SUBGRAPHS.marqueeTool;
   document.querySelectorAll('.tool-palette .tool').forEach(t => t.classList.toggle('active', t.dataset.tool === name));
   SUBGRAPHS.marqueeTool = (name === 'subgraph-marquee');
   document.body.classList.toggle('sg-marquee-tool', SUBGRAPHS.marqueeTool);
+  if (!wasMarquee && SUBGRAPHS.marqueeTool && window.ConnectifyTutorial) {
+    try { window.ConnectifyTutorial.notifyAction('marquee-tool-selected', {}); } catch (_) {}
+  }
   if (!SUBGRAPHS.marqueeTool) {
     _setSelectedNodes([]);
     _clearManualSubgraphDraft();
@@ -777,7 +834,13 @@ function _subgraphBounds(group) {
   const PAD_X = 32, PAD_Y = 36;
   /* Expanded: reserve enough top padding for full-width sg-head so nodes never sit under it. */
   const SG_HEAD_TOP_PAD = 56;
+  /* A node with a Start/End badge has visible chrome ~30px above its card
+     (badge height + 8px gap + notch). Treat that as part of the node's
+     footprint when this group is expanded so the subgroup top expands to
+     fit and the sg-head doesn't overlap the badge. */
+  const ROLE_BADGE_OVERHANG = 30;
   const topPad = (group && !group.collapsed) ? Math.max(PAD_Y, SG_HEAD_TOP_PAD) : PAD_Y;
+  const isExpanded = group && !group.collapsed;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   (group.nodeIds || []).forEach(id => {
     const el = _getNodeEl(id);
@@ -786,8 +849,11 @@ function _subgraphBounds(group) {
     const y = parseFloat(el.style.top) || 0;
     const w = el.offsetWidth || 200;
     const h = el.offsetHeight || 120;
+    const yEffective = (isExpanded && el.querySelector('.node-role-badge'))
+      ? y - ROLE_BADGE_OVERHANG
+      : y;
     minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
+    minY = Math.min(minY, yEffective);
     maxX = Math.max(maxX, x + w);
     maxY = Math.max(maxY, y + h);
   });
@@ -933,7 +999,11 @@ function _createSubgraphFromManualDraft() {
   if (ids.length < 2) return;
   const g = _createSubgraph(ids, false);
   if (!g) return;
-  g.name = (SUBGRAPHS.manualDraftName || 'New Group').trim() || 'New Group';
+  // The tour pre-names this "Data group" (set in _createSubgraph) — don't
+  // clobber it with the empty manual-draft name.
+  if (!_tutorialActive()) {
+    g.name = (SUBGRAPHS.manualDraftName || 'New Group').trim() || 'New Group';
+  }
   _setSelectedNodes([]);
   _clearManualSubgraphDraft();
   _markSubgraphMutation();
@@ -1485,6 +1555,10 @@ function renderSubgraphs() {
       Canvas.drawEdges();
       requestAnimationFrame(() => Canvas.drawEdges());
     });
+    // Tutorial: advance when the user collapses the subgroup they made.
+    if (g.collapsed && window.ConnectifyTutorial) {
+      window.ConnectifyTutorial.notifyAction('subgroup-collapsed', { id: g.id });
+    }
   }));
   layer.querySelectorAll('[data-sg-menu-btn]').forEach(btn => btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1575,11 +1649,20 @@ function _createSubgraph(nodeIds, focusRename) {
   if (ids.length < 1) return null;
   SUBGRAPHS.items.forEach(g => { g.nodeIds = g.nodeIds.filter(id => !ids.includes(id)); });
   const g = { id: 'sg_' + Date.now().toString(36), name: 'New Group', nodeIds: ids, collapsed: false, showInternalPins: true };
+  // During the tour the subgroup is pre-named so the user immediately sees a
+  // tidy "Data group" without the rename prompt. It stays expanded — a later
+  // tour step asks the user to collapse it themselves.
+  const tourSubgroup = _tutorialActive();
+  if (tourSubgroup) { g.name = 'Data group'; }
   SUBGRAPHS.items.push(g);
   _autoArrangeSubgraphNodes(ids);
   _normalizeSubgraphs();
   renderSubgraphs();
-  if (focusRename) setTimeout(() => _startSubgraphRename(g.id), 20);
+  if (focusRename && !tourSubgroup) setTimeout(() => _startSubgraphRename(g.id), 20);
+  // Tutorial Step 18: notify when a subgroup is created.
+  if (window.ConnectifyTutorial) {
+    window.ConnectifyTutorial.notifyAction('subgraph-created', { id: g.id, count: ids.length });
+  }
   return g;
 }
 function _removeNodeFromSubgraph(nodeId, groupId) {
@@ -2309,8 +2392,10 @@ function _initTutorialForEditing() {
   // bump them forward to the canvas tour.
   setTimeout(() => {
     const s = window.ConnectifyTutorial.getState();
-    if (s.started && !s.skipped && !s.completed && s.currentStep < 4) {
-      window.ConnectifyTutorial.advanceTo(4);
+    // Bump to the first edit-phase step (Welcome) if the user landed on the
+    // canvas while the tour is still on a hub/view step.
+    if (s.started && !s.skipped && !s.completed && s.currentStep < 3) {
+      window.ConnectifyTutorial.advanceTo(3);
     }
   }, 300);
 }
@@ -2611,6 +2696,10 @@ function updateVariantStrip() {
     all.push(forked);
     writeJSON(KEY.variants, all);
     switchVariant(newId);
+    // Tutorial "Make a variant" step: notify when a new variant is created.
+    if (window.ConnectifyTutorial) {
+      window.ConnectifyTutorial.notifyAction('variant-created', { id: newId });
+    }
   });
 
   bindVariantScrollFade();
@@ -3091,14 +3180,36 @@ function initShareGraph(P) {
 }
 
 /* Bottom panel layout helpers (runs / logs / problems dock). */
-function readCssLengthPx(varName, fallback) {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+function readCssLengthPx(varName, fallback, el) {
+  const target = el || document.documentElement;
+  const raw = getComputedStyle(target).getPropertyValue(varName).trim();
   const m = raw.match(/^([\d.]+)px$/i);
   if (m) return parseFloat(m[1]);
   return fallback;
 }
 function bpShellTopPx() {
-  return readCssLengthPx('--topbar-h', 52) + readCssLengthPx('--variant-h', 38);
+  const app = document.querySelector('.app');
+  const el = app || document.documentElement;
+  return readCssLengthPx('--topbar-h', 52, el) + readCssLengthPx('--variant-h', 38, el);
+}
+const BP_TOP_ANIM_MS = 320;
+function beginBpTopAnim() {
+  document.querySelector('.app')?.classList.add('bp-animating');
+}
+function endBpTopAnim() {
+  document.querySelector('.app')?.classList.remove('bp-animating');
+}
+function stashBpDockHeight(panel) {
+  if (!panel?.classList.contains('open') || panel.classList.contains('expanded')) return;
+  panel.dataset.bpDockH = String(Math.round(panel.getBoundingClientRect().height));
+}
+function readBpDockHeightPx(panel) {
+  const stored = panel?.dataset?.bpDockH;
+  if (stored) return Math.max(140, parseFloat(stored) || bpDefaultDockedHeightPx());
+  const v = getComputedStyle(panel).getPropertyValue('--bp-h').trim();
+  const m = v.match(/^([\d.]+)px$/i);
+  if (m) return parseFloat(m[1]);
+  return bpDefaultDockedHeightPx();
 }
 function bpDefaultDockedHeightPx() {
   return readCssLengthPx('--bottom-h', 240);
@@ -3110,11 +3221,65 @@ function bpMaxDockedHeightPx() {
 function bpFullOverlayHeightPx() {
   return window.innerHeight - bpShellTopPx();
 }
+function collapseVariantsRowIfOpen() {
+  const app = document.querySelector('.app');
+  if (!app || app.classList.contains('variants-hidden')) return;
+  app.classList.add('variants-hidden');
+  try { localStorage.setItem('cfg.variantsHidden', '1'); } catch (_) {}
+}
+
 function syncBpAppShell() {
   const app = document.querySelector('.app');
   const bp = document.getElementById('bottomPanel');
   if (!app || !bp) return;
-  app.classList.toggle('bp-expanded', bp.classList.contains('open') && bp.classList.contains('expanded'));
+  const expanding = bp.classList.contains('open') && bp.classList.contains('expanded');
+  const wasExpanded = app.classList.contains('bp-expanded');
+  app.classList.toggle('bp-expanded', expanding);
+  if (expanding && !wasExpanded) collapseVariantsRowIfOpen();
+}
+
+/** Docked Runs/Logs/Problems peek (not full-height overlay). */
+function openRunsPanelPeek() {
+  const panel = document.getElementById('bottomPanel');
+  if (!panel) return;
+  panel.classList.add('open');
+  document.getElementById('tglRuns')?.classList.add('active');
+  panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
+  panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
+  if (panel.classList.contains('expanded')) {
+    panel.classList.remove('expanded', 'bp-top-anim');
+    panel.style.removeProperty('top');
+  }
+  if (!panel.style.getPropertyValue('--bp-h')) {
+    panel.style.setProperty('--bp-h', bpDefaultDockedHeightPx() + 'px');
+  }
+  syncBpAppShell();
+  if (typeof renderRuns === 'function') renderRuns();
+}
+
+/** Animate docked peek → full-height overlay (same as #bpExpand). */
+function expandRunsPanelSmoothly(onComplete) {
+  const panel = document.getElementById('bottomPanel');
+  const done = () => { try { onComplete && onComplete(); } catch (_) {} };
+  if (!panel || !panel.classList.contains('open')) { done(); return; }
+  if (panel.classList.contains('expanded')) { done(); return; }
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    panel.removeEventListener('transitionend', onEnd);
+    clearTimeout(fallback);
+    done();
+  };
+  const onEnd = (e) => {
+    if (e.target !== panel) return;
+    if (e.propertyName && e.propertyName !== 'top') return;
+    if (!panel.classList.contains('expanded')) return;
+    finish();
+  };
+  panel.addEventListener('transitionend', onEnd);
+  const fallback = setTimeout(finish, BP_TOP_ANIM_MS + 40);
+  document.getElementById('bpExpand')?.click();
 }
 
 /* ── Drawer toggles (topbar) ───────────────────────────────
@@ -3381,8 +3546,11 @@ function renderDiscover() {
   const FN_TO_CAT = window.DISCOVER_FN_TO_CAT || {};
   const q = DISCOVER.query.trim().toLowerCase();
   const f = DISCOVER.filters;
+  const tourOn = typeof _tutorialActive === 'function' && _tutorialActive();
   const items = CATALOG.filter(it => {
     if (it.type !== DISCOVER.activeType) return false;
+    // Tutorial-only sample entries stay hidden outside the guided tour.
+    if (it.tutorial && !tourOn) return false;
     if (q && !(it.label.toLowerCase().includes(q) || it.by.toLowerCase().includes(q) || (it.fn && it.fn.toLowerCase().includes(q)))) return false;
     if (f.Function.size && !f.Function.has(it.fn)) return false;
     if (f.Category.size && !f.Category.has(FN_TO_CAT[it.fn] || '')) return false;
@@ -3390,6 +3558,8 @@ function renderDiscover() {
     if (f.Output.size   && ![...f.Output].some(v => (it.outputs || '').toLowerCase().includes(v.toLowerCase()))) return false;
     return true;
   });
+  // Pin tutorial samples to the top so the tour can reliably anchor to them.
+  if (tourOn) items.sort((a, b) => (b.tutorial ? 1 : 0) - (a.tutorial ? 1 : 0));
   const anyFilter = Object.values(f).some(s => s.size);
   const narrowed = !!q || anyFilter;
   const typeLabel = DISCOVER.activeType === 'Model' ? 'models' : DISCOVER.activeType === 'Dataset' ? 'datasets' : 'logic';
@@ -3510,7 +3680,7 @@ function renderDiscoverCard(it, i) {
   const desc = it.description || `${it.label} is a ${(it.fn||'multi-purpose').toLowerCase()} ${it.type.toLowerCase()} released by ${it.by}. Trained on ${it.fw || 'standard benchmarks'} with a focus on ${(it.fn||'general-purpose tasks').toLowerCase()}.`;
 
   return `
-    <div class="disc-card-row">
+    <div class="disc-card-row"${it.tutorial ? ` data-tutorial-id="${esc(it.tutorial)}"` : ''}>
       <div class="disc-card-main">
         <div class="t">
           <span class="dot" style="background:${it.color}"></span>
@@ -3719,17 +3889,64 @@ function addCatalogNode(item) {
     fn: item.fn, fw: item.fw, by: item.by,
     views: item.views, downloads: item.downloads,
   };
+  // Tutorial: the Sample Dataset/Model are tagged Start/End on add so the
+  // user immediately sees role tags and can trace a path between them.
+  if (_tutorialActive() && item.tutorial === 'dataset') {
+    node.tags = ['start'];
+    window._tutorialDatasetNodeId = node.id;
+    // Place it to the left of the existing chain so the connection the user
+    // draws to the preprocessor reads cleanly left → right.
+    try {
+      const ns = (Canvas.getAllNodes && Canvas.getAllNodes()) || [];
+      if (ns.length) {
+        const minX = Math.min(...ns.map(n => n.x || 0));
+        const avgY = ns.reduce((s, n) => s + (n.y || 0), 0) / ns.length;
+        node.x = minX - 440;
+        node.y = avgY;
+      }
+    } catch (_) {}
+  } else if (_tutorialActive() && item.tutorial === 'model') {
+    node.tags = ['end'];
+    window._tutorialModelNodeId = node.id;
+  }
   const el = Canvas.addNode(node);
   el.classList.add('drop-in');
+  if (Array.isArray(node.tags) && node.tags.length && typeof recomputeAutoRoles === 'function') {
+    recomputeAutoRoles();
+  }
   setTimeout(() => {
     el.classList.remove('drop-in');
     applyNewNodeBadge(el);
   }, 700);
-  // Tutorial Steps 9-10: notify after a Dataset/Model/Logic is added via the palette.
+  // A freshly added node opens its Inspector automatically, mirroring the
+  // node-click behavior, so the user can configure it right away.
+  const added = (Canvas.getNode && Canvas.getNode(node.id)) || node;
+  if (typeof _setSelectedNodes === 'function') _setSelectedNodes([node.id]);
+  if (typeof openInspector === 'function') openInspector(added);
+  // Tutorial: center the canvas on the freshly added node so it's front and
+  // center for the next step. Slight delay lets the node element settle.
+  if (_tutorialActive()) {
+    setTimeout(() => {
+      try {
+        const n = (Canvas.getNode && Canvas.getNode(node.id)) || node;
+        if (n && Canvas.focusWorld) Canvas.focusWorld((n.x || 0) + 110, (n.y || 0) + 60, { animate: true });
+      } catch (_) {}
+    }, 80);
+  }
+  // Notify the tour after a Dataset/Model is added via the palette.
   // (notifyAction is a no-op when the tour isn't running.)
   if (window.ConnectifyTutorial) {
     window.ConnectifyTutorial.notifyAction('node-added', { type: item.type, id: node.id });
   }
+}
+
+// Is the guided tour currently running (started, not skipped/completed)?
+function _tutorialActive() {
+  try {
+    if (!window.ConnectifyTutorial) return false;
+    const s = window.ConnectifyTutorial.getState();
+    return !!(s && s.started && !s.skipped && !s.completed);
+  } catch (_) { return false; }
 }
 
 /* ── History (mocked timeline) ─────────────────────────────
@@ -3995,6 +4212,10 @@ function saveHistorySnapshot(msg) {
   hist.push(snapshot);
   writeJSON(KEY.history(ACTIVE_VID), hist);
   renderHistory();
+  // Tutorial Step 20: notify when a history snapshot is saved.
+  if (window.ConnectifyTutorial) {
+    window.ConnectifyTutorial.notifyAction('snapshot-saved', { id: snapshot.id });
+  }
 }
 
 // Preview a snapshot non-destructively: we save the live state so we can
@@ -4123,6 +4344,12 @@ function initLeftNav(P) {
   // Pre-paint script on <html> already applied state via data-leftnav; mirror it onto .app.
   if (document.documentElement.getAttribute('data-leftnav') === 'expanded') {
     app.classList.add('leftnav-expanded');
+  }
+  // During the guided tour the canvas opens with the leftnav collapsed so the
+  // user starts with a clean, uncluttered workspace.
+  if (typeof _tutorialActive === 'function' && _tutorialActive()) {
+    app.classList.remove('leftnav-expanded');
+    document.documentElement.removeAttribute('data-leftnav');
   }
   toggle?.addEventListener('click', () => {
     const expanded = app.classList.toggle('leftnav-expanded');
@@ -4504,6 +4731,16 @@ function handlePathPick(id) {
   renderPaths();
   applyPathHighlights();
   fitAroundSelection();
+  // Tutorial Step 6: advance the highlight to the next node in the suggested
+  // path so guidance stays one step ahead of the user's clicks.
+  if (window._tutorialPathStepActive && window.TutorialHooks) {
+    window.TutorialHooks.markPathTargets();
+  }
+  // Notify each time the path grows so the step can advance once enough nodes
+  // are chained (guard checks ctx.count).
+  if (window.ConnectifyTutorial) {
+    window.ConnectifyTutorial.notifyAction('path-node-picked', { count: PATH_DRAW.nodeIds.length });
+  }
 }
 
 function pathDrawUndo() {
@@ -4695,31 +4932,28 @@ function syncPathDrawFloatOverlay() {
 function renderPaths() {
   document.querySelector('.path-confirm-pop')?._cleanup?.();
   const panel = document.getElementById('panelPaths');
+  if (!panel) return;
+  const newBtn = document.getElementById('pathsNewBtn');
+  const drawHost = document.getElementById('pathsDrawHost');
   const paths = readJSON(KEY.paths(ACTIVE_VID)) || [];
 
   // Normalize legacy records that used `nodes` instead of `nodeIds`.
   paths.forEach(p => { if (!p.nodeIds && p.nodes) p.nodeIds = p.nodes; });
 
-  const banner = PATH_DRAW.active ? renderPathDrawBanner() : `
-    <div class="paths-head">
-      <button class="new-path-btn" id="newPathBtn">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px;"><path d="M10 4v12M4 10h12"/></svg>
-        New path
-      </button>
-    </div>`;
+  // Pinned chrome lives outside the scroll list: the New-path button when idle,
+  // the draw banner (Cancel/Undo/Save) when actively tracing.
+  if (newBtn) newBtn.hidden = PATH_DRAW.active;
+  if (drawHost) {
+    drawHost.innerHTML = PATH_DRAW.active ? renderPathDrawBanner() : '';
+    if (PATH_DRAW.active) wirePathDrawBanner(drawHost);
+  }
 
   const list = paths.length ? paths.map(p => renderPathItem(p)).join('') : (PATH_DRAW.active ? '' : `
     <div class="empty-state" style="padding:24px 14px;text-align:center;color:var(--text-muted);font-size:12.5px;">
       No saved paths yet. Click "New path" to trace a subgraph.
     </div>`);
 
-  panel.innerHTML = banner + list;
-
-  if (PATH_DRAW.active) {
-    wirePathDrawBanner(panel);
-  } else {
-    document.getElementById('newPathBtn')?.addEventListener('click', () => pathDrawStart());
-  }
+  panel.innerHTML = list;
   panel.querySelectorAll('.path-item').forEach(item => wirePathItem(item));
   syncPathDrawFloatOverlay();
 }
@@ -4785,15 +5019,17 @@ function renderPathItem(p) {
       <div class="path-item-top">
         <div class="t" data-act="rename-inline" role="button" tabindex="0" title="Click to rename">${esc(p.name)}</div>
         ${endToEndChip}
+      </div>
+      <div class="path-item-chain">${chainPills}${tail}</div>
+      <div class="path-item-foot">
+        <div class="m">${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}${pathRunCount ? ` · ${pathRunCount} run${pathRunCount === 1 ? '' : 's'}` : ''}</div>
         <div class="path-item-actions">
           <button data-act="edit" title="Edit path"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button data-act="extract" title="Extract to variant"><img src="icons/export.png" alt="Extract to variant" /></button>
+          <button data-act="extract" title="Extract to variant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
           <button data-act="duplicate" title="Duplicate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           <button class="danger" data-act="delete" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
         </div>
       </div>
-      <div class="path-item-chain">${chainPills}${tail}</div>
-      <div class="m">${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'} · ${esc(p.author || 'Unknown')} · ${formatRelativeTime(p.createdAt)}${pathRunCount ? ` · ${pathRunCount} run${pathRunCount === 1 ? '' : 's'}` : ''}</div>
       <button class="path-item-run" data-act="run">
         <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
         Run experiment
@@ -5805,86 +6041,102 @@ function initBottomPanel() {
     expandBtn?.click();
   });
   let bpTopAnimGen = 0;
-  expandBtn?.addEventListener('click', () => {
+  function clearBpTopAnimListener() {
     if (panel._bpTopAnimEnd) {
       panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
       panel._bpTopAnimEnd = null;
     }
+    endBpTopAnim();
+  }
+  function startBpTopAnim(toTop, onComplete, fromTop) {
+    const start = typeof fromTop === 'number' ? fromTop : panel.getBoundingClientRect().top;
+    beginBpTopAnim();
+    panel.classList.add('bp-top-anim');
+    panel.style.top = `${start}px`;
+    void panel.offsetHeight;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        panel.style.top = `${toTop}px`;
+      });
+    });
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      panel.removeEventListener('transitionend', onEnd);
+      clearTimeout(fallback);
+      endBpTopAnim();
+      onComplete();
+    };
+    const onEnd = e => {
+      if (e.target !== panel) return;
+      if (e.propertyName && e.propertyName !== 'top') return;
+      finish();
+    };
+    panel._bpTopAnimEnd = onEnd;
+    panel.addEventListener('transitionend', onEnd);
+    const fallback = setTimeout(finish, BP_TOP_ANIM_MS + 40);
+  }
+  expandBtn?.addEventListener('click', () => {
+    clearBpTopAnimListener();
     panel.classList.remove('bp-top-anim');
     bpTopAnimGen++;
     const gen = bpTopAnimGen;
     const willExpand = !panel.classList.contains('expanded');
     if (willExpand) {
-      const rect = panel.getBoundingClientRect();
+      collapseVariantsRowIfOpen();
+      void panel.offsetHeight;
+      stashBpDockHeight(panel);
+      const startTop = panel.getBoundingClientRect().top;
       panel.classList.add('expanded');
       syncBpAppShell();
       panel.style.removeProperty('--bp-h');
-      panel.classList.add('bp-top-anim');
-      panel.style.top = `${rect.top}px`;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (gen !== bpTopAnimGen) return;
-          panel.style.top = `${bpShellTopPx()}px`;
-        });
-      });
-      const onEnd = e => {
+      const targetTop = bpShellTopPx();
+      startBpTopAnim(targetTop, () => {
         if (gen !== bpTopAnimGen) return;
-        if (e.target !== panel) return;
-        if (e.propertyName && e.propertyName !== 'top') return;
-        panel.removeEventListener('transitionend', onEnd);
-        if (panel._bpTopAnimEnd === onEnd) panel._bpTopAnimEnd = null;
         if (!panel.classList.contains('expanded')) return;
+        panel.style.top = `${bpShellTopPx()}px`;
+        void panel.offsetHeight;
         panel.classList.remove('bp-top-anim');
         panel.style.removeProperty('top');
-      };
-      panel._bpTopAnimEnd = onEnd;
-      panel.addEventListener('transitionend', onEnd);
+        if (panel._bpTopAnimEnd) {
+          panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
+          panel._bpTopAnimEnd = null;
+        }
+      }, startTop);
       expandBtn.title = 'Collapse panel';
       expandBtn.setAttribute('aria-label', 'Collapse panel');
     } else {
-      const readDockH = () => {
-        const v = getComputedStyle(panel).getPropertyValue('--bp-h').trim();
-        const m = v.match(/^([\d.]+)px$/i);
-        if (m) return parseFloat(m[1]);
-        return bpDefaultDockedHeightPx();
-      };
-      const h = readDockH();
-      const targetTop = Math.max(bpShellTopPx(), window.innerHeight - h);
-      panel.classList.add('bp-top-anim');
-      panel.style.top = `${panel.getBoundingClientRect().top}px`;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (gen !== bpTopAnimGen) return;
-          panel.style.top = `${targetTop}px`;
-        });
-      });
-      const onEnd = e => {
+      const h = Math.round(readBpDockHeightPx(panel));
+      panel.style.setProperty('--bp-h', `${h}px`);
+      const targetTop = window.innerHeight - h;
+      startBpTopAnim(targetTop, () => {
         if (gen !== bpTopAnimGen) return;
-        if (e.target !== panel) return;
-        if (e.propertyName && e.propertyName !== 'top') return;
-        panel.removeEventListener('transitionend', onEnd);
-        if (panel._bpTopAnimEnd === onEnd) panel._bpTopAnimEnd = null;
+        panel.style.setProperty('--bp-h', `${h}px`);
         panel.classList.remove('expanded', 'bp-top-anim');
         panel.style.removeProperty('top');
+        if (panel._bpTopAnimEnd) {
+          panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
+          panel._bpTopAnimEnd = null;
+        }
         syncBpAppShell();
         expandBtn.title = 'Expand panel';
         expandBtn.setAttribute('aria-label', 'Expand panel');
-      };
-      panel._bpTopAnimEnd = onEnd;
-      panel.addEventListener('transitionend', onEnd);
+      });
     }
   });
   closeBtn.addEventListener('click', () => {
-    if (panel._bpTopAnimEnd) {
-      panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
-      panel._bpTopAnimEnd = null;
-    }
+    clearBpTopAnimListener();
     bpTopAnimGen++;
     panel.classList.remove('bp-top-anim');
     panel.classList.remove('expanded');
     panel.classList.remove('open');
     panel.style.removeProperty('top');
     document.getElementById('tglRuns')?.classList.remove('active');
+    // Tutorial Step 11: notify when the Runs panel is closed.
+    if (window.ConnectifyTutorial) {
+      window.ConnectifyTutorial.notifyAction('runs-panel-closed', {});
+    }
     if (expandBtn) {
       expandBtn.title = 'Expand panel';
       expandBtn.setAttribute('aria-label', 'Expand panel');
@@ -6305,6 +6557,10 @@ function renderRuns() {
       RUN_COMPARE_IDS = RUN_COMPARE_IDS.filter(x => x !== id);
       if (chk.checked) RUN_COMPARE_IDS.push(id);
       if (RUN_COMPARE_IDS.length > 2) RUN_COMPARE_IDS = RUN_COMPARE_IDS.slice(RUN_COMPARE_IDS.length - 2);
+      // Tutorial Step 10: notify once two runs are selected for comparison.
+      if (RUN_COMPARE_IDS.length === 2 && window.ConnectifyTutorial) {
+        window.ConnectifyTutorial.notifyAction('runs-compared', { ids: RUN_COMPARE_IDS.slice() });
+      }
       renderRuns();
     });
   });
@@ -6532,9 +6788,13 @@ function showRunComparison(aId, bId) {
 // so switching variants mid-run doesn't pollute another variant's feed.
 function startRun(opts) {
   if (ACTIVE_RUN) return; // one at a time (wireframe constraint)
-  // Tutorial Step 13: notify when a run is kicked off.
+  openRunsPanelPeek();
+  // Tutorial: advance to "Your run is underway" a beat AFTER the progress bar
+  // has visibly started moving, rather than the instant Run is clicked.
   if (window.ConnectifyTutorial) {
-    window.ConnectifyTutorial.notifyAction('run-started', { opts: opts || {} });
+    setTimeout(() => {
+      try { window.ConnectifyTutorial.notifyAction('run-started', { opts: opts || {} }); } catch (_) {}
+    }, 650);
   }
   const cfg = opts || {};
   const vid = ACTIVE_VID;
@@ -6572,6 +6832,7 @@ function startRun(opts) {
       return;
     }
     r.progress = Math.min(100, _num(r.progress, 0) + 8 + Math.random() * 6);
+    let justCompleted = false;
     if (r.progress >= 100) {
       r.status = 'ok';
       r.progress = 100;
@@ -6579,11 +6840,25 @@ function startRun(opts) {
       clearInterval(ACTIVE_RUN);
       ACTIVE_RUN = null;
       Canvas.setRunFlowEdges(false);
+      justCompleted = true;
     } else {
       applyRunFlowVisual(r);
     }
     writeJSON(KEY.runs(vid), list);
     if (vid === ACTIVE_VID) renderRuns();
+    // Once the progress bar completes, grow the Runs drawer to full height
+    // (same animation as #bpExpand). Tutorial waits for the transition before
+    // advancing so the spotlight measures the expanded panel.
+    if (justCompleted && vid === ACTIVE_VID) {
+      expandRunsPanelSmoothly(() => {
+        try {
+          if (window.ConnectifyTutorial) {
+            window.ConnectifyTutorial.notifyAction('run-finished', { id: r.id });
+          }
+          window.dispatchEvent(new Event('resize'));
+        } catch (_) {}
+      });
+    }
   }, 450);
 }
 
@@ -6629,15 +6904,7 @@ function renderProblems() {
    Opens the bottom panel, switches to Runs tab, (in a real product)
    queues a new run. Wireframe: just opens the panel. */
 function initRunButton() {
-  document.getElementById('runBtn').addEventListener('click', () => {
-    const panel = document.getElementById('bottomPanel');
-    panel.classList.add('open');
-    document.getElementById('tglRuns')?.classList.add('active');
-    panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
-    panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
-    syncBpAppShell();
-    startRun();
-  });
+  document.getElementById('runBtn').addEventListener('click', () => startRun());
 }
 
 /* ── Zoom controls ────────────────────────────────────────── */
@@ -6975,7 +7242,61 @@ function refreshUndoRedoUI() {
   if (r) r.disabled = REDO_STACK.length === 0;
 }
 
-/* Delete key removes the currently selected edge (blue highlight / break-link target). */
+/** Node ids targeted by Delete/Backspace (marquee/multi-select, else inspector focus). */
+function _keyboardDeleteTargetNodeIds() {
+  const ids = [...SUBGRAPHS.selectedNodeIds].filter(id => Canvas.getNode(id));
+  if (ids.length) return ids;
+  if (typeof _currentInspectorNode !== 'undefined' && _currentInspectorNode?.id) {
+    const id = _currentInspectorNode.id;
+    if (Canvas.getNode(id)) return [id];
+  }
+  const el = document.querySelector('.node.selected[data-node-id]');
+  const id = el?.dataset?.nodeId;
+  if (id && Canvas.getNode(id)) return [id];
+  return [];
+}
+
+function _clearInspectorIfNodeDeleted(nodeId) {
+  if (typeof _currentInspectorNode === 'undefined' || !_currentInspectorNode) return;
+  if (_currentInspectorNode.id !== nodeId) return;
+  _currentInspectorNode = null;
+  const empty = document.getElementById('inspectorEmpty');
+  const shell = document.getElementById('inspectorShell');
+  const detail = document.getElementById('inspectorDetail');
+  if (empty) empty.style.display = '';
+  if (shell) shell.style.display = 'none';
+  if (detail) detail.style.display = 'none';
+}
+
+/** Delete key on selected nodes (no confirm pop — kebab menu still confirms). */
+function _deleteNodesByKeyboard(ids) {
+  if (!ids?.length) return false;
+  if (PATH_DRAW.active) return false;
+  if (document.querySelector('.variant-confirm-pop')) return false;
+
+  const remove = (id) => {
+    Canvas.removeNode(id);
+    _clearInspectorIfNodeDeleted(id);
+  };
+
+  if (ids.length === 1) {
+    remove(ids[0]);
+  } else {
+    if (typeof pushUndoSnapshot === 'function') pushUndoSnapshot();
+    HISTORY_APPLYING = true;
+    try {
+      ids.forEach(remove);
+    } finally {
+      HISTORY_APPLYING = false;
+    }
+  }
+
+  if (typeof _setSelectedNodes === 'function') _setSelectedNodes([]);
+  document.querySelectorAll('.node.selected').forEach(n => n.classList.remove('selected'));
+  return true;
+}
+
+/* Delete key removes the active edge (break-link bubble) or selected node(s). */
 function initActiveEdgeDeleteKey() {
   document.addEventListener('keydown', e => {
     const isDeleteKey = e.key === 'Delete' || e.key === 'Backspace';
@@ -6984,10 +7305,17 @@ function initActiveEdgeDeleteKey() {
     const t = e.target;
     if (t && t.matches && t.matches('input, textarea, [contenteditable="true"]')) return;
     if (t && t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
-    if (typeof Canvas.removeActiveEdgeSelection !== 'function') return;
-    if (typeof pushUndoSnapshot === 'function') pushUndoSnapshot();
-    if (!Canvas.removeActiveEdgeSelection()) return;
-    e.preventDefault();
+
+    if (typeof Canvas.removeActiveEdgeSelection === 'function') {
+      if (typeof pushUndoSnapshot === 'function') pushUndoSnapshot();
+      if (Canvas.removeActiveEdgeSelection()) {
+        e.preventDefault();
+        return;
+      }
+    }
+
+    const nodeIds = _keyboardDeleteTargetNodeIds();
+    if (_deleteNodesByKeyboard(nodeIds)) e.preventDefault();
   });
 }
 
@@ -7460,6 +7788,12 @@ function recomputeAutoRoles() {
     }
   });
   changed.forEach(id => Canvas.renderNode(id));
+  // Subgroup bounds factor in role-badge overhang (see _subgraphBounds);
+  // re-render so any expanded subgroup containing a changed node grows or
+  // shrinks its top padding to match.
+  if (changed.length && typeof renderSubgraphs === 'function') {
+    renderSubgraphs();
+  }
 }
 
 /* Return node IDs that carry the given role, either manually (node.tags)
@@ -7499,6 +7833,7 @@ function moveNodeRole(sourceId, targetId, role) {
   Canvas.renderNode(sourceId);
   Canvas.renderNode(targetId);
   recomputeAutoRoles();
+  if (typeof renderSubgraphs === 'function') renderSubgraphs();
   // If inspector is open on either node, refresh it.
   if (typeof renderInspectorSubtab === 'function' && _currentInspectorNode) {
     if (_currentInspectorNode.id === sourceId || _currentInspectorNode.id === targetId) {
@@ -7518,14 +7853,15 @@ function moveNodeRole(sourceId, targetId, role) {
 function initRoleBadgeDragTransfer() {
   if (typeof Canvas === 'undefined' || !Canvas.onRoleBadgeDragStart) return;
   Canvas.onRoleBadgeDragStart((sourceId, role, downEvent, badgeEl) => {
-    // Snapshot the real badge's box so the ghost can match exactly, then
-    // hide the original (visibility, not display — preserves layout) so the
+    // Hide the original (visibility, not display — preserves layout) so the
     // ghost reads as the real tag being lifted off rather than a duplicate.
-    const srcRect = badgeEl.getBoundingClientRect();
+    // Don't copy the source's bounding box: getBoundingClientRect captures
+    // the post-canvas-zoom visual size, which would make the ghost huge at
+    // 2x zoom or tiny at 0.5x. The ghost lives in document.body (outside
+    // the canvas transform), so let it render at its natural CSS size so
+    // it stays consistent regardless of how zoomed the canvas is.
     const ghost = badgeEl.cloneNode(true);
     ghost.classList.add('node-role-badge-ghost');
-    ghost.style.width  = srcRect.width  + 'px';
-    ghost.style.height = srcRect.height + 'px';
     ghost.style.left = downEvent.clientX + 'px';
     ghost.style.top  = downEvent.clientY + 'px';
     document.body.appendChild(ghost);
@@ -7590,7 +7926,12 @@ function toggleNodeRole(nodeId, role) {
   snapshotActiveVariant();
   Canvas.renderNode(nodeId);
   // Manual mark may have just suppressed/freed auto-roles across the graph.
+  // recomputeAutoRoles re-renders affected nodes and (if anything flipped)
+  // calls renderSubgraphs. If only the manual tag changed and no auto-role
+  // flipped, we still need a subgroup re-render so its bounds account for
+  // the badge appearing/disappearing.
   recomputeAutoRoles();
+  if (typeof renderSubgraphs === 'function') renderSubgraphs();
   // If the inspector is open on this node, refresh it so the toggle reflects.
   if (typeof renderInspectorSubtab === 'function'
       && _currentInspectorNode && _currentInspectorNode.id === nodeId) {
@@ -8374,6 +8715,7 @@ function initPathsFloatPanel() {
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
       panel.hidden = true;
+      document.getElementById('tglPaths')?.classList.remove('active');
       syncPathDrawFloatOverlay();
     });
   }
@@ -8409,7 +8751,9 @@ function pathDrawStart(opts) {
   // immediately keep extending downstream. Multiple Starts → no auto-seed
   // (the post-render hint will tell them to pick one).
   let autoSeededFromStart = false;
-  if (!PATH_DRAW.nodeIds.length && !PATH_DRAW.editingPathId) {
+  // During the guided tour the path starts empty so the user clicks the first
+  // node themselves (Step 6) — skip the convenience auto-seed.
+  if (!PATH_DRAW.nodeIds.length && !PATH_DRAW.editingPathId && !_tutorialActive()) {
     const starts = (typeof findNodesWithRole === 'function') ? findNodesWithRole('start') : [];
     if (starts.length === 1) {
       PATH_DRAW.nodeIds = [starts[0]];
@@ -8423,6 +8767,7 @@ function pathDrawStart(opts) {
   // V3: show paths float panel instead of opening the right drawer
   const floatPanel = document.getElementById('pathsFloatPanel');
   if (floatPanel) floatPanel.hidden = false;
+  document.getElementById('tglPaths')?.classList.add('active');
 
   setPaletteTool('path');
   attachPathClickCapture();
@@ -8442,6 +8787,10 @@ function pathDrawStart(opts) {
     if (starts.length > 1) {
       setPathHint(`Multiple Start nodes — pick one of the ${starts.length} marked Starts to begin.`);
     }
+  }
+  // Tutorial Step 5: notify when path-draw mode is entered.
+  if (window.ConnectifyTutorial) {
+    window.ConnectifyTutorial.notifyAction('path-mode-started', { seeded: PATH_DRAW.nodeIds.length });
   }
 }
 
@@ -8486,6 +8835,11 @@ function openInspectorV2(nodeData) {
   renderInspectorHead(nodeData);
   renderInspectorSubtab();
   bindSubtabClicks();
+
+  // Tutorial Step 14: notify when a node's Inspector is opened.
+  if (window.ConnectifyTutorial) {
+    window.ConnectifyTutorial.notifyAction('inspector-opened', { type: nodeData.type, id: nodeData.id });
+  }
 }
 
 // V3: Canvas-mode nav (expand/collapse toggle)
@@ -8612,6 +8966,10 @@ function initFloatPalette() {
       DISCOVER.activeType = activeType;
       if (typeof renderDiscover === 'function') renderDiscover();
     }
+    // Tutorial Step 12: notify when the catalog drawer is opened from the palette.
+    if (window.ConnectifyTutorial) {
+      window.ConnectifyTutorial.notifyAction('drawer-opened', { type: activeType });
+    }
     const leftEl = document.getElementById('drawerLeft');
     const isOpen = !!leftEl && leftEl.classList.contains('open');
     const activeTab = leftEl?.querySelector('.drawer-tab.active')?.dataset?.tab;
@@ -8696,6 +9054,20 @@ function initLeftnavProjects() {
   }
 }
 
+// Topbar Paths button → toggles the floating Paths panel.
+function initTopbarPaths() {
+  const btn = document.getElementById('tglPaths');
+  const panel = document.getElementById('pathsFloatPanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', () => {
+    const willShow = panel.hidden;
+    panel.hidden = !willShow;
+    btn.classList.toggle('active', willShow);
+    if (willShow) renderPaths();
+    syncPathDrawFloatOverlay();
+  });
+}
+
 // V4: Topbar history button → opens left drawer history tab
 function initTopbarHistory() {
   const btn = document.getElementById('tbHistoryBtn');
@@ -8715,7 +9087,12 @@ function initTopbarHistory() {
     leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelHistory'));
     const ds = document.getElementById('discoverSearch');
     if (ds) ds.style.display = 'none';
+    if (typeof renderHistory === 'function') { try { renderHistory(); } catch (_) {} }
     btn.classList.add('active');
+    // Tutorial: advance once the History panel is opened from the topbar.
+    if (window.ConnectifyTutorial) {
+      window.ConnectifyTutorial.notifyAction('history-opened');
+    }
   });
 }
 
@@ -8725,9 +9102,256 @@ if (document.readyState === 'loading') {
     initFloatPalette();
     initLeftnavProjects();
     initTopbarHistory();
+    initTopbarPaths();
   });
 } else {
   initFloatPalette();
   initLeftnavProjects();
   initTopbarHistory();
 }
+
+/* ── Tutorial hooks ────────────────────────────────────────
+   Small DOM helpers the guided tour (tutorial-steps.js) calls from its
+   onBeforeShow / onAfterHide handlers. Defined only on the editing page,
+   so the steps guard with `window.TutorialHooks &&` before calling. */
+window.TutorialHooks = {
+  // Highlight the NEXT node the user should click while building a path
+  // (Step 6). We compute the first three nodes of the starter chain and pulse
+  // only the first one not yet in the path, so guidance stays sequential:
+  // click "Input Data" → it becomes #1 → the highlight moves downstream.
+  markPathTargets() {
+    this.clearPathTargets();
+    if (typeof Canvas === 'undefined' || !Canvas.getAllNodes) return;
+    const nodes = Canvas.getAllNodes() || [];
+    const conns = Canvas.getConnections() || [];
+    const inDeg = new Map();
+    const nextOf = new Map();
+    nodes.forEach(n => inDeg.set(n.id, 0));
+    conns.forEach(c => {
+      const f = c && c.from && c.from[0];
+      const t = c && c.to && c.to[0];
+      if (!f || !t || !inDeg.has(t)) return;
+      inDeg.set(t, (inDeg.get(t) || 0) + 1);
+      if (!nextOf.has(f)) nextOf.set(f, t);
+    });
+    let start = nodes.find(n => inDeg.get(n.id) === 0) || nodes[0];
+    const chain = [];
+    let cur = start && start.id;
+    while (cur && chain.length < 6 && !chain.includes(cur)) {
+      chain.push(cur);
+      cur = nextOf.get(cur);
+    }
+    // Dim the canvas (inside its own stacking context so the highlighted node
+    // can pop above it — the global fixed overlay can't be escaped from inside
+    // the transformed canvas).
+    this.ensurePathDim();
+    const picked = (typeof PATH_DRAW !== 'undefined' && PATH_DRAW.nodeIds) || [];
+    const inner = (Canvas.getCanvasInner && Canvas.getCanvasInner()) || document;
+    const lift = (id) => {
+      const el = inner.querySelector(`.node[data-node-id="${CSS.escape(id)}"]`);
+      if (el) el.classList.add('tt-node-target');
+    };
+    // Keep every node already in the path bright (un-dimmed), plus pulse the
+    // next node the user should click.
+    picked.forEach(lift);
+    const next = chain.find(id => !picked.includes(id));
+    if (next) lift(next);
+  },
+  clearPathTargets() {
+    document.querySelectorAll('.tt-node-target')
+      .forEach(el => el.classList.remove('tt-node-target'));
+    this.removePathDim();
+  },
+  ensurePathDim() {
+    if (typeof Canvas === 'undefined' || !Canvas.getCanvasInner) return;
+    const inner = Canvas.getCanvasInner();
+    if (!inner || inner.querySelector('.tt-canvas-dim')) return;
+    const dim = document.createElement('div');
+    dim.className = 'tt-canvas-dim';
+    inner.appendChild(dim);
+  },
+  removePathDim() {
+    document.querySelectorAll('.tt-canvas-dim').forEach(el => el.remove());
+  },
+
+  // Open the Runs panel as a normal bottom peek (docked, NOT expanded) with
+  // the Runs tab active (Steps 9-10). It grows to full height on its own once
+  // the run finishes — see expandRunsSmoothly().
+  ensureRunsOpen() {
+    const pf = document.getElementById('pathsFloatPanel');
+    if (pf) pf.hidden = true;
+    if (typeof openRunsPanelPeek === 'function') openRunsPanelPeek();
+  },
+
+  expandRunsSmoothly(onComplete) {
+    if (typeof expandRunsPanelSmoothly === 'function') expandRunsPanelSmoothly(onComplete);
+    else { try { onComplete && onComplete(); } catch (_) {} }
+  },
+
+  _openCatalog(type) {
+    const leftEl = document.getElementById('drawerLeft');
+    if (!leftEl) return;
+    leftEl.classList.add('open');
+    leftEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'discover'));
+    leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelDiscover'));
+    const ds = document.getElementById('discoverSearch');
+    if (ds) ds.style.display = 'flex';
+    if (typeof DISCOVER !== 'undefined') DISCOVER.activeType = type;
+    if (typeof renderDiscover === 'function') renderDiscover();
+  },
+  openDatasetCatalog() { this._openCatalog('Dataset'); },
+  openModelCatalog() { this._openCatalog('Model'); },
+
+  // The two nodes the user wires together in the "Chain them up" step:
+  // [datasetId, headId] where head is the chain's first model (the node with
+  // inputs and no incoming connection, other than the just-added dataset).
+  _wiringNodeIds() {
+    const ids = [];
+    const dsId = window._tutorialDatasetNodeId;
+    if (dsId) ids.push(dsId);
+    try {
+      const nodes = (Canvas.getAllNodes && Canvas.getAllNodes()) || [];
+      const conns = (Canvas.getConnections && Canvas.getConnections()) || [];
+      const inDeg = new Map();
+      nodes.forEach(n => inDeg.set(n.id, 0));
+      conns.forEach(c => {
+        const t = c && c.to && c.to[0];
+        if (inDeg.has(t)) inDeg.set(t, inDeg.get(t) + 1);
+      });
+      const head = nodes.find(n =>
+        n.id !== dsId &&
+        Array.isArray(n.inputs) && n.inputs.length &&
+        (inDeg.get(n.id) || 0) === 0);
+      if (head) ids.push(head.id);
+    } catch (_) {}
+    return ids;
+  },
+
+  // Pulse the output anchor of the dataset and the input anchor of the head
+  // model for the "Chain them up" step.
+  markWirePorts() {
+    this.clearWirePorts();
+    const pick = (nodeId, sel) => nodeId
+      ? document.querySelector(`.node[data-node-id="${CSS.escape(nodeId)}"] ${sel}`)
+      : null;
+    const [dsId, headId] = this._wiringNodeIds();
+    const out = pick(dsId, '.port-anchor[data-port^="out:"]');
+    if (out) out.classList.add('tt-port-target');
+    const inp = pick(headId, '.port-anchor[data-port^="in:"]');
+    if (inp) inp.classList.add('tt-port-target');
+  },
+
+  // Pulse the two wiring nodes (no canvas dim — the canvas stays fully bright).
+  markWireNodes() {
+    this.clearPathTargets();
+    const inner = (Canvas.getCanvasInner && Canvas.getCanvasInner()) || document;
+    this._wiringNodeIds().forEach(id => {
+      const el = inner.querySelector(`.node[data-node-id="${CSS.escape(id)}"]`);
+      if (el) el.classList.add('tt-node-target');
+    });
+  },
+
+  // Collapse the catalog (left) drawer — used after a node is added so the
+  // canvas + Inspector are clearly visible.
+  closeLeftDrawer() {
+    const el = document.getElementById('drawerLeft');
+    if (el) el.classList.remove('open');
+  },
+  // Close the Inspector (right) drawer — used before the wiring step so the
+  // port anchors aren't hidden behind a panel.
+  closeRightDrawer() {
+    const el = document.getElementById('drawerRight');
+    if (el) el.classList.remove('open');
+  },
+
+  // Collapse the left (catalog), right (inspector), and bottom (runs) drawers
+  // so the canvas is unobstructed — used for the "Click along the path" step.
+  collapseAllDrawers() {
+    const left = document.getElementById('drawerLeft');
+    if (left) left.classList.remove('open');
+    const right = document.getElementById('drawerRight');
+    if (right) right.classList.remove('open');
+    const bottom = document.getElementById('bottomPanel');
+    if (bottom) bottom.classList.remove('open', 'expanded');
+    if (typeof syncBpAppShell === 'function') { try { syncBpAppShell(); } catch (_) {} }
+  },
+
+  // Zoom out on the two nodes being connected; reserve left space for the
+  // top-left tooltip so the wiring pair stays in clear view.
+  fitForWiring() {
+    try {
+      const ids = this._wiringNodeIds();
+      if (ids.length && Canvas.fitToNodes) {
+        Canvas.fitToNodes(ids, {
+          padding: 110,
+          reserve: { top: 72, bottom: 48, left: 360, right: 48 },
+          maxZoom: 0.82,
+          minZoom: 0.2,
+        });
+      }
+    } catch (_) {}
+  },
+  clearWirePorts() {
+    document.querySelectorAll('.port-anchor.tt-port-target')
+      .forEach(el => el.classList.remove('tt-port-target'));
+  },
+
+  // Reveal the variant strip (the "variant row") if it's collapsed, so the
+  // "New variant" + button is visible for the Make-a-variant step.
+  openVariantRow() {
+    const app = document.querySelector('.app');
+    if (app && app.classList.contains('variants-hidden')) {
+      app.classList.remove('variants-hidden');
+      try { localStorage.setItem('cfg.variantsHidden', '0'); } catch (_) {}
+    }
+  },
+
+  // After a variant is created during the tour, pan to an empty region of the
+  // canvas (right of the starter chain) so newly-added nodes drop into open
+  // space. addCatalogNode() places nodes at the viewport center, so centering
+  // here lines the next adds up cleanly.
+  zoomToEmptyArea() {
+    if (typeof Canvas === 'undefined' || typeof Canvas.focusWorld !== 'function') return;
+    let x = 2200, y = 380;
+    try {
+      const nodes = (Canvas.getAllNodes && Canvas.getAllNodes()) || [];
+      if (nodes.length) {
+        const maxX = Math.max(...nodes.map(n => n.x || 0));
+        const avgY = nodes.reduce((s, n) => s + (n.y || 0), 0) / nodes.length;
+        x = maxX + 620;
+        y = avgY;
+      }
+    } catch (_) {}
+    Canvas.focusWorld(x, y, { zoom: 0.9, animate: true });
+  },
+
+  // Compare step: pulse BOTH run compare checkboxes so the user knows to tick
+  // each one. Cleared on step exit.
+  markCompareChecks() {
+    this.clearCompareChecks();
+    document.querySelectorAll('.runs-list .run-compare-check')
+      .forEach(el => el.classList.add('tt-check-target'));
+  },
+  clearCompareChecks() {
+    document.querySelectorAll('.run-compare-check.tt-check-target')
+      .forEach(el => el.classList.remove('tt-check-target'));
+  },
+
+  // "Collapse the subgroup" step — legacy; collapse now uses the spotlight
+  // on .sg-toggle directly. Kept for any external callers.
+  markSubgroupTarget() {
+    this.clearPathTargets();
+  },
+
+  // Open the left drawer on the History tab for the snapshot step.
+  openHistoryTab() {
+    const leftEl = document.getElementById('drawerLeft');
+    if (!leftEl) return;
+    leftEl.classList.add('open');
+    leftEl.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'history'));
+    leftEl.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelHistory'));
+    const ds = document.getElementById('discoverSearch');
+    if (ds) ds.style.display = 'none';
+    if (typeof renderHistory === 'function') renderHistory();
+  },
+};

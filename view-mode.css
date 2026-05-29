@@ -46,6 +46,7 @@
   .ip-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; padding-bottom: 4px; color: var(--text-primary); }
   .ip-author { font-size: 12.5px; color: var(--text-muted); padding-bottom: 8px;}
   .ip-tagrow { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ip-tagrow + .ip-stats { margin-top: calc(5px - 16px); }
   .ip-top-actions { display: flex; gap: 8px; margin-top: 8px; }
   .ip-tag {
     font-size: 11px; padding: 3px 9px; border-radius: 999px;
@@ -103,6 +104,19 @@
   html[data-theme="dark"] #forkConfirmModal .request-modal-header img {
     filter: brightness(0) invert(1);
   }
+
+  .ip-star-btn {
+    border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+    display: grid; place-items: center; flex-shrink: 0; padding: 4px;
+    transition: color .12s, transform .12s;
+  }
+  .ip-star-btn:hover { color: var(--text-primary); transform: scale(1.08); }
+  .ip-star-btn.starred { color: #f59e0b; }
+  .ip-star-btn.starred svg { fill: #f59e0b; }
+  .ip-star-btn svg { width: 18px; height: 18px; }
+
+  .ip-stats { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ip-stat { letter-spacing: 0.02em; }
   .ip-run-summary {
     margin-top: 10px;
     border: 1px solid var(--border-light);
@@ -111,6 +125,9 @@
     padding: 10px;
     display: grid;
     gap: 8px;
+  }
+  .ip-run-summary[hidden] {
+    display: none !important;
   }
   .ip-run-summary .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
   .ip-run-summary .k { color: var(--text-secondary); }

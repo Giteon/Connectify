@@ -35,15 +35,8 @@
     </nav>
 
     <div class="lp-nav-cta">
-      <!-- Same dev tour toggle as the landing page. Mirrors the
-           `cfg.tutorialState` localStorage key so flipping it here
-           affects what happens when "Start building" is clicked. -->
-      <button type="button" class="lp-tour-toggle" id="lpTourToggle"
-              role="switch" aria-checked="true" aria-label="Toggle onboarding tour">
-        <span class="lp-tour-toggle-dot" aria-hidden="true"></span>
-        <span class="lp-tour-toggle-label">Tour: <span data-tour-state>ON</span></span>
-      </button>
       <a class="lp-btn lp-btn-primary" href="graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+      <span class="lp-theme-slot" data-theme-slot></span>
     </div>
   </header>
 
@@ -54,14 +47,14 @@
         <!-- Sign up sits first so it's the primary path for new users.
              Default initial tab is also signup (overridable via ?view=). -->
         <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
-          <button type="button" class="auth-tab" data-view="signup" role="tab">Sign up</button>
-          <button type="button" class="auth-tab" data-view="login" role="tab">Log in</button>
+          <button type="button" class="auth-tab active" data-view="signup" role="tab" aria-selected="true">Sign up</button>
+          <button type="button" class="auth-tab" data-view="login" role="tab" aria-selected="false">Log in</button>
         </div>
 
         <!-- ─── Sign up ───────────────────────────────────────── -->
         <form class="auth-form" data-view="signup" novalidate autocomplete="on">
           <h1 class="auth-title">Create your account</h1>
-          <p class="auth-sub">Free demo — your account lives in this browser.</p>
+          <p class="auth-sub">Free demo – your account lives in this browser.</p>
 
           <label class="auth-field" data-field="email">
             <span class="auth-label">Email</span>
@@ -115,8 +108,7 @@
         </form>
 
         <p class="auth-fine">
-          By continuing, you agree to Connectify's demo terms.
-          Accounts live only in this browser — clear site data and they're gone.
+          By continuing, you agree to Connectify's terms of service.
         </p>
       </div>
     </section>
@@ -175,49 +167,9 @@
     </aside>
   </main>
 
+  <script src="theme.js"></script>
   <script src="auth.js"></script>
   <script>
-    /* ── Dev tour toggle (mirrors landing-page.js) ──────────────
-       Reflects/edits the `cfg.tutorialState` localStorage key. */
-    (function() {
-      const btn = document.getElementById('lpTourToggle');
-      if (!btn) return;
-      const STATE_KEY = 'cfg.tutorialState';
-      const labelEl = btn.querySelector('[data-tour-state]');
-      function readState() {
-        try { const raw = localStorage.getItem(STATE_KEY); return raw ? JSON.parse(raw) : null; }
-        catch (_) { return null; }
-      }
-      function isOn() {
-        const s = readState();
-        if (!s) return true;
-        if (s.skipped || s.completed) return false;
-        return true;
-      }
-      function paint(on) {
-        btn.classList.toggle('on', on);
-        btn.classList.toggle('off', !on);
-        btn.setAttribute('aria-checked', on ? 'true' : 'false');
-        if (labelEl) labelEl.textContent = on ? 'ON' : 'OFF';
-        btn.title = on
-          ? "Onboarding tour is ON — clicking 'Start building' will start the tour."
-          : "Onboarding tour is OFF — the tour stays suppressed.";
-      }
-      function setOn(on) {
-        try {
-          if (on) localStorage.removeItem(STATE_KEY);
-          else {
-            const s = readState() || {};
-            s.skipped = true; s.completed = false; s.lastActivity = Date.now();
-            localStorage.setItem(STATE_KEY, JSON.stringify(s));
-          }
-        } catch (_) {}
-        paint(on);
-      }
-      paint(isOn());
-      btn.addEventListener('click', () => setOn(!isOn()));
-    })();
-
     /* ── Slideshow (videos) ────────────────────────────────────
        Cross-fade between demo videos every ~6.5s. Only the active
        video plays. */
@@ -263,7 +215,9 @@
       if (!Auth) return;
 
       const params = new URLSearchParams(location.search);
-      let returnTo = params.get('return') || 'graphs-hub.html?tab=dashboard&new=1';
+      let returnTo = Auth.normalizeReturnUrl(params.get('return'), {
+        fallback: 'graphs-hub.html?tab=dashboard&new=1',
+      });
       if (/(^|\/)auth\.html/i.test(returnTo)) {
         returnTo = 'graphs-hub.html?tab=dashboard&new=1';
       }

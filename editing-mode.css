@@ -63,11 +63,6 @@
     font-weight: 500; cursor: pointer; transition: background .12s, color .12s, border-color .12s;
   }
 
-  #tglPaths.tb-toggle {
-    padding: 0 6px;
-    gap: 4px;
-  }
-
   /* Less air between brand / breadcrumb / toolbar / right cluster than global 16px */
   .editing-shell .topbar {
     gap: 10px;
@@ -144,6 +139,8 @@
      Keep layout/order unchanged; only hide selected text labels. */
   @media (max-width: 1300px) {
     .editing-shell #tglRuns .tb-toggle-label,
+    .editing-shell #tglPaths .tb-toggle-label,
+    .editing-shell #tbHistoryBtn .tb-toggle-label,
     .editing-shell #shareGraphBtn .tb-toggle-label,
     .editing-shell #rolePillText {
       display: none !important;
@@ -839,13 +836,6 @@
     border: 1px solid var(--border-light);
   }
 
-  /* Paths tab */
-  .path-item {
-    border: 1px solid var(--border); border-radius: 9px;
-    padding: 10px 12px; background: var(--surface);
-    display: flex; flex-direction: column; gap: 6px;
-  }
-
   /* Comments inbox */
   .comment-item {
     border: 1px solid var(--border); border-radius: 9px;
@@ -1132,16 +1122,31 @@
     background: var(--surface); border-top: 1px solid var(--border);
     display: flex; flex-direction: column;
     height: 0; overflow: hidden;
-    transition: height .18s ease;
+    transition: none;
     z-index: 0;
   }
-  .bottom-panel.open {
+  .bottom-panel.open:not(.expanded):not(.bp-top-anim) {
     position: relative;
     z-index: 40;
     height: var(--bp-h, var(--bottom-h));
+    transition: height 0.18s ease;
+  }
+  .bottom-panel.open.bp-top-anim,
+  .bottom-panel.open.expanded.bp-top-anim {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: auto;
+    z-index: 45;
+    box-shadow: none;
+    transition-property: top;
+    transition-duration: 0.32s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
   /* Full-bleed overlay from below the variant strip to the viewport bottom */
-  .bottom-panel.open.expanded {
+  .bottom-panel.open.expanded:not(.bp-top-anim) {
     position: fixed;
     left: 0;
     right: 0;
@@ -1152,9 +1157,7 @@
     z-index: 45;
     /* Flush to variant strip — no drop shadow at full height */
     box-shadow: none;
-  }
-  .bottom-panel.open.expanded.bp-top-anim {
-    transition: top 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
   }
   .bottom-panel.open.bp-dragging { transition: none !important; }
   .bp-resize {
@@ -2731,8 +2734,12 @@
   .node.path-ineligible { opacity: 0.38; filter: grayscale(0.55); }
 
   .path-item {
-    padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer;
+    padding: 12px 14px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background .12s;
   }
+  .path-item:last-child { border-bottom: none; }
+  .path-item:hover { background: var(--bg); }
   .path-item.focused { background: rgba(37,99,235,0.05); }
   html[data-theme="dark"] .path-item.focused { background: rgba(148,163,184,0.12); }
   .path-item-top { display: flex; align-items: center; gap: 6px; }
@@ -2748,6 +2755,10 @@
     cursor: text; overflow: visible; text-overflow: clip; white-space: normal;
   }
   .path-item .m { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  .path-item-foot {
+    display: flex; align-items: center; gap: 4px; margin-top: 2px;
+  }
+  .path-item-foot .m { flex: 1; margin-top: 0; }
   /* End-to-end chip — shown next to the path name when the path starts at a
      Start-marked node and ends at an End-marked one. Quiet green pill. */
   .path-end-to-end-chip {
@@ -2780,7 +2791,12 @@
     background: color-mix(in srgb, rgba(148,163,184,0.12) 88%, #ffffff 12%);
   }
   .path-item-chain .pd-arrow { color: var(--text-muted); font-size: 9px; }
-  .path-item-actions { display: flex; gap: 4px; align-items: center; }
+  .path-item-actions {
+    display: flex; gap: 4px; align-items: center;
+    opacity: 0; transition: opacity .12s;
+  }
+  .path-item:hover .path-item-actions,
+  .path-item:focus-within .path-item-actions { opacity: 1; }
   .path-item-actions button {
     padding: 4px; font-size: 11px; font-family: inherit;
     background: transparent; border: 1px solid transparent; border-radius: 4px;
@@ -2788,15 +2804,6 @@
     display: grid; place-items: center; width: 24px; height: 24px;
   }
   .path-item-actions button svg { width: 12px; height: 12px; }
-  .path-item-actions button img { width: 12px; height: 12px; object-fit: contain; }
-  .path-item-actions button[data-act="extract"] img {
-    opacity: 1;
-    filter: none;
-  }
-  html[data-theme="dark"] .path-item-actions button[data-act="extract"] img {
-    opacity: 1;
-    filter: none;
-  }
   .path-item-actions button:hover { background: var(--bg); color: var(--text-primary); border-color: var(--border); }
   .path-item-actions button.danger:hover { color: var(--dot-red); border-color: var(--dot-red); }
   .path-item-actions.inline-confirm { gap: 5px; }
@@ -2816,7 +2823,7 @@
     border-radius: 5px; cursor: pointer; font-family: inherit;
     display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   }
-  .path-item-run:hover { background: color-mix(in srgb, #edf1f5 90%, #dbe3ea); color: var(--text-primary); }
+  .path-item-run:hover { background: #d5dde4; color: var(--text-primary); }
   html[data-theme="dark"] .path-item-run {
     background: color-mix(in srgb, var(--surface) 91%, #ffffff 9%);
     color: var(--text-primary);
@@ -2826,15 +2833,6 @@
     color: var(--text-primary);
   }
   .path-item-run svg { width: 10px; height: 10px; }
-  .paths-head {
-    padding: 10px 12px; display: flex; gap: 8px;
-    border-bottom: none;
-  }
-  .paths-head .new-path-btn {
-    flex: 1; padding: 8px 10px; font-size: 12px; font-weight: 600;
-    background: var(--primary); color: #fff; border: none; border-radius: 5px;
-    cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  }
 
   /* ── History ────────────────────────────────────────────── */
   .history-head {
@@ -3013,7 +3011,7 @@
   }
   .project-title .pt-variant {
     display: inline-flex; align-items: center; gap: 3px;
-    height: 26px; padding: 0 8px;
+    height: 26px; padding: 0 8px; margin: 0 4px;
     background: var(--primary-soft); color: var(--primary);
     border: 1px solid transparent; border-radius: 999px;
     font: inherit; font-weight: 600; font-size: 12px;
@@ -3351,6 +3349,8 @@
   .paths-float-panel {
     position: absolute; top: 12px; right: 12px;
     width: 240px;
+    display: flex; flex-direction: column;
+    max-height: calc(100% - 24px);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -3358,7 +3358,9 @@
     z-index: 20;
     overflow: hidden;
   }
+  .paths-float-panel[hidden] { display: none; }
   .pfp-hd {
+    flex-shrink: 0;
     display: flex; align-items: center; gap: 8px;
     padding: 10px 12px 8px;
     border-bottom: 1px solid var(--border);
@@ -3371,18 +3373,27 @@
   }
   .pfp-close:hover { background: var(--bg); color: var(--text-primary); }
   .pfp-close svg { width: 14px; height: 14px; }
-  .pfp-body { padding: 8px; }
+  .pfp-body { padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .pfp-new {
-    display: flex; align-items: center; gap: 6px;
-    width: 100%; padding: 7px 10px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: calc(100% - 16px); margin: 8px; padding: 7px 10px;
     background: var(--primary-soft); color: var(--primary);
     border: 1px solid transparent; border-radius: 7px;
     font: inherit; font-size: 13px; font-weight: 500;
-    cursor: pointer; margin-bottom: 8px;
+    cursor: pointer;
   }
+  .pfp-new[hidden] { display: none; }
   .pfp-new:hover { filter: brightness(.96); }
   .pfp-new svg { width: 14px; height: 14px; }
-  .pfp-list { display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-y: auto; }
+  /* Pinned draw banner host — only takes space while tracing. */
+  .pfp-draw-host { flex-shrink: 0; }
+  .pfp-draw-host:not(:empty) { padding: 8px; }
+  .pfp-list {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
 
   /* ── V3: Inspector edge tab ────────────────────────────────── */
   .inspector-edge-tab {
@@ -3730,7 +3741,27 @@
     border-radius: 4px;
     padding: 1px 5px;
   }
+  /* Collapsed: hide the search box entirely. The expand-toggle takes
+     the search slot — see brand-row rules below. */
   .app:not(.leftnav-expanded) .leftnav-search { display: none; }
+
+  /* Collapsed brand row: logo on top, expand-toggle stacked below in the
+     same vertical slot the expanded search box occupies. All centered
+     horizontally so expand/collapse reads as a horizontal slide. */
+  .app:not(.leftnav-expanded) .leftnav-brand-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+  }
+  .app:not(.leftnav-expanded) #navToggleBtn {
+    display: flex;
+    width: 36px; height: 36px;
+    margin: 0 auto;
+    padding: 0;
+    align-items: center; justify-content: center;
+  }
+  .app:not(.leftnav-expanded) #navToggleBtn svg { width: 16px; height: 16px; }
 
   /* Collapsable sections (Projects, My Teams) — header aligned with other nav items */
   .leftnav-collapsable { margin: 0; }
@@ -3827,8 +3858,25 @@
   }
   .leftnav-collapsable .lp-node.active:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
 
-  /* Hide collapsable sections in collapsed leftnav */
-  .app:not(.leftnav-expanded) .leftnav-collapsable { display: none; }
+  /* Collapsed: keep the Projects section as a single folder-icon button
+     (tree hidden) so the row sits in the same vertical slot as the expanded
+     Projects header. Click expands the leftnav (wired in JS). */
+  .app:not(.leftnav-expanded) .leftnav-collapsable {
+    display: block;
+  }
+  .app:not(.leftnav-expanded) .leftnav-collapsable .lp-tree { display: none; }
+  .app:not(.leftnav-expanded) .leftnav-collapsable .lp-header {
+    width: 36px; height: 36px;
+    padding: 0;
+    margin: 2px auto;
+    justify-content: center;
+  }
+  .app:not(.leftnav-expanded) .leftnav-collapsable .lp-header .lp-title,
+  .app:not(.leftnav-expanded) .leftnav-collapsable .lp-header .lp-chev { display: none; }
+  /* Hide the "+ New project" affordance in collapsed mode. Selector
+     mirrors the high-specificity `#leftnav button.nav-item#lpAddProject`
+     rule below so this override wins. */
+  .app:not(.leftnav-expanded) #leftnav button.nav-item#lpAddProject { display: none; }
 
   /* Horizontal section divider in leftnav */
   .leftnav .leftnav-divider {

@@ -8,6 +8,9 @@
    ──────────────────────────────────────────────────────────── */
 
 window.DISCOVER_CATALOG = [
+  // Tutorial-only samples (hidden outside the guided tour; see renderDiscover)
+  { type:'Model',   label:'Sample Model',   tutorial:'model',   by:'Connectify', color:'var(--dot-purple)', fn:'Text Classification', fw:'PyTorch', inputs:'data', outputs:'prediction', views:'1.2k', downloads:'480', description:'A small example model used by the onboarding tour. Connect a dataset to its input and run an experiment.' },
+  { type:'Dataset', label:'Sample Dataset', tutorial:'dataset', by:'Connectify', color:'var(--dot-blue)',   fn:'Image Classification', fw:null,    inputs:null,   outputs:'float',      views:'1.4k', downloads:'520', description:'A small example dataset used by the onboarding tour. Wire its output into a model to build your first pipeline.' },
   // Models
   { type:'Model',   label:'Llama-3-8B',                  by:'Meta',         color:'var(--dot-purple)', fn:'Text Generation',      fw:'PyTorch',    inputs:'Text, image, audio', outputs:'text',    views:'195.6k', downloads:'87.4k' },
   { type:'Model',   label:'stable-diffusion-xl-base-1.0', by:'stability AI', color:'var(--dot-yellow)', fn:'Text-to-image',        fw:'PyTorch',    inputs:'text, audio',        outputs:'image',   views:'120.5k', downloads:'78k' },

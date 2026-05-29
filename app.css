@@ -78,6 +78,12 @@ body {
   --variant-detail-h: 0px;
 }
 
+/* Freeze variant-row height while the runs drawer top animation runs (avoids
+   competing --variant-h transitions vs panel top). */
+.app.bp-animating {
+  transition: none !important;
+}
+
 .app.leftnav-expanded { --leftnav-w: 210px; }
 
 /* Leftnav now spans the full height of the app shell. The topbar and

@@ -1,10 +1,11 @@
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Determine which project to load. Primary source is `?project=…` in the URL,
-// but some static-file servers (notably `npx serve` with clean-URLs) drop the
-// query string when redirecting `/foo.html` → `/foo`. As a fallback we read a
-// `cfg.navHint.project` value the previous page wrote to sessionStorage, then
-// clear it so refreshes don't keep latching onto a stale hint.
+// with fallbacks via ConnectifyLeftnav.resolveProjectSlug() when a static-file
+// server (notably `npx serve` with clean-URLs) drops the query string.
 const slug = (() => {
+  if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.resolveProjectSlug === 'function') {
+    return window.ConnectifyLeftnav.resolveProjectSlug();
+  }
   const fromQuery = new URLSearchParams(location.search).get('project');
   if (fromQuery) return fromQuery;
   try {
@@ -68,19 +69,20 @@ function _isOwnerOfSlug(targetSlug) {
   return rows.some((r) => r && r.slug === targetSlug);
 }
 
-/** True if this project has at least one persisted run across any variant. */
-function _hasAnyRunsForSlug(targetSlug) {
-  if (!targetSlug) return false;
+/** All persisted runs for a project (newest first), merged across variants. */
+function _getRunsForSlug(targetSlug) {
+  if (!targetSlug) return [];
   const prefix = 'cfg.runs.' + targetSlug + '.';
+  const all = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (!k || !k.startsWith(prefix)) continue;
     try {
       const v = JSON.parse(localStorage.getItem(k));
-      if (Array.isArray(v) && v.length > 0) return true;
+      if (Array.isArray(v)) all.push(...v);
     } catch (_) { /* ignore parse errors */ }
   }
-  return false;
+  return all.sort((a, b) => Number(b.at || 0) - Number(a.at || 0));
 }
 
 /** Merge saved variant state (same keys as edit mode) so view matches last edit session. */
@@ -283,6 +285,22 @@ function initShareGraph(P) {
   discoverToggle.classList.add('on');
 }
 
+function _initTutorialForView() {
+  if (!window.ConnectifyTutorial || !window.ConnectifyTutorialSteps) return;
+  window.ConnectifyTutorial.init({
+    page: 'view',
+    steps: window.ConnectifyTutorialSteps.forPage('view'),
+  });
+  // If preview navigation landed here while state is still on step 1, bump
+  // to step 2 (the fork step) so resume doesn't no-op on this page.
+  setTimeout(() => {
+    const s = window.ConnectifyTutorial.getState();
+    if (s.started && !s.skipped && !s.completed && s.currentStep < 2) {
+      window.ConnectifyTutorial.advanceTo(2);
+    }
+  }, 300);
+}
+
 function initApp() {
   const P0 = window.PROJECT;
   const P = _buildCanvasProjectFromVariantBase(slug, P0);
@@ -297,6 +315,15 @@ function initApp() {
     isNodeHeadSingleInspectOpen: isInspectorDrawerActive,
   });
   Canvas.build(P);
+
+  // Fit the graph into view on load (read-only — no edit-mode auto-layout).
+  requestAnimationFrame(() => {
+    const nodes = Canvas.getAllNodes();
+    if (nodes.length > 0 && typeof Canvas.fitToNodes === 'function') {
+      Canvas.fitToNodes(nodes.map(n => n.id), { padding: 80, animate: false });
+    }
+  });
+
   Canvas.onNodeClick(openInspector);
   Canvas.onAdaptorChipClick(({ connIndex, clientX, clientY }) => {
     const conn = Canvas.getConnections()[connIndex];
@@ -319,13 +346,8 @@ function initApp() {
   initRequestContributorModal(P);
   initForkFromView(P);
 
-  // ───── Tutorial wiring (resumes Steps 2-3 in view mode) ─────
-  if (window.ConnectifyTutorial && window.ConnectifyTutorialSteps) {
-    window.ConnectifyTutorial.init({
-      page: 'view',
-      steps: window.ConnectifyTutorialSteps.forPage('view'),
-    });
-  }
+  // ───── Tutorial wiring (resumes Step 2 in view mode) ─────
+  _initTutorialForView();
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (!Canvas.getAllNodes().length) {
@@ -348,6 +370,50 @@ function initInfoPanel(P) {
   document.getElementById('ipTitle').textContent = P.title || 'Untitled project';
   const author = (P.contributors || []).find(c => c.role === 'Owner') || (P.contributors || [])[0];
   document.getElementById('ipAuthor').textContent = author ? ('By ' + author.name) : '—';
+
+  // Stars and forks stats — same ★/↯ glyphs as the community card stats row.
+  const starCount = P.stars || 0;
+  const forkCount = P.forks || 0;
+  document.getElementById('ipStarCount').textContent = `${starCount} ★`;
+  document.getElementById('ipForkCount').textContent = `${forkCount} ↯`;
+
+  // Star button interaction
+  const starBtn = document.getElementById('starBtn');
+  let isStarred = false;
+  try {
+    const starredProjects = JSON.parse(localStorage.getItem('cfg.starredProjects') || '[]');
+    isStarred = starredProjects.includes(slug);
+  } catch (_) {}
+
+  const updateStarButton = () => {
+    if (isStarred) {
+      starBtn.classList.add('starred');
+      starBtn.setAttribute('title', 'Unstar this project');
+    } else {
+      starBtn.classList.remove('starred');
+      starBtn.setAttribute('title', 'Star this project');
+    }
+  };
+  updateStarButton();
+
+  starBtn.addEventListener('click', () => {
+    try {
+      let starredProjects = JSON.parse(localStorage.getItem('cfg.starredProjects') || '[]');
+      if (!Array.isArray(starredProjects)) starredProjects = [];
+      if (isStarred) {
+        starredProjects = starredProjects.filter(s => s !== slug);
+        P.stars = Math.max(0, (P.stars || 1) - 1);
+      } else {
+        starredProjects.push(slug);
+        P.stars = (P.stars || 0) + 1;
+      }
+      localStorage.setItem('cfg.starredProjects', JSON.stringify(starredProjects));
+      isStarred = !isStarred;
+      document.getElementById('ipStarCount').textContent = `${P.stars} ★`;
+      updateStarButton();
+    } catch (_) {}
+  });
+
   const tagRow = document.getElementById('ipTagRow');
   const variantCount = _readVariantsForSlug(slug).length || 1;
   const extraTags = [`${variantCount} ${variantCount === 1 ? 'variant' : 'variants'}`];
@@ -425,23 +491,22 @@ function initInfoPanel(P) {
     });
   }
 
-  // Run summary: only show when the project has real persisted runs. New
-  // projects (custom forks/created without any run history) hide the panel
-  // so an empty summary doesn't take up real estate.
+  // Run summary: only show when this project has real persisted runs.
   const summaryEl = document.getElementById('ipRunSummary');
-  if (!_hasAnyRunsForSlug(slug)) {
+  if (!summaryEl) return;
+  const latestRuns = _getRunsForSlug(slug).slice(0, 3);
+  if (!latestRuns.length) {
     summaryEl.hidden = true;
     summaryEl.innerHTML = '';
     return;
   }
   summaryEl.hidden = false;
-  const latestRuns = (typeof MOCK_RUNS !== 'undefined' ? MOCK_RUNS : []).slice(0, 3);
-  const successRate = latestRuns.length
-    ? Math.round((latestRuns.filter(r => String(r.status).toLowerCase() === 'success').length / latestRuns.length) * 100)
-    : 0;
-  const avgRuntime = latestRuns.length
-    ? Math.round(latestRuns.reduce((sum, r) => sum + Number(r.runtimeMin || 0), 0) / latestRuns.length)
-    : 0;
+  const successRate = Math.round(
+    (latestRuns.filter(r => String(r.status).toLowerCase() === 'success').length / latestRuns.length) * 100
+  );
+  const avgRuntime = Math.round(
+    latestRuns.reduce((sum, r) => sum + Number(r.runtimeMin || 0), 0) / latestRuns.length
+  );
   summaryEl.innerHTML = `
     <div class="row"><span class="k">Run Results Summary</span><span class="v">${latestRuns.length} recent runs</span></div>
     <div class="row"><span class="k">Success rate</span><span class="v">${successRate}%</span></div>
@@ -496,6 +561,8 @@ function initPresence(P) {
   const avatarsEl = document.getElementById('presenceAvatars');
   const countEl = document.getElementById('presenceCount');
   const dropdown = document.getElementById('presenceDropdown');
+  // Presence stack is optional in view-mode chrome (may be omitted from HTML).
+  if (!btn || !avatarsEl || !countEl || !dropdown) return;
   const all = (P.contributors || []).slice(0, 8);
   const stack = Math.min(3, all.length);
   avatarsEl.innerHTML = all.slice(0, stack).map(c =>
@@ -544,18 +611,21 @@ function initDrawerToggles() {
     document.querySelectorAll('.tb-toggle[data-tab]').forEach(t => t.classList.remove('active'));
   });
 
-  // Results button opens the bottom panel on the "runs" tab.
+  // Results button opens the bottom panel on the "runs" tab (editing-mode only).
   const resBtn = document.getElementById('tglResults');
-  resBtn.addEventListener('click', () => {
-    const panel = document.getElementById('bottomPanel');
-    const isOpen = panel.classList.contains('open');
-    panel.classList.toggle('open');
-    resBtn.classList.toggle('active', !isOpen);
-    if (panel.classList.contains('open')) {
-      panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
-      panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
-    }
-  });
+  if (resBtn) {
+    resBtn.addEventListener('click', () => {
+      const panel = document.getElementById('bottomPanel');
+      if (!panel) return;
+      const isOpen = panel.classList.contains('open');
+      panel.classList.toggle('open');
+      resBtn.classList.toggle('active', !isOpen);
+      if (panel.classList.contains('open')) {
+        panel.querySelectorAll('.bp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'runs'));
+        panel.querySelectorAll('.bp-panel').forEach(b => b.classList.toggle('active', b.id === 'bpRuns'));
+      }
+    });
+  }
 }
 
 /* ── Paths (read-only). Reuses localStorage from editing-mode-new. ── */
@@ -875,6 +945,37 @@ function initLeftNav(P) {
 function initRolePill() {
   const btn  = document.getElementById('rolePillBtn');
   const menu = document.getElementById('roleDropdown');
+  if (!btn || !menu) return;
+  const isOwner = _isOwnerOfSlug(slug);
+
+  // Update role pill text and dropdown options based on user permissions
+  const pillText = document.getElementById('rolePillText');
+  const currentOpt = document.getElementById('roleOptCurrent');
+  const currentOptText = document.getElementById('roleOptCurrentText');
+  const editModeOpt = document.getElementById('roleOptEditMode');
+  const requestContribOpt = document.getElementById('roleOptRequestContributor');
+  const requestAdminOpt = document.getElementById('roleOptAdmin');
+  const divider = menu.querySelector('.role-divider');
+
+  if (isOwner) {
+    // User is owner/admin/contributor: show "View Mode" with "Switch to Edit Mode" option
+    pillText.textContent = 'View Mode';
+    currentOptText.textContent = 'View Mode';
+    editModeOpt.style.display = '';
+    requestContribOpt.style.display = 'none';
+    requestAdminOpt.style.display = 'none';
+    divider.style.display = 'none';
+  } else {
+    // User is view-only: show "View Only" with "Request Contributor" option
+    pillText.textContent = 'View Only';
+    currentOptText.textContent = 'View Only';
+    editModeOpt.style.display = 'none';
+    requestContribOpt.style.display = '';
+    requestAdminOpt.style.display = '';
+    requestAdminOpt.classList.add('disabled');
+    divider.style.display = 'none';
+  }
+
   btn.addEventListener('click', e => {
     e.stopPropagation();
     const r = btn.getBoundingClientRect();
@@ -891,10 +992,16 @@ function initRolePill() {
   document.addEventListener('click', () => menu.classList.remove('open'));
   menu.addEventListener('click', e => e.stopPropagation());
 
-  document.getElementById('roleOptEditMode').addEventListener('click', () => {
+  editModeOpt.addEventListener('click', () => {
     menu.classList.remove('open');
     rememberPublicGraphEditOptIn(slug);
     window.location.href = 'editing-mode-new.html?project=' + encodeURIComponent(slug);
+  });
+
+  requestContribOpt.addEventListener('click', () => {
+    menu.classList.remove('open');
+    const modal = document.getElementById('requestContributorModal');
+    if (modal) modal.classList.add('show');
   });
 }
 
@@ -1033,11 +1140,19 @@ function initForkFromView(P) {
   }
 
   btn.addEventListener('click', () => {
-    // Notify tutorial Step 2 (fork-clicked) before the modal opens.
+    // Notify tutorial Step 3 (fork-clicked) before the modal opens.
     // (notifyAction is a no-op when the tour isn't running.)
     if (window.ConnectifyTutorial) {
       window.ConnectifyTutorial.notifyAction('fork-clicked', { slug });
     }
+    // During the guided tour, skip the confirm dialog entirely — clicking Fork
+    // takes the user straight to their editable canvas.
+    let tourOn = false;
+    try {
+      const s = window.ConnectifyTutorial && window.ConnectifyTutorial.getState();
+      tourOn = !!(s && s.started && !s.skipped && !s.completed);
+    } catch (_) {}
+    if (tourOn) { runFork(); return; }
     openForkModal();
   });
 

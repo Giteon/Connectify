@@ -96,6 +96,13 @@ button { font-family: inherit; cursor: pointer; }
   gap: 8px;
   justify-self: end;
 }
+.lp-nav-cta .lp-theme-slot {
+  display: inline-flex;
+  align-items: center;
+}
+.lp-topnav .theme-toggle {
+  flex-shrink: 0;
+}
 
 /* ── Dev tour toggle (sits in the top-nav CTA group) ─────────
    Pill-shaped switch with a small status dot. Two states:
@@ -335,13 +342,12 @@ html:not([data-theme="dark"]) .lp-node.is-dragging {
 }
 
 /* ── Floating demo toolbar ───────────────────────────────
-   Vertical pill on the left edge, mirroring the in-canvas
-   tool stack. Cursor (drag) is the always-active mode; the
-   other buttons are one-shot actions on the headline graph. */
+   Vertical pill beside the hero headline. Scrolls with the
+   page — not fixed to the viewport. */
 .lp-toolbar {
-  position: fixed;
+  position: absolute;
   left: 24px;
-  top: 22%;
+  top: 110px;
   z-index: 40;
   display: flex; flex-direction: column;
   gap: 4px;

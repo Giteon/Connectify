@@ -29,6 +29,7 @@
     <span></span><!-- center cell empty to keep the .lp-topnav grid (1fr auto 1fr) -->
     <div class="lp-nav-cta">
       <button type="button" class="ob-skip" id="obSkip">Skip for now</button>
+      <span class="lp-theme-slot" data-theme-slot></span>
     </div>
   </header>
 
@@ -58,8 +59,8 @@
 
         <div class="ob-form">
           <label class="ob-form-field">
-            <span class="ob-form-label">What's your name? <span class="ob-form-label-optional">(optional)</span></span>
-            <input type="text" class="ob-form-input" data-input="name" name="name" placeholder="James"
+            <span class="ob-form-label">What's your name? <span class="ob-form-label-optional"></span></span>
+            <input type="text" class="ob-form-input" data-input="name" name="name" placeholder="Ryan Gosling"
                    autocomplete="given-name" spellcheck="false" maxlength="60" />
           </label>
 
@@ -287,6 +288,7 @@
     </div>
   </div>
 
+  <script src="theme.js"></script>
   <script src="auth.js"></script>
   <script>
     /* ─────────────────────────────────────────────────────────────
@@ -303,28 +305,17 @@
       // Where to send the user when onboarding wraps. The user finishes
       // (or skips) into the "Start a new project" panel on graphs-hub.
       const params = new URLSearchParams(location.search);
-      let returnTo = params.get('return') || 'graphs-hub.html?tab=dashboard&new=1';
-      if (/(^|\/)(auth|onboarding)\.html/i.test(returnTo)) {
-        returnTo = 'graphs-hub.html?tab=dashboard&new=1';
-      }
-      // Ensure we always land on the new-graph panel by appending new=1
-      // when the caller didn't include it. (Login flow may pass through
-      // a plain dashboard URL.)
-      // Use `location.href` as the base — `location.origin` is the string
-      // "null" under file:// in Chrome, which throws in the URL constructor
-      // and silently leaves `new=1` un-appended.
-      try {
-        const u = new URL(returnTo, location.href);
-        if (!u.searchParams.get('new')) {
-          u.searchParams.set('new', '1');
-          // Strip the origin so relative-URL behaviour is preserved.
-          returnTo = u.pathname.replace(/^\//, '') + (u.search || '');
-        }
-      } catch (_) {}
+      const returnTo = Auth && typeof Auth.normalizeReturnUrl === 'function'
+        ? Auth.normalizeReturnUrl(params.get('return'), {
+            fallback: 'graphs-hub.html?tab=dashboard&new=1',
+            ensureNew: true,
+          })
+        : 'graphs-hub.html?tab=dashboard&new=1';
 
       const steps = Array.from(document.querySelectorAll('.ob-step'));
       const answers = {};
       let stepIdx = 0;
+      let profileInteracted = false;
 
       const fill = document.getElementById('obProgressFill');
       const label = document.getElementById('obStepLabel');
@@ -339,7 +330,13 @@
         label.textContent = `Step ${stepIdx + 1} of ${total}`;
         backBtn.disabled = stepIdx === 0;
         const step = steps[stepIdx];
-        nextBtn.textContent = (stepIdx === steps.length - 1) ? 'Finish' : 'Next';
+        if (stepIdx === steps.length - 1) {
+          nextBtn.textContent = 'Finish';
+        } else if (step.dataset.step === 'profile' && !profileInteracted) {
+          nextBtn.textContent = 'Skip';
+        } else {
+          nextBtn.textContent = 'Next';
+        }
         nextBtn.disabled = !hasAnswer(step);
       }
 
@@ -372,12 +369,16 @@
         answers[key] = seed;
         inputs.forEach(inp => {
           inp.addEventListener('input', () => {
+            if (key === 'profile') profileInteracted = true;
             answers[key] = answers[key] || {};
             answers[key][inp.dataset.input] = inp.value;
+            updateProgress();
           });
           inp.addEventListener('change', () => {
+            if (key === 'profile') profileInteracted = true;
             answers[key] = answers[key] || {};
             answers[key][inp.dataset.input] = inp.value;
+            updateProgress();
           });
         });
       });
@@ -424,9 +425,8 @@
       skipBtn.addEventListener('click', () => finish({ skipped: true }));
 
       // ── Personalization animation + redirect ────────────────
-      // Two seconds is enough to feel like "something happened" without
-      // dragging. Status lines rotate through to suggest behind-the-
-      // scenes work.
+      // Long enough to feel like real setup work without dragging.
+      // Status lines rotate through to suggest behind-the-scenes work.
       function finish({ skipped }) {
         // Persist what we have (even partial) so it's still useful if
         // the user came back through here.
@@ -454,12 +454,12 @@
         const rotate = setInterval(() => {
           li = Math.min(li + 1, lines.length - 1);
           status.textContent = lines[li];
-        }, 600);
+        }, 750);
 
         // Animate the bar to 100% over the same window.
         requestAnimationFrame(() => { bar.style.width = '100%'; });
 
-        const DURATION = skipped ? 1600 : 2400;
+        const DURATION = skipped ? 2200 : 3200;
         setTimeout(() => {
           clearInterval(rotate);
           location.href = returnTo;

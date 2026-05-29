@@ -24,8 +24,9 @@
   </script>
   <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="app.css" />
-  <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="view-mode.css" />
+  <!-- leftnav.css last so it owns the leftnav styling on every page. -->
+  <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="tutorial.css" />
 </head>
 <body>
@@ -48,31 +49,10 @@
     <div class="topbar-mid-region">
     <div class="topbar-spacer"></div>
     <div class="topbar-mid-actions" id="topbarMidActions" aria-hidden="false">
-    <button class="tb-toggle" id="tglPaths" data-side="right" data-tab="paths" hidden>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
-      Paths
-    </button>
-
-    <!-- Results (Runs) — hidden in view mode per spec. -->
-    <button class="tb-toggle" id="tglResults" data-bottom="true" hidden>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
-      Results
-    </button>
-
     <button class="role-pill" id="rolePillBtn" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span id="rolePillText">View Only</span>
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
-    </button>
-
-    <!-- Presence stack — hidden in view mode per spec. -->
-    <div class="presence" id="presenceBtn" title="Active collaborators" hidden>
-      <div class="presence-avatars" id="presenceAvatars"></div>
-      <span class="presence-count" id="presenceCount">0</span>
-    </div>
-
-    <button class="tb-icon-toggle" id="shareGraphBtn" type="button" title="Share this graph" aria-label="Share this graph">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.7 13.4l6.6 3.2M15.3 7.4L8.7 10.6"/></svg>
     </button>
     </div>
     </div>
@@ -167,8 +147,15 @@
   <!-- ══ INFO PANEL (persistent, view-mode only) ══ -->
   <aside class="info-panel" id="infoPanel" aria-label="Project info">
     <div>
-      <div class="ip-title" id="ipTitle">—</div>
-      <div class="ip-author" id="ipAuthor">—</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div class="ip-title" id="ipTitle">—</div>
+          <div class="ip-author" id="ipAuthor">—</div>
+        </div>
+        <button class="ip-star-btn" id="starBtn" type="button" title="Star this project" aria-label="Star this project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
+        </button>
+      </div>
       <div class="ip-top-actions">
         <button class="ip-btn primary" id="contributeBtn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L9 22l8.5-11h-6L13 2z"/></svg>
@@ -181,6 +168,10 @@
       </div>
     </div>
     <div class="ip-tagrow" id="ipTagRow"></div>
+    <div class="ip-stats" id="ipStats">
+      <span class="ip-tag ip-stat" id="ipStarCount">—</span>
+      <span class="ip-tag ip-stat" id="ipForkCount">—</span>
+    </div>
     <div class="ip-section">
       <h3 id="ipContribCount">Contributors</h3>
       <div class="ip-contribs" id="ipContribs"></div>
@@ -257,19 +248,22 @@
 
 <!-- Role dropdown (view-mode variant) -->
 <div id="roleDropdown" class="role-dropdown">
-  <div class="role-opt current" id="roleOptViewOnly" data-role="view-only">
-    <span>View Only</span>
+  <div class="role-opt current" id="roleOptCurrent" data-role="current">
+    <span id="roleOptCurrentText">View Only</span>
     <svg class="role-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
   </div>
-  <div class="role-opt" id="roleOptEditMode" data-role="edit-mode">
+  <div class="role-opt" id="roleOptEditMode" data-role="edit-mode" style="display:none;">
     <span>Switch to Edit Mode</span>
   </div>
-  <div class="role-opt disabled" id="roleOptAdmin" data-role="admin">
+  <div class="role-opt" id="roleOptRequestContributor" data-role="request-contributor" style="display:none;">
+    <span>Request Contributor Status</span>
+  </div>
+  <div class="role-opt disabled" id="roleOptAdmin" data-role="admin" style="display:none;">
     <span>Request Admin status</span>
     <span class="role-badge">Admin</span>
   </div>
-  <div class="role-divider"></div>
-  <div class="role-perms-link" id="rolePermsLink">
+  <div class="role-divider" style="display:none;"></div>
+  <div class="role-perms-link" id="rolePermsLink" style="display:none;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
     What can I do at my current role?
   </div>
@@ -403,7 +397,10 @@
     <p class="tt-text" data-tt-text></p>
     <div class="tt-meta">
       <div class="tt-progress">Step <span data-tt-step-num>1</span> of <span data-tt-step-total>14</span></div>
-      <div class="tt-actions" data-tt-actions></div>
+      <div class="tt-meta-end">
+        <button type="button" class="tt-btn tt-btn-skip" data-tt-skip data-tt-act="skip" hidden>Skip tutorial</button>
+        <div class="tt-actions" data-tt-actions></div>
+      </div>
     </div>
   </div>
 </div>

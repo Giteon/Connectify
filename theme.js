@@ -20,6 +20,7 @@
     if (theme === 'dark') html.setAttribute('data-theme', 'dark');
     else                  html.removeAttribute('data-theme');
     try { localStorage.setItem(KEY, theme); } catch (_) { /* storage quota */ }
+    try { document.dispatchEvent(new CustomEvent('lp-theme-changed')); } catch (_) {}
     // If the canvas module is active, edge colors/dot layers read from
     // CSS variables via SVG strokes — force a redraw so any cached styling
     // picks up the new values.
@@ -100,8 +101,8 @@
     return wrap;
   }
 
-  // Preferred: `[data-theme-slot]` (end of topbar / rail). Otherwise insert before
-  // `.avatar-dropdown` in `.topbar-actions` / `.topbar-right`, else append to `.topbar`.
+  // Preferred: `[data-theme-slot]` (topbar / leftnav rail / lp-topnav CTA).
+  // Otherwise insert before `.avatar-dropdown` in `.topbar-actions` / `.topbar-right`, else append to `.topbar`.
   function mount() {
     if (document.querySelector('.theme-toggle')) return;
     const slot = document.querySelector('[data-theme-slot]');

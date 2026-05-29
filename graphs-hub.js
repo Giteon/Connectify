@@ -1,12 +1,13 @@
     (function() {
       const KEY = 'cfg.leftnav.expanded';
+      function getApp() { return document.querySelector('.app'); }
       function apply() {
         const on = localStorage.getItem(KEY) === '1';
-        document.body.classList.toggle('sidebar-expanded', on);
+        getApp()?.classList.toggle('leftnav-expanded', on);
       }
       apply();
-      document.getElementById('navToggle')?.addEventListener('click', () => {
-        const on = !document.body.classList.contains('sidebar-expanded');
+      document.getElementById('navToggleBtn')?.addEventListener('click', () => {
+        const on = !getApp()?.classList.contains('leftnav-expanded');
         try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (_) {}
         apply();
       });
@@ -205,6 +206,10 @@
       'my-team': {
         title: 'My Team',
         desc: 'Track team-shared graphs, pending requests, and collaboration opportunities.'
+      },
+      'settings': {
+        title: 'Settings',
+        desc: 'Manage your profile, account, appearance, and workspace preferences.'
       }
     };
 
@@ -215,7 +220,7 @@
       // loads (network errors, file://, slow fetches all leave the catalog
       // out of GRAPHS). loadBundledCatalog() will match this entry by slug
       // and skip re-adding it. Synced with `graphs/onboarding-starter/graph.json`.
-      { title:'Onboarding Starter', slug:'onboarding-starter', owner:'Connectify', shortOwner:'Connectify', domain:'Tutorial', modality:'—', method:'Getting Started', role:'Public', status:'Stable', license:'MIT', updatedHours:1, forks:0, stars:0, downloads:0, activity:100, openContrib:true, team:'Connectify', abstract:"A small starter graph designed for first-time users. Fork it to learn the basics.", starred:false, recentRank:0, editedAgo:'just now', editedBy:'Connectify Team', collaborators:['CF'], collaboratorExtra:0 },
+      { title:'Tutorial Graph', slug:'onboarding-starter', owner:'Connectify', shortOwner:'Connectify', domain:'Tutorial', modality:'—', method:'Getting Started', role:'Public', status:'Stable', license:'MIT', updatedHours:1, forks:0, stars:0, downloads:0, activity:100, openContrib:true, team:'Connectify', abstract:"A small starter graph designed for first-time users. Fork it to learn the basics.", starred:false, recentRank:0, editedAgo:'just now', editedBy:'Connectify Team', collaborators:['CF'], collaboratorExtra:0 },
       // These four sample graphs used to ship with Admin/Contributor roles so
       // the dashboard looked populated for demo purposes. New users now start
       // with an empty My Graphs, so they're tagged as Public — still browseable
@@ -874,7 +879,165 @@
       document.querySelectorAll('.nav-item[data-tab]').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
       q('#pageTitle').textContent = TAB_META[tab].title;
       q('#pageDesc').textContent = TAB_META[tab].desc;
+      // The "New Graph" header CTA is irrelevant on Settings — hide it there.
+      const headerActions = document.querySelector('.header-actions');
+      if (headerActions) headerActions.style.display = (tab === 'settings') ? 'none' : '';
       if (tab === 'dashboard') requestAnimationFrame(() => syncDashboardSwitcherWidths());
+    }
+
+    /* ─── Settings tab ───────────────────────────────────────────
+       Preferences persist to localStorage. Most live under the
+       `cfg.settings.*` namespace; Appearance reuses the existing
+       `cfg.theme` / `cfg.leftnav.expanded` keys so changes here stay
+       in sync with the theme toggle and the leftnav state. */
+    function initSettings() {
+      const pane = q('#tab-settings');
+      if (!pane || pane.dataset.bound === '1') return;
+      pane.dataset.bound = '1';
+
+      const SK = 'cfg.settings.';
+      const getPref = (k, fallback) => {
+        try { const v = localStorage.getItem(SK + k); return v === null ? fallback : v; }
+        catch (_) { return fallback; }
+      };
+      const setPref = (k, v) => { try { localStorage.setItem(SK + k, v); } catch (_) {} };
+
+      // ── Generic data-setting controls (toggles, inputs, selects) ──
+      pane.querySelectorAll('[data-setting]').forEach((el) => {
+        const key = el.dataset.setting;
+        if (el.type === 'checkbox') {
+          const def = el.dataset.default === 'on';
+          el.checked = getPref(key, def ? '1' : '0') === '1';
+          el.addEventListener('change', () => setPref(key, el.checked ? '1' : '0'));
+        } else {
+          const stored = getPref(key, null);
+          if (stored !== null) el.value = stored;
+          el.addEventListener('input', () => setPref(key, el.value));
+        }
+      });
+
+      // ── In-page section nav (scroll-spy + smooth scroll) ──
+      const navItems = Array.from(pane.querySelectorAll('.settings-nav-item'));
+      const sections = navItems
+        .map((n) => document.getElementById(n.dataset.target))
+        .filter(Boolean);
+      const setActiveNav = (id) => {
+        navItems.forEach((n) => n.classList.toggle('active', n.dataset.target === id));
+      };
+      navItems.forEach((n) => {
+        n.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = document.getElementById(n.dataset.target);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setActiveNav(n.dataset.target);
+        });
+      });
+      if ('IntersectionObserver' in window && sections.length) {
+        const io = new IntersectionObserver((entries) => {
+          const visible = entries
+            .filter((en) => en.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          if (visible) setActiveNav(visible.target.id);
+        }, { rootMargin: '-12% 0px -70% 0px', threshold: 0 });
+        sections.forEach((s) => io.observe(s));
+      }
+
+      // ── Theme picker (light / dark / system) ──
+      const applyTheme = (mode) => {
+        const html = document.documentElement;
+        let effective = mode;
+        if (mode === 'system') {
+          effective = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark' : 'light';
+        }
+        if (effective === 'dark') html.setAttribute('data-theme', 'dark');
+        else html.removeAttribute('data-theme');
+        // Persist the *effective* theme for the cross-page pre-paint script,
+        // and remember the user's raw choice (incl. "system") separately.
+        try {
+          localStorage.setItem('cfg.theme', effective);
+          localStorage.setItem('cfg.themeMode', mode);
+        } catch (_) {}
+        try { document.dispatchEvent(new CustomEvent('lp-theme-changed')); } catch (_) {}
+      };
+      const themeCards = Array.from(pane.querySelectorAll('.set-theme-card'));
+      const syncThemeCards = (mode) => {
+        themeCards.forEach((c) => c.setAttribute('aria-checked', String(c.dataset.themeChoice === mode)));
+      };
+      let savedMode = null;
+      try { savedMode = localStorage.getItem('cfg.themeMode'); } catch (_) {}
+      const themeMode = savedMode
+        || (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+      syncThemeCards(themeMode);
+      themeCards.forEach((card) => {
+        card.addEventListener('click', () => {
+          const mode = card.dataset.themeChoice;
+          syncThemeCards(mode);
+          applyTheme(mode);
+        });
+      });
+
+      // ── Leftnav-expanded-by-default toggle (reuses cfg.leftnav.expanded) ──
+      const leftnavToggle = q('#setLeftnavExpanded');
+      if (leftnavToggle) {
+        let lv = '1';
+        try { lv = localStorage.getItem('cfg.leftnav.expanded') ?? '1'; } catch (_) {}
+        leftnavToggle.checked = lv === '1';
+        leftnavToggle.addEventListener('change', () => {
+          const on = leftnavToggle.checked;
+          try { localStorage.setItem('cfg.leftnav.expanded', on ? '1' : '0'); } catch (_) {}
+          const app = document.querySelector('.app');
+          if (app) app.classList.toggle('leftnav-expanded', on);
+          document.documentElement.setAttribute('data-leftnav', on ? 'expanded' : 'collapsed');
+        });
+      }
+
+      // ── Reduce-motion toggle (mirrors data-setting checkbox into <html>) ──
+      const reduceMotion = pane.querySelector('[data-setting="appearance.reduceMotion"]');
+      const applyReduceMotion = (on) => {
+        document.documentElement.setAttribute('data-reduce-motion', on ? '1' : '0');
+      };
+      if (reduceMotion) {
+        applyReduceMotion(reduceMotion.checked);
+        reduceMotion.addEventListener('change', () => applyReduceMotion(reduceMotion.checked));
+      }
+
+      // ── Per-section Save buttons (transient "Saved" confirmation) ──
+      pane.querySelectorAll('[data-save-section]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const foot = btn.closest('.settings-section-foot');
+          const status = foot && foot.querySelector('[data-save-status]');
+          if (status) {
+            status.hidden = false;
+            clearTimeout(status._t);
+            status._t = setTimeout(() => { status.hidden = true; }, 2200);
+          }
+        });
+      });
+
+      // ── Avatar initials follow the display name ──
+      const nameInput = q('#setDisplayName');
+      const avatar = q('#settingsAvatar');
+      const refreshAvatar = () => {
+        if (!avatar) return;
+        const parts = (nameInput?.value || '').trim().split(/\s+/).filter(Boolean);
+        const initials = parts.length
+          ? (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase()
+          : '?';
+        avatar.textContent = initials;
+      };
+      if (nameInput) { nameInput.addEventListener('input', refreshAvatar); refreshAvatar(); }
+
+      // ── Danger zone ──
+      q('#setClearLocal')?.addEventListener('click', async () => {
+        const ok = window.confirm('Clear all cached graphs and preferences from this browser? This cannot be undone.');
+        if (!ok) return;
+        try { localStorage.clear(); } catch (_) {}
+        window.location.reload();
+      });
+      q('#setDeleteAccount')?.addEventListener('click', () => {
+        window.alert('Account deletion is not available in this preview build.');
+      });
     }
 
     function initFilters() {
@@ -1272,7 +1435,8 @@
         if (!slug) return;
         const g = GRAPHS.find((x) => graphSlug(x) === slug);
         const fromNgModal = !!card.closest('#ngGrid');
-        if (fromNgModal) {
+        const fromCommunity = !!card.closest('#communityTrending, #communityOpenList');
+        if (fromNgModal || fromCommunity) {
           window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
           return;
         }
@@ -1292,9 +1456,19 @@
       const link = document.getElementById('navEditLink');
       if (!link) return;
       const lastSlug = (() => { try { return localStorage.getItem(LAST_EDITED_KEY); } catch (_) { return null; } })();
-      const targetSlug = (lastSlug && GRAPHS.some(g => graphSlug(g) === lastSlug)) ? lastSlug
-        : graphSlug(GRAPHS[0]);
-      const row = targetSlug ? GRAPHS.find((g) => graphSlug(g) === targetSlug) : GRAPHS[0];
+      if (lastSlug) {
+        const customs = readCustomProjects();
+        if (customs.some((r) => r && r.slug === lastSlug)) {
+          link.href = `editing-mode-new.html?project=${encodeURIComponent(lastSlug)}`;
+          return;
+        }
+        const row = GRAPHS.find((g) => graphSlug(g) === lastSlug);
+        if (row) {
+          link.href = hrefOpenBundledGraph(row);
+          return;
+        }
+      }
+      const row = GRAPHS[0];
       if (row) link.href = hrefOpenBundledGraph(row);
     }
 
@@ -1429,6 +1603,15 @@
     ];
     let ngState = { search: '', category: 'all', status: 'all' };
 
+    function ngTourActive() {
+      try {
+        if (!window.ConnectifyTutorial) return false;
+        if (window.ConnectifyTutorial.isActive()) return true;
+        const s = window.ConnectifyTutorial.getState();
+        return !!(s && s.started && !s.skipped && !s.completed);
+      } catch (_) { return false; }
+    }
+
     function ngCategories() {
       const pool = ngGraphPool();
       const counts = new Map();
@@ -1439,13 +1622,27 @@
       const cats = [...counts.entries()]
         .map(([name, count]) => ({ id: name, label: name, count }))
         .sort((a, b) => b.count - a.count);
-      cats.unshift({ id: 'all', label: 'All categories', count: pool.length });
+      const allCat = { id: 'all', label: 'All categories', count: pool.length };
+      if (ngTourActive()) {
+        // During the tour, pin a dedicated "Getting Started" rail above the
+        // normal category list so only the tutorial graph is one click away.
+        return [
+          { id: 'getting-started', label: 'Getting Started', count: 1 },
+          { id: '__divider__', divider: true },
+          allCat,
+          ...cats,
+        ];
+      }
+      cats.unshift(allCat);
       return cats;
     }
 
     function ngFilteredGraphs() {
       const s = ngState.search.trim().toLowerCase();
       let rows = ngGraphPool().filter((g) => {
+        if (ngState.category === 'getting-started') {
+          return graphSlug(g) === 'onboarding-starter';
+        }
         if (ngState.category !== 'all' && g.domain !== ngState.category) return false;
         if (ngState.status === 'open' && !g.openContrib) return false;
         if (ngState.status === 'stable' && g.status !== 'Stable') return false;
@@ -1471,12 +1668,14 @@
     function renderNgCategories() {
       const host = document.getElementById('ngCategories');
       if (!host) return;
-      host.innerHTML = ngCategories().map(c => `
+      host.innerHTML = ngCategories().map(c => {
+        if (c.divider) return '<div class="ng-cat-divider" aria-hidden="true"></div>';
+        return `
         <button type="button" class="ng-cat ${c.id === ngState.category ? 'active' : ''}" data-ng-cat="${esc(c.id)}">
           <span>${esc(c.label)}</span>
           <span class="ng-cat-count">${c.count}</span>
-        </button>
-      `).join('');
+        </button>`;
+      }).join('');
     }
 
     function renderNgPills() {
@@ -1520,7 +1719,7 @@
           </div>
         </div>`;
       }).join('');
-      host.innerHTML = blank + cards;
+      host.innerHTML = (ngTourActive() ? '' : blank) + cards;
     }
 
     function openNewGraphModal() {
@@ -1528,6 +1727,11 @@
       if (!modal) return;
       modal.hidden = false;
       document.body.style.overflow = 'hidden';
+      if (ngTourActive()) {
+        ngState.category = 'getting-started';
+      } else if (ngState.category === 'getting-started') {
+        ngState.category = 'all';
+      }
       renderNgCategories();
       renderNgPills();
       renderNgGrid();
@@ -1543,11 +1747,23 @@
       if (!modal) return;
       modal.hidden = true;
       document.body.style.overflow = '';
+      // Step 1 anchors to the starter card inside this modal — closing it
+      // means the user opted out of the guided path for now.
+      if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+        window.ConnectifyTutorial.skip();
+      }
     }
 
     function initNewGraphModal() {
       const modal = document.getElementById('newGraphModal');
       if (!modal) return;
+      window.addEventListener('connectify-tutorial-skipped', () => {
+        if (ngState.category === 'getting-started') ngState.category = 'all';
+        if (!modal.hidden) {
+          renderNgCategories();
+          renderNgGrid();
+        }
+      });
       document.getElementById('ngClose')?.addEventListener('click', closeNewGraphModal);
       modal.addEventListener('click', (e) => { if (e.target === modal) closeNewGraphModal(); });
       document.addEventListener('keydown', (e) => {
@@ -1583,9 +1799,15 @@
         if (kind === 'preview') {
           // Let the tutorial know which graph the user previewed; it will
           // advance Step 1 if the slug matches the onboarding starter.
-          // (notifyAction is a no-op when the tour isn't running.)
           if (window.ConnectifyTutorial) {
             window.ConnectifyTutorial.notifyAction('preview-clicked', { slug });
+            // Persist step 2 before navigation — the view page may load before
+            // showStep(2) can run on the hub (step 2 isn't registered there).
+            const st = window.ConnectifyTutorial.getState();
+            if (st.started && !st.skipped && !st.completed && st.currentStep < 2
+                && slug === 'onboarding-starter') {
+              window.ConnectifyTutorial.advanceTo(2);
+            }
           }
           // Belt-and-suspenders: also stash the slug in sessionStorage so
           // view-mode can recover it if a clean-URL redirect strips the query.
@@ -1675,6 +1897,7 @@
       initEditNavLink();
       initForkConfirmModal();
       initNewGraphModal();
+      initSettings();
       switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
 
       // ───── Tutorial wiring (first-time user tour) ─────

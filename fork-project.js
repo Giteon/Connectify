@@ -58,6 +58,18 @@
     });
   }
 
+  // Remove all variant-scoped localStorage for a (defunct) fork slug. Used when
+  // discarding a stale onboarding-starter fork before regenerating a fresh one.
+  function _purgeProjectStorage(s) {
+    if (!s) return;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(s) !== -1) keys.push(k);
+    }
+    keys.forEach((k) => { try { localStorage.removeItem(k); } catch (_) {} });
+  }
+
   /**
    * @param {object} project
    * @param {string} newSlug
@@ -89,6 +101,20 @@
     meta = meta || {};
     opts = opts || {};
     const customs = readCustomProjects();
+    // The onboarding starter is a throwaway tutorial sandbox: always regenerate
+    // a fresh fork from the CURRENT bundled starter graph, discarding any stale
+    // earlier fork (which may have an outdated node set). This keeps the tour in
+    // sync whenever the starter graph definition changes.
+    if (sourceSlug === 'onboarding-starter') {
+      opts = Object.assign({}, opts, { forceCreate: true });
+      for (let i = customs.length - 1; i >= 0; i--) {
+        const r = customs[i];
+        if (r && r.forkedFrom === 'onboarding-starter') {
+          _purgeProjectStorage(r.slug);
+          customs.splice(i, 1);
+        }
+      }
+    }
     // If this source has already been forked, open the existing fork instead
     // of creating a duplicate row in the leftnav projects tree. Callers can
     // opt out by passing { forceCreate: true } (used by the "duplicate"
@@ -96,7 +122,11 @@
     if (!opts.forceCreate) {
       const existingFork = customs.find((r) => r && r.forkedFrom === sourceSlug);
       if (existingFork && existingFork.slug) {
-        try { sessionStorage.setItem('cfg.navHint.project', existingFork.slug); } catch (_) {}
+        if (global.ConnectifyLeftnav && typeof global.ConnectifyLeftnav.rememberProjectNav === 'function') {
+          global.ConnectifyLeftnav.rememberProjectNav(existingFork.slug);
+        } else {
+          try { sessionStorage.setItem('cfg.navHint.project', existingFork.slug); } catch (_) {}
+        }
         global.location.href =
           'editing-mode-new.html?project=' + encodeURIComponent(existingFork.slug);
         return;
@@ -146,7 +176,12 @@
       project,
     });
     writeCustomProjects(customs);
-    try { sessionStorage.setItem('cfg.navHint.project', newSlug); } catch (_) {}
+    if (global.ConnectifyLeftnav && typeof global.ConnectifyLeftnav.rememberProjectNav === 'function') {
+      global.ConnectifyLeftnav.rememberProjectNav(newSlug);
+    } else {
+      try { sessionStorage.setItem('cfg.navHint.project', newSlug); } catch (_) {}
+      try { localStorage.setItem('cfg.lastEditedSlug', newSlug); } catch (_) {}
+    }
     global.location.href =
       'editing-mode-new.html?project=' + encodeURIComponent(newSlug);
   }

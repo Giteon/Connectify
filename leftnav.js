@@ -32,6 +32,106 @@
     return t || 'Untitled project';
   }
 
+  const NAV_HINT_KEY = 'cfg.navHint.project';
+  const LAST_EDITED_KEY = 'cfg.lastEditedSlug';
+  const TUTORIAL_STATE_KEY = 'cfg.tutorialState';
+
+  /** Stash slug before navigation so a clean-URL redirect can recover it. */
+  function stashNavHint(slug) {
+    if (!slug) return;
+    try { sessionStorage.setItem(NAV_HINT_KEY, slug); } catch (_) {}
+  }
+
+  /** Remember the last opened project and tie it to an in-progress tour. */
+  function rememberProjectNav(slug) {
+    if (!slug) return;
+    stashNavHint(slug);
+    try { localStorage.setItem(LAST_EDITED_KEY, slug); } catch (_) {}
+    try {
+      const raw = localStorage.getItem(TUTORIAL_STATE_KEY);
+      if (!raw) return;
+      const ts = JSON.parse(raw);
+      if (ts && ts.started && !ts.skipped && !ts.completed) {
+        ts.projectSlug = slug;
+        ts.lastActivity = Date.now();
+        localStorage.setItem(TUTORIAL_STATE_KEY, JSON.stringify(ts));
+      }
+    } catch (_) {}
+  }
+
+  function findOnboardingForkSlug() {
+    const hit = readCustomProjects().find(r => r && r.forkedFrom === 'onboarding-starter' && r.slug);
+    return hit ? hit.slug : null;
+  }
+
+  function isTutorialActive() {
+    try {
+      const raw = localStorage.getItem(TUTORIAL_STATE_KEY);
+      if (!raw) return true; // default-on for first-time users
+      const ts = JSON.parse(raw);
+      return !!(ts && ts.started && !ts.skipped && !ts.completed);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Resolve which project slug to load. Primary source is `?project=…`; falls
+   * back to sessionStorage hint (one-shot), tutorial fork slug, then the last
+   * edited custom project — covers static servers that strip query strings.
+   */
+  function resolveProjectSlug() {
+    const fromQuery = new URLSearchParams(location.search).get('project');
+    if (fromQuery) return fromQuery;
+    try {
+      const hint = sessionStorage.getItem(NAV_HINT_KEY);
+      if (hint) {
+        sessionStorage.removeItem(NAV_HINT_KEY);
+        return hint;
+      }
+    } catch (_) {}
+    if (isTutorialActive()) {
+      try {
+        const raw = localStorage.getItem(TUTORIAL_STATE_KEY);
+        const ts = raw ? JSON.parse(raw) : null;
+        if (ts && ts.projectSlug) return ts.projectSlug;
+        if (ts && ts.currentStep >= 3) {
+          const fork = findOnboardingForkSlug();
+          if (fork) return fork;
+        }
+      } catch (_) {}
+    }
+    try {
+      const last = localStorage.getItem(LAST_EDITED_KEY);
+      if (last && readCustomProjects().some(r => r && r.slug === last)) return last;
+    } catch (_) {}
+    return null;
+  }
+
+  function wireProjectLinksOnce() {
+    const tree = document.getElementById('lpTree');
+    if (!tree || tree.dataset.navBound === '1') return;
+    tree.dataset.navBound = '1';
+    tree.addEventListener('click', (e) => {
+      const a = e.target.closest('a.lp-node[data-project]');
+      if (!a) return;
+      rememberProjectNav(a.getAttribute('data-project'));
+    });
+  }
+
+  function wireNavEditLinkOnce() {
+    if (document.documentElement.dataset.navEditBound === '1') return;
+    document.documentElement.dataset.navEditBound = '1';
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('#navEditLink');
+      if (!a || !a.href) return;
+      try {
+        const s = new URL(a.href, location.href).searchParams.get('project');
+        if (s) rememberProjectNav(s);
+      } catch (_) {}
+    }, true);
+  }
+
   /**
    * Render the leftnav projects tree into #lpTree. Marks the row whose
    * slug matches `currentSlug` as active. If a row is active it ALSO
@@ -45,6 +145,7 @@
     const editHref = opts.editHref || 'editing-mode-new.html';
     const tree = document.getElementById('lpTree');
     if (!tree) return;
+    wireProjectLinksOnce();
 
     const rawRows = readCustomProjects();
     // Dedupe: keep one entry per slug (shouldn't happen, but safety) AND one
@@ -251,6 +352,24 @@
   function _writeCollapseState(wrapId, expanded) {
     try { localStorage.setItem(COLLAPSE_KEY_PREFIX + wrapId, expanded ? '1' : '0'); } catch (_) {}
   }
+  function _isLeftnavCollapsed() {
+    // Each page tracks expanded state on a different element:
+    //   editing-mode / view-mode → .app.leftnav-expanded
+    //   graphs-hub               → body.sidebar-expanded
+    const app = document.querySelector('.app');
+    if (app) return !app.classList.contains('leftnav-expanded');
+    return !document.body.classList.contains('sidebar-expanded');
+  }
+  function _expandLeftnav() {
+    const app = document.querySelector('.app');
+    if (app) {
+      app.classList.add('leftnav-expanded');
+      try { localStorage.setItem('cfg.leftnav.expanded', '1'); } catch (_) {}
+      return;
+    }
+    document.body.classList.add('sidebar-expanded');
+    try { localStorage.setItem('cfg.leftnav.expanded', '1'); } catch (_) {}
+  }
   function wireCollapsable(wrapId, toggleId) {
     const wrap = document.getElementById(wrapId);
     const toggle = document.getElementById(toggleId);
@@ -260,6 +379,18 @@
     wrap.dataset.expanded = initialExpanded ? 'true' : 'false';
     toggle.setAttribute('aria-expanded', String(initialExpanded));
     toggle.addEventListener('click', () => {
+      // Special-case: when the whole leftnav is collapsed, the section
+      // header is just a folder icon — clicking it expands the leftnav
+      // (and ensures the section itself ends up expanded).
+      if (_isLeftnavCollapsed()) {
+        _expandLeftnav();
+        if (wrap.dataset.expanded !== 'true') {
+          wrap.dataset.expanded = 'true';
+          toggle.setAttribute('aria-expanded', 'true');
+          _writeCollapseState(wrapId, true);
+        }
+        return;
+      }
       const expanded = wrap.dataset.expanded === 'true';
       const next = !expanded;
       wrap.dataset.expanded = next ? 'true' : 'false';
@@ -268,9 +399,22 @@
     });
   }
 
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      wireProjectLinksOnce();
+      wireNavEditLinkOnce();
+    });
+  } else {
+    wireProjectLinksOnce();
+    wireNavEditLinkOnce();
+  }
+
   global.ConnectifyLeftnav = {
     renderProjects,
     readCustomProjects,
+    resolveProjectSlug,
+    rememberProjectNav,
+    stashNavHint,
     showCreditsModal,
     wireCollapsable,
   };

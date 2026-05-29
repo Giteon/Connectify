@@ -1,14 +1,27 @@
-/* leftnav.css — Shared V4 leftnav styles.
-   Works with two scope conventions:
-   - body.sidebar-expanded  (graphs-hub.html)
-   - .app.leftnav-expanded  (view-mode, editing-mode)
-   Each rule lists both forms so the same markup works on every page. */
+/* leftnav.css — Single source of truth for the V4 leftnav.
+   Every page (editing-mode-new, view-mode-new, graphs-hub) now uses the
+   same shell convention: a top-level `.app` element that gets
+   `leftnav-expanded` when the rail is wide. This file is loaded LAST on
+   every page so it owns the leftnav styling. */
+
+/* ── Container ────────────────────────────────────────────────── */
+/* Drawer-style open/close: width and grid track animate together so the
+   leftnav slides horizontally. Labels fade in slightly after the slide
+   starts and fade out at the start of the collapse — see .nav-label /
+   .lns-label / .lp-title / .lc-meta / .la-label rules below. */
+.leftnav {
+  padding: 8px 6px;
+  transition: width 180ms ease;
+}
+/* graphs-hub uses a grid track for the leftnav width instead of an
+   explicit `.leftnav { width }`. Animate the grid track so the drawer
+   slide happens there too. */
+.layout { transition: grid-template-columns 180ms ease; }
 
 /* ── Brand row (logo + collapse toggle) ───────────────────────── */
 .leftnav-brand-row {
   display: flex; flex-direction: column; align-items: center; gap: 0;
 }
-body.sidebar-expanded .leftnav-brand-row,
 .app.leftnav-expanded .leftnav-brand-row {
   flex-direction: row; align-items: center; justify-content: space-between;
   gap: 0; padding: 2px 4px 2px 8px;
@@ -23,19 +36,16 @@ body.sidebar-expanded .leftnav-brand-row,
   cursor: pointer; color: var(--text-muted);
   flex-shrink: 0;
 }
-body.sidebar-expanded .leftnav .nav-toggle,
 .app.leftnav-expanded .leftnav .nav-toggle {
   width: auto; height: auto; padding: 0;
 }
 .leftnav .nav-toggle:hover { background: var(--surface-hover, var(--bg)); color: var(--text-primary); }
 .leftnav .nav-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
 .leftnav .nav-toggle .nav-toggle-close { display: none; }
-body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-open,
 .app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-open { display: none; }
-body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-close,
 .app.leftnav-expanded .leftnav .nav-toggle .nav-toggle-close { display: block; }
 
-/* ── Search box (only visible when expanded) ──────────────────── */
+/* ── Search box (expanded only) ───────────────────────────────── */
 .leftnav-search {
   display: flex; align-items: center; gap: 8px;
   margin: 6px 8px 8px;
@@ -50,7 +60,8 @@ body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-close,
 }
 .leftnav-search:hover { border-color: var(--border); color: var(--text-primary); }
 .leftnav-search svg { width: 14px; height: 14px; flex-shrink: 0; }
-.leftnav-search .lns-label { flex: 1; text-align: left; }
+.leftnav-search .lns-label { flex: 1; text-align: left; white-space: nowrap; }
+.leftnav-search { white-space: nowrap; overflow: hidden; }
 .leftnav-search .lns-kbd {
   font-size: 11px; color: var(--text-muted);
   background: var(--surface, #fff);
@@ -58,8 +69,27 @@ body.sidebar-expanded .leftnav .nav-toggle .nav-toggle-close,
   border-radius: 4px;
   padding: 1px 5px;
 }
-body:not(.sidebar-expanded) .leftnav-search,
+/* Collapsed: hide the search entirely. The expand-toggle takes the
+   search slot (see brand-row rules below). */
 .app:not(.leftnav-expanded) .leftnav-search { display: none; }
+
+/* Collapsed brand row: logo on top, expand-toggle stacked below in the
+   same vertical slot the expanded search box would occupy. All centered
+   so toggling reads as a pure horizontal slide. */
+.app:not(.leftnav-expanded) .leftnav-brand-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+}
+.app:not(.leftnav-expanded) #navToggleBtn {
+  display: flex;
+  width: 36px; height: 36px;
+  margin: 0 auto;
+  padding: 0;
+  align-items: center; justify-content: center;
+}
+.app:not(.leftnav-expanded) #navToggleBtn svg { width: 16px; height: 16px; }
 
 /* ── Generic nav-item (Home / Community / Settings / + New project) ── */
 .leftnav .nav-item {
@@ -82,7 +112,10 @@ body:not(.sidebar-expanded) .leftnav-search,
   font-weight: 600;
 }
 .leftnav .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-body:not(.sidebar-expanded) .leftnav .nav-item,
+/* Lock labels to one line so they don't wrap during the width animation. */
+.leftnav .nav-item { white-space: nowrap; overflow: hidden; }
+.leftnav .nav-item .nav-label { white-space: nowrap; }
+.brand-wordmark { white-space: nowrap; }
 .app:not(.leftnav-expanded) .leftnav .nav-item {
   width: 36px; height: 36px;
   padding: 0;
@@ -90,10 +123,9 @@ body:not(.sidebar-expanded) .leftnav .nav-item,
   align-self: center;
   justify-content: center;
 }
-body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
 .app:not(.leftnav-expanded) .leftnav .nav-item .nav-label { display: none; }
 
-/* ── Collapsable sections (Projects, My Teams) ────────────────── */
+/* ── Collapsable sections (Projects) ──────────────────────────── */
 .leftnav-collapsable { margin: 0; }
 .leftnav-collapsable .lp-header {
   display: flex; align-items: center; gap: 10px;
@@ -111,17 +143,16 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
 }
 .leftnav-collapsable .lp-header:hover { background: var(--surface-hover, var(--bg)); color: var(--primary); }
 .leftnav-collapsable .lp-folder { width: 18px; height: 18px; flex-shrink: 0; }
-.leftnav-collapsable .lp-title { flex: 1; }
+.leftnav-collapsable .lp-title { flex: 1; white-space: nowrap; }
+.leftnav-collapsable .lp-header { white-space: nowrap; overflow: hidden; }
 .leftnav-collapsable .lp-chev {
   width: 14px; height: 14px; flex-shrink: 0;
   transition: transform .15s ease;
 }
 .leftnav-collapsable[data-expanded="false"] .lp-chev { transform: rotate(-90deg); }
 
-/* Tree (children) — vertical guide line + curved branches per item.
-   Caps at 6.5 rows: at 7+ items the 7th appears half-faded so users
-   discover that the list scrolls. The leftnav footer (Settings, credits,
-   user tab) stays put regardless of project count. */
+/* Tree (children) — caps at 6.5 rows; the 7th appears half-faded so
+   users discover that the list scrolls. */
 .leftnav-collapsable .lp-tree {
   position: relative;
   margin: 2px 8px 4px 21px;
@@ -132,8 +163,6 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
   max-height: 205px;
   scrollbar-width: thin;
 }
-/* Applied via JS when row count > 6. Mask the bottom so the
-   partially-visible 7th item fades to 0 opacity. */
 .leftnav-collapsable .lp-tree.is-scrollable {
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
@@ -159,7 +188,6 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
 }
 .leftnav-collapsable .lp-node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
-/* Continuous vertical guide on the parent + curved branch on each item */
 .leftnav-collapsable .lp-tree::before {
   content: "";
   position: absolute;
@@ -189,9 +217,21 @@ body:not(.sidebar-expanded) .leftnav .nav-item .nav-label,
 }
 .leftnav-collapsable .lp-node.active:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
 
-/* Hide collapsable sections in collapsed leftnav */
-body:not(.sidebar-expanded) .leftnav-collapsable,
-.app:not(.leftnav-expanded) .leftnav-collapsable { display: none; }
+/* Collapsed: header becomes a 36×36 icon-button (folder only). Tree
+   hidden, title and chevron hidden. Clicking expands the leftnav
+   (wired in leftnav.js). */
+.app:not(.leftnav-expanded) .leftnav-collapsable .lp-tree { display: none; }
+.app:not(.leftnav-expanded) .leftnav-collapsable .lp-header {
+  width: 36px; height: 36px;
+  padding: 0;
+  margin: 2px auto;
+  justify-content: center;
+}
+.app:not(.leftnav-expanded) .leftnav-collapsable .lp-header .lp-title,
+.app:not(.leftnav-expanded) .leftnav-collapsable .lp-header .lp-chev { display: none; }
+/* + New project hidden in collapsed mode — the folder icon above is
+   the entry point. */
+.app:not(.leftnav-expanded) #lpAddProject { display: none; }
 
 /* ── Horizontal divider ───────────────────────────────────────── */
 .leftnav .leftnav-divider {
@@ -200,7 +240,6 @@ body:not(.sidebar-expanded) .leftnav-collapsable,
   margin: 8px 16px;
   height: 0;
 }
-body:not(.sidebar-expanded) .leftnav .leftnav-divider,
 .app:not(.leftnav-expanded) .leftnav .leftnav-divider { margin: 8px 8px; }
 
 /* ── Credits chip (footer area) ───────────────────────────────── */
@@ -248,23 +287,10 @@ body:not(.sidebar-expanded) .leftnav .leftnav-divider,
   display: block; height: 100%; background: var(--primary);
   transition: width .25s ease;
 }
-body:not(.sidebar-expanded) .leftnav-credits,
-.app:not(.leftnav-expanded) .leftnav-credits {
-  margin: auto 8px 8px 8px;
-  padding: 7px;
-  justify-content: center;
-  border: none;
-  background: transparent;
-}
-body:not(.sidebar-expanded) .leftnav-credits .lc-meta,
-.app:not(.leftnav-expanded) .leftnav-credits .lc-meta { display: none; }
-body:not(.sidebar-expanded) .leftnav-credits .lc-ico,
-.app:not(.leftnav-expanded) .leftnav-credits .lc-ico {
-  background: transparent;
-  color: var(--text-muted);
-}
-body:not(.sidebar-expanded) .leftnav-credits:hover .lc-ico,
-.app:not(.leftnav-expanded) .leftnav-credits:hover .lc-ico { color: var(--primary); }
+/* Hide the credits chip entirely in collapsed mode — the cloud icon
+   was the only thing showing and it didn't add enough on its own to
+   earn its slot. Auth CTA stays so users can still log in. */
+.app:not(.leftnav-expanded) .leftnav-credits { display: none; }
 
 /* ── Auth CTA (footer area) ───────────────────────────────────── */
 .leftnav-auth {
@@ -281,10 +307,12 @@ body:not(.sidebar-expanded) .leftnav-credits:hover .lc-ico,
 }
 .leftnav-auth:hover { background: var(--primary-hover, var(--primary)); border-color: var(--primary-hover, var(--primary)); opacity: 0.95; }
 .leftnav-auth .la-icon { width: 16px; height: 16px; flex-shrink: 0; }
-.leftnav-auth .la-label { text-align: left; }
-body:not(.sidebar-expanded) .leftnav-auth .la-label,
+/* Lock the label to one line — during the leftnav width animation the
+   button passes through narrow intermediate widths and the text would
+   otherwise wrap, then snap back, in rapid flashes. */
+.leftnav-auth .la-label { text-align: left; white-space: nowrap; }
+.leftnav-auth { white-space: nowrap; overflow: hidden; }
 .app:not(.leftnav-expanded) .leftnav-auth .la-label { display: none; }
-body:not(.sidebar-expanded) .leftnav-auth,
 .app:not(.leftnav-expanded) .leftnav-auth {
   justify-content: center;
   padding: 8px;
@@ -293,54 +321,11 @@ body:not(.sidebar-expanded) .leftnav-auth,
 }
 
 /* ── Brand wordmark visibility ────────────────────────────────── */
-body:not(.sidebar-expanded) .brand-wordmark,
 .app:not(.leftnav-expanded) .brand-wordmark { display: none; }
 
-/* ── Top section uses flex column for layout ──────────────────── */
+/* ── Top section is a flex column so footer items push to the bottom ── */
 .leftnav .leftnav-top {
   display: flex; flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
 }
-
-/* ── Explicit expanded overrides for .app.leftnav-expanded ────────
-   body:not(.sidebar-expanded) rules always fire on non-hub pages
-   since body never gets that class. These rules have specificity
-   (0,5,0) which beats the (0,4,1) of the body:not() rules, so they
-   always win when the nav is actually expanded. ───────────────── */
-
-.app.leftnav-expanded .leftnav-search { display: flex; }
-
-.app.leftnav-expanded .leftnav .nav-item {
-  width: auto; height: 34px;
-  padding: 0 8px; margin: 1px 8px;
-  justify-content: flex-start; align-self: auto;
-}
-.app.leftnav-expanded .leftnav .nav-item .nav-label { display: inline; }
-
-.app.leftnav-expanded .leftnav-collapsable { display: block; }
-
-.app.leftnav-expanded .leftnav .leftnav-divider { margin: 8px 16px; }
-
-.app.leftnav-expanded .leftnav-credits {
-  margin: auto 6px 6px 6px;
-  padding: 8px;
-  justify-content: flex-start;
-  border: 1px solid var(--border);
-  background: var(--bg);
-}
-.app.leftnav-expanded .leftnav-credits .lc-meta { display: flex; }
-.app.leftnav-expanded .leftnav-credits .lc-ico {
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
-  color: var(--primary);
-}
-
-.app.leftnav-expanded .leftnav-user {
-  justify-content: flex-start;
-  padding: 8px 10px;
-  margin: 4px 8px 8px;
-}
-.app.leftnav-expanded .leftnav-user .lnu-name { display: inline; }
-.app.leftnav-expanded .leftnav-user .lnu-chev { display: inline-flex; }
-
-.app.leftnav-expanded .brand-wordmark { display: inline; }

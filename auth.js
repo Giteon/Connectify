@@ -30,6 +30,8 @@
  *   wireLeftnavAuth()                              → void   (renders chip, click → auth.html / menu)
  *   renderLeftnavChip()                            → void
  *   navigateToAuth(view, returnTo)                 → void
+ *   normalizeReturnUrl(raw, opts?)                 → string  (file://-safe relative app URL)
+ *   relativePageUrl()                              → string
  *
  * Custom event: document dispatches 'connectify-auth-change' on login/logout.
  */
@@ -172,8 +174,38 @@
       email: u.email,
       username: u.username || '',
       name: u.name || u.username || u.email,
+      avatar: u.avatar || '',
+      bio: u.bio || '',
       createdAt: u.createdAt,
     };
+  }
+
+  // ── Profile updates (settings page) ───────────────────────────────
+  // Patch fields on the current user's record. `avatar` is a data-URL
+  // string (or null to clear). Passing `undefined` for any key leaves it
+  // unchanged. Mirrors the display name into the onboarding profile so
+  // displayName() — which prefers the onboarding name — stays in sync.
+  function updateProfile(patch) {
+    patch = patch || {};
+    const s = readSession();
+    if (!s) return null;
+    const users = readUsers();
+    const u = users[s.email];
+    if (!u) return null;
+    if (typeof patch.name === 'string') {
+      const nm = patch.name.trim();
+      if (nm) {
+        u.name = nm;
+        if (u.onboarding && u.onboarding.profile) u.onboarding.profile.name = nm;
+      }
+    }
+    if (typeof patch.username === 'string') u.username = patch.username.trim();
+    if (typeof patch.bio === 'string') u.bio = patch.bio;
+    if (typeof patch.avatar === 'string') u.avatar = patch.avatar;
+    else if (patch.avatar === null) delete u.avatar;
+    writeUsers(users);
+    notify('profile');
+    return publicUser(u);
   }
 
   // ── Change listeners ──────────────────────────────────────────────
@@ -255,6 +287,10 @@
     u.onboarding = Object.assign({}, u.onboarding || {}, answers || {}, {
       completedAt: new Date().toISOString(),
     });
+    const profileName = answers?.profile?.name;
+    if (profileName && String(profileName).trim()) {
+      u.name = String(profileName).trim();
+    }
     writeUsers(users);
     return true;
   }
@@ -320,12 +356,57 @@
   }
   function isLoggedIn() { return !!getCurrentUser(); }
 
+  // ── Return URL helpers (file://-safe) ─────────────────────────────
+  // Under file://, location.pathname is an absolute filesystem path. Passing
+  // that through URL() and stripping one leading slash produces a bogus
+  // relative URL that doubles the directory when assigned to location.href.
+  function relativePageUrl() {
+    const file = location.pathname.split('/').filter(Boolean).pop();
+    return (file || 'index.html') + location.search + location.hash;
+  }
+  function ensureNewParam(url) {
+    if (/[?&]new=/.test(url)) return url;
+    return url + (url.includes('?') ? '&' : '?') + 'new=1';
+  }
+  function normalizeReturnUrl(raw, opts) {
+    opts = opts || {};
+    const fallback = opts.fallback || 'graphs-hub.html?tab=dashboard&new=1';
+    let s = String(raw || '').trim();
+    if (!s) s = fallback;
+    if (/(^|\/)(auth|onboarding)\.html/i.test(s)) {
+      s = fallback;
+    } else if (/^file:/i.test(s)) {
+      try {
+        const u = new URL(s);
+        const file = u.pathname.split('/').filter(Boolean).pop() || 'graphs-hub.html';
+        s = file + u.search + u.hash;
+      } catch (_) { s = fallback; }
+    } else if (s.charAt(0) === '/' && /\.html/i.test(s)) {
+      const qIdx = s.indexOf('?');
+      const hIdx = s.indexOf('#');
+      const cut = Math.min(
+        qIdx >= 0 ? qIdx : s.length,
+        hIdx >= 0 ? hIdx : s.length
+      );
+      const file = s.slice(0, cut).split('/').filter(Boolean).pop() || 'graphs-hub.html';
+      s = file + s.slice(cut);
+    } else if (/^https?:/i.test(s)) {
+      try {
+        const u = new URL(s);
+        const file = u.pathname.split('/').filter(Boolean).pop() || 'graphs-hub.html';
+        s = file + u.search + u.hash;
+      } catch (_) { s = fallback; }
+    }
+    if (opts.ensureNew) s = ensureNewParam(s);
+    return s;
+  }
+
   // ── Navigation helper ─────────────────────────────────────────────
-  // `view` is 'login' (default) or 'signup'. `returnTo` is the URL we
+  // `view` is 'signup' (default) or 'login'. `returnTo` is the URL we
   // bounce back to after success; if omitted we use the current location.
   function navigateToAuth(view, returnTo) {
-    const v = view === 'signup' ? 'signup' : 'login';
-    const ret = returnTo || (location.pathname + location.search + location.hash);
+    const v = view === 'login' ? 'login' : 'signup';
+    const ret = normalizeReturnUrl(returnTo, { fallback: relativePageUrl() });
     const url = `${AUTH_PAGE}?view=${v}&return=${encodeURIComponent(ret)}`;
     location.href = url;
   }
@@ -345,8 +426,22 @@
     return `hsl(${h % 360}, 65%, 48%)`;
   }
   function avatarLetter(user) {
-    const src = (user.name || user.username || user.email || '?').trim();
+    const src = displayName(user).trim();
     return src.charAt(0).toUpperCase() || '?';
+  }
+  function emailLocalPart(email) {
+    const e = normEmail(email);
+    const at = e.indexOf('@');
+    return at > 0 ? e.slice(0, at) : e;
+  }
+  function displayName(user) {
+    if (!user) return '';
+    const raw = getCurrentUserRaw();
+    const obName = raw?.onboarding?.profile?.name;
+    if (obName && String(obName).trim()) return String(obName).trim();
+    const name = String(user.name || '').trim();
+    if (name) return name;
+    return emailLocalPart(user.email);
   }
 
   // Inject leftnav-chip-only styles (the auth page brings its own CSS).
@@ -378,6 +473,11 @@
         font-size: 11px; font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.02em;
+        overflow: hidden;
+      }
+      .leftnav-auth .la-avatar-img {
+        width: 100%; height: 100%;
+        object-fit: cover; border-radius: 50%; display: block;
       }
       /* min-width:0 is what lets the inner ellipsis kick in — without it
          a flex child grows to fit its longest line and pushes past the
@@ -405,9 +505,14 @@
         font-size: 10.5px; font-weight: 500;
         color: var(--text-muted, #64748b);
       }
-      body:not(.sidebar-expanded) .leftnav-auth .la-stack,
+
+      body.sidebar-expanded .leftnav-auth.is-user .la-stack,
+      .app.leftnav-expanded .leftnav-auth.is-user .la-stack {
+        display: flex;
+      }
+      body:not(.sidebar-expanded):not(:has(.app)) .leftnav-auth .la-stack,
       .app:not(.leftnav-expanded) .leftnav-auth .la-stack { display: none; }
-      body:not(.sidebar-expanded) .leftnav-auth.is-user,
+      body:not(.sidebar-expanded):not(:has(.app)) .leftnav-auth.is-user,
       .app:not(.leftnav-expanded) .leftnav-auth.is-user {
         padding: 4px;
         gap: 0;
@@ -458,6 +563,35 @@
       .am-menu-item.danger { color: #dc2626; }
       .am-menu-item.danger:hover { background: rgba(220, 38, 38, 0.08); }
       .am-menu-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+      .am-menu-sep { height: 1px; background: var(--border, #e5e7eb); margin: 4px 0; }
+
+      /* Shared confirm modal (e.g. log out) */
+      .cf-confirm-back {
+        position: fixed; inset: 0; z-index: 99500;
+        background: rgba(15, 23, 42, 0.45);
+        display: flex; align-items: center; justify-content: center;
+        padding: 20px;
+      }
+      .cf-confirm-card {
+        width: 100%; max-width: 360px;
+        background: var(--surface, #fff);
+        border: 1px solid var(--border, #e5e7eb);
+        border-radius: 14px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.30);
+        padding: 22px;
+      }
+      .cf-confirm-title { font-size: 16px; font-weight: 700; color: var(--text-primary, #0f172a); }
+      .cf-confirm-body { margin-top: 7px; font-size: 13px; line-height: 1.5; color: var(--text-secondary, #475569); }
+      .cf-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+      .cf-confirm-btn {
+        height: 36px; padding: 0 16px; border-radius: 8px;
+        font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+        border: 1px solid var(--border, #e5e7eb);
+        background: var(--surface, #fff); color: var(--text-primary, #0f172a);
+      }
+      .cf-confirm-btn:hover { background: var(--bg, #f1f5f9); }
+      .cf-confirm-btn.danger { background: #dc2626; border-color: #dc2626; color: #fff; }
+      .cf-confirm-btn.danger:hover { background: #b91c1c; border-color: #b91c1c; }
     `;
     document.head.appendChild(style);
   }
@@ -479,6 +613,50 @@
   }
   function onMenuKey(e) { if (e.key === 'Escape') closeUserMenu(); }
 
+  // Lightweight promise-based confirm modal (shared across pages since
+  // auth.js loads everywhere). Resolves true on confirm, false otherwise.
+  function showConfirm(opts) {
+    opts = opts || {};
+    ensureChipStyles();
+    return new Promise((resolve) => {
+      const back = document.createElement('div');
+      back.className = 'cf-confirm-back';
+      back.innerHTML = `
+        <div class="cf-confirm-card" role="dialog" aria-modal="true">
+          <h3 class="cf-confirm-title"></h3>
+          <p class="cf-confirm-body"></p>
+          <div class="cf-confirm-actions">
+            <button type="button" class="cf-confirm-btn cf-confirm-cancel"></button>
+            <button type="button" class="cf-confirm-btn cf-confirm-ok"></button>
+          </div>
+        </div>`;
+      back.querySelector('.cf-confirm-title').textContent = opts.title || 'Are you sure?';
+      back.querySelector('.cf-confirm-body').textContent = opts.body || '';
+      const okBtn = back.querySelector('.cf-confirm-ok');
+      const cancelBtn = back.querySelector('.cf-confirm-cancel');
+      okBtn.textContent = opts.confirmLabel || 'Confirm';
+      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      if (opts.danger) okBtn.classList.add('danger');
+      function done(v) {
+        back.remove();
+        document.removeEventListener('keydown', onKey, true);
+        resolve(v);
+      }
+      function onKey(e) { if (e.key === 'Escape') done(false); }
+      okBtn.addEventListener('click', () => done(true));
+      cancelBtn.addEventListener('click', () => done(false));
+      back.addEventListener('mousedown', (e) => { if (e.target === back) done(false); });
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(back);
+      okBtn.focus();
+    });
+  }
+
+  // Where "Log out" sends the user. Landing page is served at the site
+  // root (index.html); relativePageUrl()-style filename keeps it file://-safe.
+  const LANDING_PAGE = 'index.html';
+  const SETTINGS_URL = 'graphs-hub.html?tab=settings';
+
   function openUserMenu(anchor) {
     closeUserMenu();
     const user = getCurrentUser();
@@ -488,9 +666,14 @@
     menu.className = 'am-menu open';
     menu.innerHTML = `
       <div class="am-menu-head">
-        <div class="am-menu-name">${escapeHtml(user.name || user.username || user.email)}</div>
+        <div class="am-menu-name">${escapeHtml(displayName(user))}</div>
         <div class="am-menu-email">${escapeHtml(user.email)}</div>
       </div>
+      <button type="button" class="am-menu-item" data-action="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <div class="am-menu-sep"></div>
       <button type="button" class="am-menu-item danger" data-action="logout">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Log out
@@ -504,9 +687,22 @@
     menu.style.top = top + 'px';
     userMenuEl = menu;
 
-    menu.querySelector('[data-action="logout"]').addEventListener('click', () => {
-      logout();
+    menu.querySelector('[data-action="settings"]').addEventListener('click', () => {
       closeUserMenu();
+      location.href = SETTINGS_URL;
+    });
+    menu.querySelector('[data-action="logout"]').addEventListener('click', async () => {
+      closeUserMenu();
+      const ok = await showConfirm({
+        title: 'Log out?',
+        body: "You'll be signed out and returned to the landing page.",
+        confirmLabel: 'Log out',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if (!ok) return;
+      logout();
+      location.href = LANDING_PAGE;
     });
     setTimeout(() => {
       document.addEventListener('click', onDocClickForMenu, true);
@@ -528,10 +724,14 @@
       `;
     } else {
       btn.classList.add('is-user');
-      btn.title = `${user.name || user.username || user.email} — account menu`;
-      const display = user.name || user.username || user.email;
+      const display = displayName(user);
+      btn.title = `${display} — account menu`;
+      const avatarInner = user.avatar
+        ? `<img class="la-avatar-img" src="${escapeHtml(user.avatar)}" alt="" />`
+        : escapeHtml(avatarLetter(user));
+      const avatarBg = user.avatar ? 'transparent' : colorForKey(user.email);
       btn.innerHTML = `
-        <span class="la-avatar" style="background:${colorForKey(user.email)}">${escapeHtml(avatarLetter(user))}</span>
+        <span class="la-avatar" style="background:${avatarBg}">${avatarInner}</span>
         <span class="la-stack">
           <span class="la-name" title="${escapeHtml(display)}">${escapeHtml(display)}</span>
           <span class="la-email" title="${escapeHtml(user.email)}">${escapeHtml(user.email)}</span>
@@ -555,7 +755,7 @@
         if (userMenuEl) closeUserMenu();
         else openUserMenu(btn);
       } else {
-        navigateToAuth('login');
+        navigateToAuth('signup');
       }
     });
     onChange(() => {
@@ -569,6 +769,7 @@
     signup,
     login,
     logout,
+    updateProfile,
     getCurrentUser,
     isLoggedIn,
     isEmailTaken,
@@ -581,5 +782,7 @@
     setOnboarding,
     getOnboarding,
     hasCompletedOnboarding,
+    normalizeReturnUrl,
+    relativePageUrl,
   };
 })(window);

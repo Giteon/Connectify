@@ -388,8 +388,6 @@
   // ── Toolbar wiring ──────────────────────────────────────
   const toolbar = document.getElementById('lpToolbar');
   if (toolbar) {
-    // Theme tip text reflects the current state so the user knows what
-    // clicking will do, not what the page is currently in.
     const themeTip = toolbar.querySelector('.lp-toolbar-tip--theme');
     const updateThemeTip = () => {
       if (!themeTip) return;

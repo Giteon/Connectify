@@ -30,12 +30,6 @@
     0 0 0 9999px rgba(15, 23, 42, 0.55),
     0 0 0 3px var(--primary, #2563eb),
     0 0 24px 4px rgba(59, 130, 246, 0.35);
-  transition:
-    left 0.22s ease,
-    top 0.22s ease,
-    width 0.22s ease,
-    height 0.22s ease,
-    box-shadow 0.22s ease;
 }
 .tutorial-backdrop.tt-no-highlight .tutorial-highlight,
 .tutorial-backdrop.tt-mode-info .tutorial-highlight { /* still show but softer */
@@ -52,22 +46,75 @@
   background: rgba(15, 23, 42, 0.55);
   pointer-events: none;
 }
-
-/* Pulse animation on the border to draw attention */
-@keyframes tt-pulse {
-  0%   { box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55), 0 0 0 3px var(--primary, #2563eb), 0 0 24px 4px rgba(59, 130, 246, 0.35); }
-  50%  { box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55), 0 0 0 3px var(--primary, #2563eb), 0 0 30px 8px rgba(59, 130, 246, 0.55); }
-  100% { box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55), 0 0 0 3px var(--primary, #2563eb), 0 0 24px 4px rgba(59, 130, 246, 0.35); }
+/* Steps that need a fully bright canvas (e.g. wiring two nodes). */
+.tutorial-backdrop.tt-no-dim::before {
+  display: none;
 }
-.tutorial-backdrop.active .tutorial-highlight {
-  animation: tt-pulse 2.4s ease-in-out infinite;
+
+/* Action steps (those waiting on the user to DO something, not just click
+   Next) pulse the spotlight ring so the highlighted control reads as
+   interactive. The 9999px dim stays constant; only the blue ring breathes. */
+@keyframes ttHighlightPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 9999px rgba(15, 23, 42, 0.55),
+      0 0 0 3px var(--primary, #2563eb),
+      0 0 0 6px rgba(37, 99, 235, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 9999px rgba(15, 23, 42, 0.55),
+      0 0 0 3px var(--primary, #2563eb),
+      0 0 0 13px rgba(37, 99, 235, 0.42);
+  }
+}
+.tutorial-backdrop.tt-mode-action .tutorial-highlight {
+  animation: ttHighlightPulse 1.4s ease-in-out infinite;
+}
+/* noDim steps: pulse the ring only — no full-screen dim behind the highlight. */
+@keyframes ttHighlightPulseBright {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px var(--primary, #2563eb),
+      0 0 0 6px rgba(37, 99, 235, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--primary, #2563eb),
+      0 0 0 13px rgba(37, 99, 235, 0.42);
+  }
+}
+.tutorial-backdrop.tt-no-dim .tutorial-highlight {
+  box-shadow:
+    0 0 0 3px var(--primary, #2563eb),
+    0 0 24px 4px rgba(59, 130, 246, 0.35);
+}
+.tutorial-backdrop.tt-no-dim.tt-mode-action .tutorial-highlight {
+  animation: ttHighlightPulseBright 1.4s ease-in-out infinite;
+}
+
+/* Float-palette tool icons are dimmed to 55% opacity by default; when the tour
+   spotlights one (e.g. the Path tool) make it read as fully active so it isn't
+   mistaken for a disabled/darkened control. */
+.float-palette .fp-btn.tt-target {
+  background: var(--primary-soft, #e8effe);
+  color: var(--primary, #2563eb);
+}
+.float-palette .fp-btn.tt-target img { opacity: 1 !important; }
+
+/* Compare step: pulse BOTH run compare checkboxes at once. */
+.run-compare-check.tt-check-target {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+  border-radius: 4px;
+  animation: ttTargetPulse 1.4s ease-in-out infinite;
 }
 
 /* ── Tooltip card ──────────────────────────────────────────── */
 .tutorial-tooltip {
   position: fixed;
-  left: 50%;
-  top: 50%;
+  left: 0;
+  top: 0;
   width: 340px;
   max-width: calc(100vw - 32px);
   background: var(--surface, #ffffff);
@@ -75,17 +122,24 @@
   border: 1px solid var(--border, #e4e8ee);
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
-  padding: 16px 16px 14px;
-  pointer-events: auto;
+  /* Corner icons are absolute; body starts just below them. */
+  padding: 16px 16px 16px;
+  padding-top: 16px;
+  pointer-events: none;
   z-index: 5001;
   opacity: 0;
-  /* Snap between step positions — no left/top transition. Only opacity fades.
-     Previously included translateY + animated left/top, which felt bouncy as
-     the card glided between steps. */
-  transition: opacity 0.18s ease;
+  visibility: hidden;
 }
-.tutorial-backdrop.active .tutorial-tooltip {
+.tutorial-tooltip.is-positioned {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+/* During step-to-step swaps, hide content while repositioning — no flash at 0,0. */
+.tutorial-tooltip.is-positioned.tt-swapping {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .tutorial-tooltip .tt-close {
@@ -106,6 +160,17 @@
   font-size: 18px;
   line-height: 1;
 }
+/* Looping-video steps: keep × above the video with a subtle pill backdrop. */
+.tutorial-tooltip.tt-has-video .tt-close {
+  z-index: 3;
+  background: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.28);
+  color: var(--text-secondary, #64748b);
+}
+.tutorial-tooltip.tt-has-video .tt-close:hover {
+  background: rgba(148, 163, 184, 0.34);
+  color: var(--text-primary, #0f172a);
+}
 .tutorial-tooltip .tt-close:hover {
   background: var(--border-light, #eef1f6);
   color: var(--text-primary, #0f172a);
@@ -118,15 +183,85 @@
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 10px;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.tutorial-tooltip .tt-video:not(:empty) {
+  display: flex;
 }
 .tutorial-tooltip .tt-video video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* Inline video: a small, zoomed close-up embedded in the body (e.g. showing
+   exactly how to drag a connection or marquee a subgroup). */
+.tutorial-tooltip .tt-video.tt-video-inline {
+  aspect-ratio: auto;
+  height: 132px;
+  border: 1px solid var(--border, #e4e8ee);
+}
+.tutorial-tooltip .tt-video.tt-video-inline video {
+  object-fit: cover;
+}
+
+/* ── Canvas target affordances driven by the tour ──────────
+   The spotlight box highlights a single rect; for multi-element cues (the
+   nodes to chain into a path, or the two anchors to wire) the tour adds these
+   classes directly to canvas elements so several can pulse at once. */
+@keyframes ttTargetPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--primary, #2563eb), 0 0 0 6px rgba(37, 99, 235, 0.18); }
+  50%      { box-shadow: 0 0 0 2px var(--primary, #2563eb), 0 0 0 11px rgba(37, 99, 235, 0.30); }
+}
+.node.tt-node-target {
+  border-radius: 12px;
+  animation: ttTargetPulse 1.4s ease-in-out infinite;
+  /* Lift above the canvas-local dim (z 15300) so the node the user must click
+     stays bright while the rest of the canvas is dimmed. */
+  z-index: 15400 !important;
+}
+/* Same lift for a subgroup shell the user must act on (e.g. collapse it),
+   so it stays bright above the canvas-local dim. */
+.subgraph-box.tt-node-target {
+  animation: ttTargetPulse 1.4s ease-in-out infinite;
+  z-index: 15400 !important;
+}
+
+/* Canvas-local dim: lives inside the transformed canvas-inner as a sibling of
+   the nodes, so a highlighted node can render above it. Sits above ordinary
+   nodes/edges (z ~15100-15240) but below the highlighted node (15400). */
+.tt-canvas-dim {
+  position: absolute;
+  left: -50000px;
+  top: -50000px;
+  width: 100000px;
+  height: 100000px;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 15300;
+  pointer-events: none;
+}
+
+/* In canvas-dim mode we dim the canvas itself, so suppress the full-screen
+   backdrop dim that the no-highlight path would otherwise draw. */
+.tutorial-backdrop.tt-canvas-dim-mode.tt-no-highlight::before {
+  display: none;
+}
+@keyframes ttPortPulse {
+  /* Keep translateY(-50%) from the base .port-anchor so the glow stays
+     vertically centered on the port edge while it scales. */
+  0%, 100% { box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.55); transform: translateY(-50%) scale(1); }
+  50%      { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.30); transform: translateY(-50%) scale(1.45); }
+}
+.port-anchor.tt-port-target {
+  background: var(--primary, #2563eb) !important;
+  border-color: var(--primary, #2563eb) !important;
+  animation: ttPortPulse 1.2s ease-in-out infinite;
+  z-index: 40;
 }
 
 .tutorial-tooltip .tt-title {
@@ -151,6 +286,15 @@
   gap: 10px;
   border-top: 1px solid var(--border-light, #eef1f6);
   padding-top: 10px;
+}
+
+.tutorial-tooltip .tt-meta-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .tutorial-tooltip .tt-progress {
@@ -217,12 +361,24 @@
 [data-theme="dark"] .tutorial-tooltip {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
+:root[data-theme="dark"] .tutorial-tooltip.tt-has-video .tt-close,
+[data-theme="dark"] .tutorial-tooltip.tt-has-video .tt-close {
+  background: rgba(100, 116, 139, 0.32);
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.22);
+  color: var(--text-secondary, #cbd5e1);
+}
+:root[data-theme="dark"] .tutorial-tooltip.tt-has-video .tt-close:hover,
+[data-theme="dark"] .tutorial-tooltip.tt-has-video .tt-close:hover {
+  background: rgba(100, 116, 139, 0.48);
+  color: var(--text-primary, #f1f5f9);
+}
 
 /* ── Forced-visible overlays on tutorial-targeted elements ──
    Cards in the New Graph modal normally hide their Preview/Fork
    buttons until hover. When the tutorial is highlighting one of
    those cards, surface the overlay so users can actually see and
    click the button the tooltip references. */
-.ng-card.tt-target .ng-card-overlay {
+.ng-card.tt-target .ng-card-overlay,
+.ng-card.tt-force-overlay .ng-card-overlay {
   display: flex !important;
 }

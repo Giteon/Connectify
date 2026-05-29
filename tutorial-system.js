@@ -32,7 +32,7 @@
   function defaultState() {
     return {
       started: false,
-      currentStep: 0,           // step id (number 1-14); 0 = not started
+      currentStep: 0,           // step id (1..N from the deck); 0 = not started
       completedSteps: [],
       skipped: false,
       completed: false,
@@ -71,7 +71,9 @@
   let resizeBound = false;
   let observerBound = false;
   let waitForElTimer = 0;
+  let waitForElRaf = 0;
   let markedTargetEl = null;     // element currently tagged with .tt-target
+  let tipResizeObserver = null;
 
   // ---- DOM lookup helpers ----
   function getOverlay() { return document.getElementById('tutorialBackdrop'); }
@@ -83,9 +85,20 @@
     return registeredSteps.find(s => s && s.id === id) || null;
   }
 
+  /** Look up a step from the full deck (cross-page actions / guards). */
+  function findStepInDeck(id) {
+    const all = global.ConnectifyTutorialSteps && global.ConnectifyTutorialSteps.all;
+    if (Array.isArray(all)) {
+      const hit = all.find(s => s && s.id === id);
+      if (hit) return hit;
+    }
+    return findStep(id);
+  }
+
   function totalStepCount() {
-    // Show "step N of 14" regardless of page (matches plan)
-    return 14;
+    // Derive from the full deck so adding/removing steps stays in sync.
+    const all = global.ConnectifyTutorialSteps && global.ConnectifyTutorialSteps.all;
+    return Array.isArray(all) && all.length ? all.length : 21;
   }
 
   // ---- Public API ----
@@ -120,6 +133,7 @@
     s.completed = false;
     writeState(s);
     hideOverlay();
+    try { window.dispatchEvent(new CustomEvent('connectify-tutorial-skipped')); } catch (_) {}
   };
 
   api.complete = function complete() {
@@ -181,7 +195,7 @@
     const state = readState();
     if (state.skipped || state.completed) return;
     if (!state.started) return;
-    const step = findStep(state.currentStep);
+    const step = findStepInDeck(state.currentStep);
     if (!step || !step.actionTrigger) return;
     if (step.actionTrigger !== name) return;
     if (typeof step.actionGuard === 'function' && !step.actionGuard(ctx)) return;
@@ -206,20 +220,44 @@
   };
 
   // ---- Resume logic on page load ----
+  function firstStepOnPage() {
+    return registeredSteps.reduce(
+      (min, st) => (st && st.id < min ? st.id : min),
+      Infinity
+    );
+  }
+
   function resume() {
     const s = readState();
     if (s.skipped || s.completed) return;
-    if (!s.started) return;                // not yet started; host page can decide to start()
-    const step = findStep(s.currentStep);
-    if (!step) return;                     // this page doesn't host the current step
+    if (!s.started) return;
+    let step = findStep(s.currentStep);
+    // Landed on a new page while state still points at a step from the
+    // previous page (e.g. hub step 1 → view step 2). Jump to the first step
+    // registered here when the saved step is behind it.
+    if (!step) {
+      const firstId = firstStepOnPage();
+      if (isFinite(firstId) && s.currentStep < firstId) {
+        api.advanceTo(firstId);
+        return;
+      }
+      return;
+    }
     showStep(s.currentStep);
   }
 
   // ---- Show / hide ----
   function showStep(stepId) {
+    clearWaitTimer();
+
+    const ovl = getOverlay();
+    const tip = getTooltip();
+    const prevStepId = activeStepId;
+    const transitioning = !!(ovl && ovl.classList.contains('active') && prevStepId && prevStepId !== stepId);
+
     // Fire onAfterHide for the step we're leaving so it can clean up any
     // DOM state it temporarily mutated (e.g. force-revealing a hidden panel).
-    const leavingStep = findStep(activeStepId);
+    const leavingStep = findStep(prevStepId);
     if (leavingStep && leavingStep.id !== stepId && typeof leavingStep.onAfterHide === 'function') {
       try { leavingStep.onAfterHide(); } catch (_) {}
     }
@@ -232,16 +270,37 @@
     if (typeof step.onBeforeShow === 'function') {
       try { step.onBeforeShow(); } catch (_) {}
     }
+
+    if (transitioning && tip) {
+      tip.classList.add('tt-swapping');
+    }
+
     // Wait for the target element to exist before drawing
     waitForElement(step, () => {
+      if (activeStepId !== step.id) return;
+
+      if (!transitioning && tip) {
+        tip.classList.remove('is-positioned', 'tt-swapping');
+      }
+
       renderTooltip(step);
-      positionOverlay(step);
+      if (ovl) {
+        ovl.classList.add('active');
+        ovl.setAttribute('aria-hidden', 'false');
+      }
+
+      applyPosition(step);
+      if (tip) void tip.offsetHeight;
+      applyPosition(step);
+
+      if (tip) {
+        tip.classList.remove('tt-swapping');
+        tip.classList.add('is-positioned');
+      }
+
       bindResize();
       observeDom(step);
-      // Re-position once content has settled. The tooltip starts with
-      // opacity:0 and may grow as the video loads or fonts swap.
-      setTimeout(() => { if (activeStepId === step.id) positionOverlay(step); }, 80);
-      setTimeout(() => { if (activeStepId === step.id) positionOverlay(step); }, 320);
+      bindTooltipResize(step);
       try { step.onShow && step.onShow(); } catch (_) {}
     });
   }
@@ -259,9 +318,12 @@
       ovl.classList.remove('active');
       ovl.setAttribute('aria-hidden', 'true');
     }
+    const tip = getTooltip();
+    if (tip) tip.classList.remove('is-positioned', 'tt-swapping');
     setMarkedTarget(null);
     unbindResize();
     disconnectObserver();
+    disconnectTooltipResize();
     clearWaitTimer();
   }
 
@@ -281,10 +343,14 @@
 
     if (titleEl) titleEl.textContent = step.title || '';
     if (textEl) textEl.textContent = step.text || '';
+    tip.classList.toggle('tt-has-video', !!step.video);
 
     // Video (optional). MP4 auto-play muted looping; gracefully hidden on error.
     if (videoSlot) {
       videoSlot.innerHTML = '';
+      // Inline videos render small/zoomed inside the body (e.g. a close-up of
+      // dragging a connection); the default slot is a full-width 16:9 player.
+      videoSlot.classList.toggle('tt-video-inline', !!step.videoInline);
       if (step.video) {
         const v = document.createElement('video');
         v.src = step.video;
@@ -294,6 +360,12 @@
         v.playsInline = true;
         v.setAttribute('playsinline', '');
         v.setAttribute('preload', 'metadata');
+        // Apply zoom if specified (center crop at 2x, etc.)
+        if (step.videoZoom && step.videoZoom > 1) {
+          v.style.transform = `scale(${step.videoZoom})`;
+          v.style.transformOrigin = 'center center';
+          v.style.objectPosition = 'center center';
+        }
         // If file is missing or fails to load, fully hide the slot.
         v.addEventListener('error', () => { videoSlot.style.display = 'none'; }, { once: true });
         videoSlot.style.display = '';
@@ -309,9 +381,11 @@
     if (stepNumEl) stepNumEl.textContent = String(step.id);
     if (stepTotalEl) stepTotalEl.textContent = String(totalStepCount());
 
-    // Actions. Disable Back when there's no earlier step available on the
-    // current page (a) globally first step, or (b) first step of this page —
-    // since `back()` clamps to lowest-on-page, hitting Back here would no-op.
+    // Footer actions: Back (when not first), Next/Complete (info steps only).
+    // Skip tutorial is shown on step 1 only; action steps have no Next button.
+    const skipEl = tip.querySelector('[data-tt-skip]');
+    if (skipEl) skipEl.hidden = step.id !== 1;
+
     if (actionsEl) {
       const lowestOnPage = registeredSteps.reduce(
         (acc, st) => (st && st.id < acc ? st.id : acc),
@@ -320,25 +394,25 @@
       const isFirst = step.id <= 1 || step.id <= lowestOnPage;
       const isLast = step.id >= totalStepCount();
       const waitsForAction = !!step.actionTrigger;
-      actionsEl.innerHTML = `
-        <button type="button" class="tt-btn tt-btn-secondary" data-tt-act="back" ${isFirst ? 'disabled' : ''}>Back</button>
-        ${isLast
-          ? '<button type="button" class="tt-btn tt-btn-primary" data-tt-act="complete">Got it</button>'
-          : waitsForAction
-            ? `<button type="button" class="tt-btn tt-btn-secondary" data-tt-act="next" title="Skip this step">Skip step</button>`
-            : `<button type="button" class="tt-btn tt-btn-primary" data-tt-act="next">Next</button>`
-        }
-      `;
+      const backBtn = !isFirst
+        ? '<button type="button" class="tt-btn" data-tt-act="back">Back</button>'
+        : '';
+      const primaryBtn = isLast
+        ? '<button type="button" class="tt-btn tt-btn-primary" data-tt-act="complete">Got it</button>'
+        : waitsForAction
+          ? ''
+          : '<button type="button" class="tt-btn tt-btn-primary" data-tt-act="next">Next</button>';
+      actionsEl.innerHTML = backBtn + primaryBtn;
     }
-
-    // Show overlay
-    ovl.classList.add('active');
-    ovl.setAttribute('aria-hidden', 'false');
 
     // Style: dim overlay vs lift target
     ovl.classList.toggle('tt-mode-action', !!step.actionTrigger);
     ovl.classList.toggle('tt-mode-info',   !step.actionTrigger);
     ovl.classList.toggle('tt-no-highlight', step.highlight === 'none');
+    ovl.classList.toggle('tt-no-dim', !!step.noDim);
+    // Canvas-only dim: the editing step dims the canvas itself (so highlighted
+    // nodes can pop) instead of the full-screen backdrop.
+    ovl.classList.toggle('tt-canvas-dim-mode', !!step.dimCanvasOnly);
   }
 
   // ---- Positioning ----
@@ -368,78 +442,81 @@
     }
   }
 
+  function applyPosition(step) {
+    const ovl = getOverlay();
+    const hl = getHighlight();
+    const tip = getTooltip();
+    if (!ovl || !hl || !tip) return;
+
+    const el = getTargetEl(step);
+    setMarkedTarget(el);
+    const rect = el ? el.getBoundingClientRect() : null;
+    const pad = step.highlightPadding != null ? step.highlightPadding : 8;
+    const pos = step.position || 'auto';
+    const showHighlight = step.highlight !== 'none' && !!rect;
+
+    if (showHighlight) {
+      const x = Math.max(4, rect.left - pad);
+      const y = Math.max(4, rect.top - pad);
+      const w = rect.width + pad * 2;
+      const h = rect.height + pad * 2;
+      hl.style.display = '';
+      hl.style.left = x + 'px';
+      hl.style.top = y + 'px';
+      hl.style.width = w + 'px';
+      hl.style.height = h + 'px';
+      try {
+        const cs = getComputedStyle(el);
+        const raw = parseFloat(cs.borderTopLeftRadius) || 0;
+        const isPill = raw >= Math.min(rect.width, rect.height) / 2 - 1;
+        const r = isPill
+          ? (Math.min(w, h) / 2)
+          : Math.max(6, Math.min(28, raw + pad));
+        hl.style.borderRadius = r + 'px';
+      } catch (_) {
+        hl.style.borderRadius = '12px';
+      }
+    } else {
+      hl.style.display = 'none';
+    }
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const tipW = tip.offsetWidth || 340;
+    const tipH = tip.offsetHeight || 280;
+    const gap = 14;
+    let left, top;
+
+    if (pos === 'page-top-left') {
+      // Flush to the viewport corner — used when the tooltip must stay clear
+      // of a large panel (e.g. the expanded Runs drawer).
+      top = 12;
+      left = 12;
+    } else if (pos === 'top-left' || pos === 'top-right') {
+      // Pin to a viewport corner, clear of the topbar. Used for steps where the
+      // tooltip must stay out of the way of canvas / runs content.
+      const topbar = document.querySelector('.topbar');
+      const topY = topbar ? topbar.getBoundingClientRect().bottom + 16 : 88;
+      top = Math.max(16, topY);
+      left = pos === 'top-left'
+        ? 16
+        : Math.max(16, vw - tipW - 16);
+    } else if (!rect || pos === 'center') {
+      left = Math.max(16, (vw - tipW) / 2);
+      top = Math.max(16, (vh - tipH) / 2);
+    } else {
+      const placement = pos === 'auto' ? autoPick(rect, tipW, tipH, vw, vh, gap) : pos;
+      ({ left, top } = computePlacement(placement, rect, tipW, tipH, gap));
+      left = Math.max(8, Math.min(left, vw - tipW - 8));
+      top = Math.max(8, Math.min(top, vh - tipH - 8));
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
   function positionOverlay(step) {
     cancelAnimationFrame(positionRaf);
-    positionRaf = requestAnimationFrame(() => {
-      const ovl = getOverlay();
-      const hl = getHighlight();
-      const tip = getTooltip();
-      if (!ovl || !hl || !tip) return;
-
-      const el = getTargetEl(step);
-      setMarkedTarget(el);
-      const rect = el ? el.getBoundingClientRect() : null;
-      const pad = step.highlightPadding != null ? step.highlightPadding : 8;
-      const pos = step.position || 'auto';
-      const showHighlight = step.highlight !== 'none' && !!rect;
-
-      if (showHighlight) {
-        // Highlight
-        const x = Math.max(4, rect.left - pad);
-        const y = Math.max(4, rect.top - pad);
-        const w = rect.width + pad * 2;
-        const h = rect.height + pad * 2;
-        hl.style.display = '';
-        hl.style.left = x + 'px';
-        hl.style.top = y + 'px';
-        hl.style.width = w + 'px';
-        hl.style.height = h + 'px';
-        // Match the target's border-radius so round buttons get round halos.
-        // Add the highlight padding so the curve hugs the offset rect cleanly.
-        try {
-          const cs = getComputedStyle(el);
-          const raw = parseFloat(cs.borderTopLeftRadius) || 0;
-          // For pill-shaped targets (radius >= half height), keep it pill.
-          const isPill = raw >= Math.min(rect.width, rect.height) / 2 - 1;
-          const r = isPill
-            ? (Math.min(w, h) / 2)
-            : Math.max(6, Math.min(28, raw + pad));
-          hl.style.borderRadius = r + 'px';
-        } catch (_) {
-          hl.style.borderRadius = '12px';
-        }
-      } else {
-        hl.style.display = 'none';
-      }
-
-      // Tooltip placement.
-      // offsetWidth/Height return the laid-out size even when opacity is 0
-      // (which it is on the first frame because of our fade-in). Falling
-      // back to fixed 340/280 produced misplaced tooltips on the first
-      // render of every step.
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const tipW = tip.offsetWidth || 340;
-      const tipH = tip.offsetHeight || 280;
-      const gap = 14;
-      let left, top;
-
-      // Center the tooltip only when there's truly nothing to anchor against
-      // (no target selector at all) OR the step explicitly asks for center.
-      // `highlight: 'none'` no longer forces centering — it only hides the box.
-      if (!rect || pos === 'center') {
-        left = Math.max(16, (vw - tipW) / 2);
-        top = Math.max(16, (vh - tipH) / 2);
-      } else {
-        const placement = pos === 'auto' ? autoPick(rect, tipW, tipH, vw, vh, gap) : pos;
-        ({ left, top } = computePlacement(placement, rect, tipW, tipH, gap));
-        // Clamp to viewport
-        left = Math.max(8, Math.min(left, vw - tipW - 8));
-        top = Math.max(8, Math.min(top, vh - tipH - 8));
-      }
-      tip.style.left = left + 'px';
-      tip.style.top = top + 'px';
-    });
+    positionRaf = requestAnimationFrame(() => applyPosition(step));
   }
 
   function autoPick(rect, tipW, tipH, vw, vh, gap) {
@@ -491,9 +568,6 @@
   // ---- Wait for target element to appear (for transitions like modal opening) ----
   function waitForElement(step, cb) {
     clearWaitTimer();
-    // No selector at all → nothing to wait for (e.g. final completion modal).
-    // Steps with `highlight: 'none'` still need their selector resolved so the
-    // tooltip can anchor against it; we keep waiting for those.
     if (!step.selector) { cb(); return; }
     const find = () => {
       const el = typeof step.selector === 'function'
@@ -502,8 +576,6 @@
       return el && el.getBoundingClientRect().width > 0 ? el : null;
     };
     const ready = (el) => {
-      // Scroll target into view if it's off-screen, then call cb on next frame
-      // so positionOverlay sees the updated rect.
       try {
         const r = el.getBoundingClientRect();
         const vh = window.innerHeight;
@@ -511,9 +583,8 @@
         const offscreen =
           r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw;
         if (offscreen && typeof el.scrollIntoView === 'function') {
-          el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-          // Give scroll a chance to settle before positioning.
-          setTimeout(cb, 350);
+          el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+          requestAnimationFrame(() => requestAnimationFrame(cb));
           return;
         }
       } catch (_) {}
@@ -523,16 +594,18 @@
     if (hit) { ready(hit); return; }
     let attempts = 0;
     const tick = () => {
+      if (activeStepId !== step.id) return;
       attempts++;
       const el = find();
       if (el) { ready(el); return; }
-      if (attempts > 60) { cb(); return; }   // give up after ~6s; show overlay anyway
-      waitForElTimer = setTimeout(tick, 100);
+      if (attempts > 120) { cb(); return; }
+      waitForElRaf = requestAnimationFrame(tick);
     };
-    waitForElTimer = setTimeout(tick, 100);
+    waitForElRaf = requestAnimationFrame(tick);
   }
   function clearWaitTimer() {
     if (waitForElTimer) { clearTimeout(waitForElTimer); waitForElTimer = 0; }
+    if (waitForElRaf) { cancelAnimationFrame(waitForElRaf); waitForElRaf = 0; }
   }
 
   // ---- Observe DOM for layout-changing mutations near the target ----
@@ -571,6 +644,25 @@
       _observer = null;
     }
     observerBound = false;
+  }
+
+  function bindTooltipResize(step) {
+    disconnectTooltipResize();
+    const tip = getTooltip();
+    if (!tip || typeof ResizeObserver === 'undefined') return;
+    tipResizeObserver = new ResizeObserver(() => {
+      if (findStep(activeStepId) !== step) return;
+      if (tip.classList.contains('tt-swapping')) return;
+      applyPosition(step);
+    });
+    tipResizeObserver.observe(tip);
+  }
+
+  function disconnectTooltipResize() {
+    if (tipResizeObserver) {
+      tipResizeObserver.disconnect();
+      tipResizeObserver = null;
+    }
   }
 
   // ---- Global click handlers for tooltip action buttons + skip ----

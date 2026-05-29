@@ -74,6 +74,10 @@
   let waitForElRaf = 0;
   let markedTargetEl = null;     // element currently tagged with .tt-target
   let tipResizeObserver = null;
+  let targetResizeObserver = null;
+  const settleTimers = [];
+  let settleAnimRoot = null;
+  let settleAnimHandler = null;
 
   // ---- DOM lookup helpers ----
   function getOverlay() { return document.getElementById('tutorialBackdrop'); }
@@ -249,6 +253,7 @@
   // ---- Show / hide ----
   function showStep(stepId) {
     clearWaitTimer();
+    clearPositionSettle();
 
     const ovl = getOverlay();
     const tip = getTooltip();
@@ -292,6 +297,7 @@
       applyPosition(step);
       if (tip) void tip.offsetHeight;
       applyPosition(step);
+      schedulePositionSettle(step);
 
       if (tip) {
         tip.classList.remove('tt-swapping');
@@ -301,6 +307,7 @@
       bindResize();
       observeDom(step);
       bindTooltipResize(step);
+      bindTargetResize(step);
       try { step.onShow && step.onShow(); } catch (_) {}
     });
   }
@@ -324,6 +331,8 @@
     unbindResize();
     disconnectObserver();
     disconnectTooltipResize();
+    disconnectTargetResize();
+    clearPositionSettle();
     clearWaitTimer();
   }
 
@@ -519,6 +528,39 @@
     positionRaf = requestAnimationFrame(() => applyPosition(step));
   }
 
+  /** Re-measure after modal pop-ins, onBeforeShow DOM tweaks, fonts, etc. */
+  function clearPositionSettle() {
+    settleTimers.forEach(t => clearTimeout(t));
+    settleTimers.length = 0;
+    if (settleAnimRoot && settleAnimHandler) {
+      settleAnimRoot.removeEventListener('animationend', settleAnimHandler);
+      settleAnimRoot.removeEventListener('transitionend', settleAnimHandler);
+    }
+    settleAnimRoot = null;
+    settleAnimHandler = null;
+  }
+  function schedulePositionSettle(step) {
+    clearPositionSettle();
+    const run = () => {
+      if (activeStepId !== step.id) return;
+      applyPosition(step);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    settleTimers.push(setTimeout(run, 200));
+    settleTimers.push(setTimeout(run, 400));
+    const el = getTargetEl(step);
+    if (!el) return;
+    const animRoot = el.closest('.ng-modal-card, .ng-modal-backdrop, .modal, [role="dialog"]');
+    if (!animRoot) return;
+    settleAnimHandler = (e) => {
+      if (!animRoot.contains(e.target)) return;
+      run();
+    };
+    settleAnimRoot = animRoot;
+    animRoot.addEventListener('animationend', settleAnimHandler);
+    animRoot.addEventListener('transitionend', settleAnimHandler);
+  }
+
   function autoPick(rect, tipW, tipH, vw, vh, gap) {
     // Prefer the side with the most room
     const room = {
@@ -662,6 +704,27 @@
     if (tipResizeObserver) {
       tipResizeObserver.disconnect();
       tipResizeObserver = null;
+    }
+  }
+
+  function bindTargetResize(step) {
+    disconnectTargetResize();
+    const el = getTargetEl(step);
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    targetResizeObserver = new ResizeObserver(() => {
+      if (findStep(activeStepId)?.id !== step.id) return;
+      if (getTooltip()?.classList.contains('tt-swapping')) return;
+      applyPosition(step);
+    });
+    targetResizeObserver.observe(el);
+    const modal = el.closest('.ng-modal-card');
+    if (modal) targetResizeObserver.observe(modal);
+  }
+
+  function disconnectTargetResize() {
+    if (targetResizeObserver) {
+      targetResizeObserver.disconnect();
+      targetResizeObserver = null;
     }
   }
 

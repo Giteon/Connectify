@@ -45,12 +45,15 @@
         "This is a small graph built for first-time users. Click its Preview button to see how a graph looks before you build your own.",
       onBeforeShow: () => {
         try {
-          const modal = document.getElementById('newGraphModal');
-          if (modal && modal.hidden) {
-            modal.hidden = false;
-            document.body.style.overflow = 'hidden';
-            const openFn = window.openNewGraphModal_ || null;
-            if (typeof openFn === 'function') openFn();
+          const openFn = window.openNewGraphModal_ || null;
+          if (typeof openFn === 'function') {
+            openFn();
+          } else {
+            const modal = document.getElementById('newGraphModal');
+            if (modal && modal.hidden) {
+              modal.hidden = false;
+              document.body.style.overflow = 'hidden';
+            }
           }
           // Force the card's hover overlay open so the Preview button (the
           // highlight target) is actually visible.
@@ -161,16 +164,21 @@
         try {
           const h = H(); if (!h) return;
           h.collapseAllDrawers();
-          setTimeout(() => {
+          const prime = () => {
             try { h.fitForWiring(); h.markWireNodes(); h.markWirePorts(); } catch (_) {}
-          }, 80);
+          };
+          prime();
+          setTimeout(prime, 120);
+          setTimeout(prime, 400);
         } catch (_) {}
+      },
+      onShow: () => {
+        try { H() && H().fitForWiring(); } catch (_) {}
       },
       onAfterHide: () => {
         try { const h = H(); if (h) { h.clearWirePorts(); h.clearPathTargets(); } } catch (_) {}
       },
-      // Tooltip tucked into the top-left corner so it never sits over the two
-      // centered nodes the user is wiring together.
+      // Tooltip tucked into the top-left corner so it never sits over the chain.
       selector: () => document.getElementById('canvasArea'),
       position: 'top-left',
       highlight: 'none',

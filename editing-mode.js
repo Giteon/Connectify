@@ -3923,15 +3923,19 @@ function addCatalogNode(item) {
   const added = (Canvas.getNode && Canvas.getNode(node.id)) || node;
   if (typeof _setSelectedNodes === 'function') _setSelectedNodes([node.id]);
   if (typeof openInspector === 'function') openInspector(added);
-  // Tutorial: center the canvas on the freshly added node so it's front and
-  // center for the next step. Slight delay lets the node element settle.
+  // Tutorial: center on the new node for palette-add steps, but not right
+  // before "Chain them up" — that step fits the whole pipeline zoomed out.
   if (_tutorialActive()) {
-    setTimeout(() => {
-      try {
-        const n = (Canvas.getNode && Canvas.getNode(node.id)) || node;
-        if (n && Canvas.focusWorld) Canvas.focusWorld((n.x || 0) + 110, (n.y || 0) + 60, { animate: true });
-      } catch (_) {}
-    }, 80);
+    const tutStep = window.ConnectifyTutorial?.getState?.()?.currentStep;
+    const skipFocus = tutStep >= 6;
+    if (!skipFocus) {
+      setTimeout(() => {
+        try {
+          const n = (Canvas.getNode && Canvas.getNode(node.id)) || node;
+          if (n && Canvas.focusWorld) Canvas.focusWorld((n.x || 0) + 110, (n.y || 0) + 60, { animate: true });
+        } catch (_) {}
+      }, 80);
+    }
   }
   // Notify the tour after a Dataset/Model is added via the palette.
   // (notifyAction is a no-op when the tour isn't running.)
@@ -6048,11 +6052,17 @@ function initBottomPanel() {
     }
     endBpTopAnim();
   }
-  function startBpTopAnim(toTop, onComplete, fromTop) {
+  function startBpTopAnim(toTop, onComplete, fromTop, opts) {
+    opts = opts || {};
     const start = typeof fromTop === 'number' ? fromTop : panel.getBoundingClientRect().top;
     beginBpTopAnim();
     panel.classList.add('bp-top-anim');
     panel.style.top = `${start}px`;
+    if (opts.expand) {
+      panel.classList.add('expanded');
+      syncBpAppShell();
+      panel.style.removeProperty('--bp-h');
+    }
     void panel.offsetHeight;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -6088,9 +6098,6 @@ function initBottomPanel() {
       void panel.offsetHeight;
       stashBpDockHeight(panel);
       const startTop = panel.getBoundingClientRect().top;
-      panel.classList.add('expanded');
-      syncBpAppShell();
-      panel.style.removeProperty('--bp-h');
       const targetTop = bpShellTopPx();
       startBpTopAnim(targetTop, () => {
         if (gen !== bpTopAnimGen) return;
@@ -6103,7 +6110,7 @@ function initBottomPanel() {
           panel.removeEventListener('transitionend', panel._bpTopAnimEnd);
           panel._bpTopAnimEnd = null;
         }
-      }, startTop);
+      }, startTop, { expand: true });
       expandBtn.title = 'Collapse panel';
       expandBtn.setAttribute('aria-label', 'Collapse panel');
     } else {
@@ -9202,6 +9209,17 @@ window.TutorialHooks = {
   openDatasetCatalog() { this._openCatalog('Dataset'); },
   openModelCatalog() { this._openCatalog('Model'); },
 
+  // All nodes on the tutorial canvas for the "Chain them up" step (dataset +
+  // starter transformer + output) — keep the view zoomed out on the full chain.
+  _tutorialChainNodeIds() {
+    try {
+      const nodes = (Canvas.getAllNodes && Canvas.getAllNodes()) || [];
+      const ids = nodes.map(n => n.id).filter(Boolean);
+      if (ids.length) return ids;
+    } catch (_) {}
+    return this._wiringNodeIds();
+  },
+
   // The two nodes the user wires together in the "Chain them up" step:
   // [datasetId, headId] where head is the chain's first model (the node with
   // inputs and no incoming connection, other than the just-added dataset).
@@ -9276,17 +9294,17 @@ window.TutorialHooks = {
     if (typeof syncBpAppShell === 'function') { try { syncBpAppShell(); } catch (_) {} }
   },
 
-  // Zoom out on the two nodes being connected; reserve left space for the
-  // top-left tooltip so the wiring pair stays in clear view.
+  // Zoom out to show the full starter chain (dataset + transformer + output);
+  // reserve left space for the top-left tooltip.
   fitForWiring() {
     try {
-      const ids = this._wiringNodeIds();
+      const ids = this._tutorialChainNodeIds();
       if (ids.length && Canvas.fitToNodes) {
         Canvas.fitToNodes(ids, {
-          padding: 110,
+          padding: 96,
           reserve: { top: 72, bottom: 48, left: 360, right: 48 },
-          maxZoom: 0.82,
-          minZoom: 0.2,
+          maxZoom: 0.62,
+          minZoom: 0.15,
         });
       }
     } catch (_) {}

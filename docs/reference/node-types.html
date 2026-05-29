@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Node Types — Connectify Docs</title>
+  <script>
+    try { if (localStorage.getItem('cfg.theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="../../theme.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="stylesheet" href="../../nav-dropdown.css" />
+</head>
+<body>
+  <header class="doc-topnav">
+    <a class="doc-brand" href="../../index.html">
+      <img src="../../icons/logo.png" width="32" height="32" alt="" />
+      <span class="doc-brand-wordmark">Connectify</span>
+      <span class="doc-brand-divider" aria-hidden="true"></span>
+      <span class="doc-brand-section">Docs</span>
+    </a>
+    <nav class="doc-nav-links" aria-label="Primary">
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Product <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu nav-dd-menu--wide" role="menu">
+          <div class="nav-dd-grid">
+            <a class="nav-dd-item" role="menuitem" href="../features/build-and-connect.html">
+              <span class="nav-dd-item-title">Build &amp; Connect</span>
+              <span class="nav-dd-item-desc">Drag, drop, and wire nodes together</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/path-tracing.html">
+              <span class="nav-dd-item-title">Path Tracing</span>
+              <span class="nav-dd-item-desc">Trace data flow output ↔ input</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/collaborate-live.html">
+              <span class="nav-dd-item-title">Collaborate Live</span>
+              <span class="nav-dd-item-desc">Real-time editing &amp; comments</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/run-experiments.html">
+              <span class="nav-dd-item-title">Run Experiments</span>
+              <span class="nav-dd-item-desc">Variants, runs, and compare</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/discover-and-fork.html">
+              <span class="nav-dd-item-title">Discover &amp; Fork</span>
+              <span class="nav-dd-item-desc">Browse and fork community graphs</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/extend-with-plugins.html">
+              <span class="nav-dd-item-title">Extend with Plugins</span>
+              <span class="nav-dd-item-desc">Custom nodes in Python</span>
+            </a>
+          </div>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../index.html">All features &amp; docs →</a>
+        </div>
+      </div>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Solutions <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../workflows/ml-research-pipelines.html">
+            <span class="nav-dd-item-title">ML Research Pipelines</span>
+            <span class="nav-dd-item-desc">Prototype architectures end-to-end</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/data-science-workflows.html">
+            <span class="nav-dd-item-title">Data Science Workflows</span>
+            <span class="nav-dd-item-desc">Ingest → analyze → share</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/fine-tuning-and-adaptation.html">
+            <span class="nav-dd-item-title">Fine-tuning &amp; Adaptation</span>
+            <span class="nav-dd-item-desc">Customize foundation models</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/cross-team-collaboration.html">
+            <span class="nav-dd-item-title">Cross-team Collaboration</span>
+            <span class="nav-dd-item-desc">Research ↔ engineering handoff</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../index.html#use-cases">See all use cases →</a>
+        </div>
+      </div>
+
+      <a class="doc-nav-link" href="../../index.html#pricing">Pricing</a>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger is-active" aria-haspopup="true" aria-expanded="false">
+          Resources <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../index.html">
+            <span class="nav-dd-item-title">Documentation</span>
+            <span class="nav-dd-item-desc">The hub — start here</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/node-types.html">
+            <span class="nav-dd-item-title">Node Types</span>
+            <span class="nav-dd-item-desc">Dataset, Model, Logic, Custom</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/type-system-and-adaptors.html">
+            <span class="nav-dd-item-title">Type System</span>
+            <span class="nav-dd-item-desc">Compatibility &amp; adaptors</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/keyboard-shortcuts.html">
+            <span class="nav-dd-item-title">Keyboard Shortcuts</span>
+            <span class="nav-dd-item-desc">Cheatsheet</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/glossary.html">
+            <span class="nav-dd-item-title">Glossary</span>
+            <span class="nav-dd-item-desc">Every term, defined</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/faq.html">
+            <span class="nav-dd-item-title">FAQ</span>
+            <span class="nav-dd-item-desc">Common questions</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../graphs-hub.html?tab=community">Community graphs →</a>
+        </div>
+      </div>
+    </nav>
+    <div class="doc-nav-cta">
+      <a class="doc-btn doc-btn-ghost" href="../../auth.html?view=login">Login</a>
+      <a class="doc-btn doc-btn-primary" href="../../graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+    </div>
+  </header>
+
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Reference</h4>
+        <ul class="doc-sidebar-list">
+          <li><a class="active" href="node-types.html">Node Types</a></li>
+          <li><a href="type-system-and-adaptors.html">Type System</a></li>
+          <li><a href="keyboard-shortcuts.html">Shortcuts</a></li>
+          <li><a href="glossary.html">Glossary</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Features</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="../features/build-and-connect.html">Build &amp; Connect</a></li>
+          <li><a href="../features/extend-with-plugins.html">Extend with Plugins</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <article class="doc-content">
+      <nav class="doc-breadcrumbs">
+        <a href="../index.html">Docs</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <a href="../index.html#reference">Reference</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <span>Node Types</span>
+      </nav>
+
+      <header class="doc-header">
+        <span class="doc-eyebrow">Reference</span>
+        <h1 class="doc-title">Node Types</h1>
+        <p class="doc-intro">Every node in Connectify is one of four built-in types. This page is the canonical reference for what each type is for, what I/O it carries, and what its config looks like.</p>
+      </header>
+
+      <h2>Dataset</h2>
+      <p>A <strong>Dataset</strong> node produces data. It's the source of every flow.</p>
+      <h3>Inputs</h3>
+      <p>None — Dataset nodes are roots in the graph.</p>
+      <h3>Outputs</h3>
+      <ul>
+        <li><code>data</code> — the primary output, typed to whatever the source produces (<span class="doc-type doc-type--image">image</span>, <span class="doc-type doc-type--tensor">tensor</span>, <code>table</code>, etc.).</li>
+        <li><code>label</code> <em>(optional)</em> — supervisory signal, <span class="doc-type doc-type--label">label</span>, present when the source is supervised.</li>
+      </ul>
+      <h3>Config</h3>
+      <ul>
+        <li><code>source</code> — registry slug or URL (<code>cifar-10</code>, <code>s3://bucket/path</code>, <code>file:./local.csv</code>).</li>
+        <li><code>split</code> — <code>train</code>, <code>val</code>, <code>test</code>, or a custom slice expression.</li>
+        <li><code>version</code> — snapshot pin (defaults to the latest).</li>
+        <li><code>filter</code> <em>(optional)</em> — row-level filter expression.</li>
+      </ul>
+
+      <h2>Model</h2>
+      <p>A <strong>Model</strong> node wraps a trained or trainable model.</p>
+      <h3>Inputs</h3>
+      <ul>
+        <li><code>input</code> — the data the model consumes. Type depends on the model (<span class="doc-type doc-type--image">image</span>, <code>text</code>, <span class="doc-type doc-type--tensor">tensor</span>).</li>
+        <li><code>label</code> <em>(optional, training only)</em> — supervisory signal during training.</li>
+      </ul>
+      <h3>Outputs</h3>
+      <ul>
+        <li><code>output</code> — predictions, embeddings, or generated outputs (typed per model).</li>
+        <li><code>checkpoint</code> — pointer to the trained weights (after a training run).</li>
+      </ul>
+      <h3>Config</h3>
+      <ul>
+        <li><code>model</code> — registry slug (<code>llama-3-8b</code>, <code>resnet-50</code>, <code>small_cnn</code>).</li>
+        <li><code>mode</code> — <code>inference</code>, <code>train</code>, <code>lora</code>, <code>full_ft</code>.</li>
+        <li><code>hyperparameters</code> — model-specific block (LR, epochs, batch size, LoRA rank, etc.).</li>
+        <li><code>checkpoint</code> <em>(optional)</em> — starting weights, if not the default.</li>
+      </ul>
+
+      <h2>Logic</h2>
+      <p>A <strong>Logic</strong> node is a deterministic transformation — anything that isn't a Dataset, Model, or Custom node.</p>
+      <h3>Inputs / Outputs</h3>
+      <p>Vary by logic. Common shapes:</p>
+      <ul>
+        <li><strong>Transforms</strong> (<code>resize</code>, <code>tokenize</code>, <code>normalize</code>) — one input, one output, same type family.</li>
+        <li><strong>Aggregations</strong> (<code>group_by</code>, <code>sum</code>) — one table input, one table output.</li>
+        <li><strong>Joins / merges</strong> — two inputs, one output.</li>
+        <li><strong>Splits</strong> — one input, multiple outputs.</li>
+        <li><strong>Metrics</strong> (<code>top1_accuracy</code>, <code>perplexity</code>) — typically two inputs (predictions, labels), one <span class="doc-type doc-type--float">float</span> output.</li>
+      </ul>
+      <h3>Config</h3>
+      <p>Determined by the specific Logic. Browse the Logic catalog inside the editor (<strong>+ Node → Logic → Browse</strong>) for the full list.</p>
+
+      <h2>Custom</h2>
+      <p>A <strong>Custom</strong> node is a user-defined Python plugin. See <a href="../features/extend-with-plugins.html">Extend with Plugins</a> for how to write one.</p>
+      <h3>Inputs / Outputs</h3>
+      <p>Declared by the plugin author via <code>Port</code> declarations.</p>
+      <h3>Config</h3>
+      <p>Declared by the plugin author via the <code>config</code> dict. Connectify generates the right widget per type.</p>
+
+      <h2>Common fields on every node</h2>
+      <p>Regardless of type, every node carries:</p>
+      <ul>
+        <li><code>id</code> — unique identifier (auto-generated).</li>
+        <li><code>label</code> — display name (editable).</li>
+        <li><code>name</code> — slug, stable across renames.</li>
+        <li><code>x</code>, <code>y</code> — canvas position.</li>
+        <li><code>color</code> — accent color in the node header.</li>
+        <li><code>collapsed</code> — whether the node is rendered as a compact tile.</li>
+        <li><code>tags</code> — free-form labels for filtering.</li>
+        <li><code>notes</code> — Markdown description shown in the Inspector and tooltips.</li>
+      </ul>
+
+      <section class="doc-related">
+        <h4 class="doc-related-title">Related</h4>
+        <div class="doc-related-grid">
+          <a class="doc-related-card" href="type-system-and-adaptors.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Type System &amp; Adaptors</div>
+            <div class="doc-related-card-desc">How port types match and bridge across nodes.</div>
+          </a>
+          <a class="doc-related-card" href="../features/build-and-connect.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Build &amp; Connect</div>
+            <div class="doc-related-card-desc">Hands-on: adding and wiring nodes.</div>
+          </a>
+          <a class="doc-related-card" href="../features/extend-with-plugins.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Extend with Plugins</div>
+            <div class="doc-related-card-desc">Writing Custom node plugins in Python.</div>
+          </a>
+          <a class="doc-related-card" href="glossary.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Glossary</div>
+            <div class="doc-related-card-desc">Node, port, edge — every term defined.</div>
+          </a>
+        </div>
+      </section>
+    </article>
+  </div>
+  <script src="../../nav-dropdown.js"></script>
+</body>
+</html>

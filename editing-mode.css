@@ -2067,6 +2067,107 @@
 
   .node-head:active { cursor: grabbing; }
 
+  /* Start/End role badges — sit fully above the card with a small gap, with
+     a downward notch (::after) pointing at the card so it reads as "this tag
+     labels the node below". Left-aligned to avoid colliding with the top-right
+     "New" pill. Manual marks render solid; auto-inferred uses .auto for a
+     dashed border + lighter fill (more "tentative" than "washed out"). */
+  .node-role-badges {
+    position: absolute; bottom: calc(100% + 8px); left: 4px;
+    display: flex; gap: 6px; pointer-events: none; z-index: 2;
+  }
+  .node-role-badge {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; font-size: 11.5px; font-weight: 600;
+    line-height: 1.1; letter-spacing: 0.1px;
+    border-radius: 6px; border: 1px solid transparent;
+    box-shadow: 0 2px 5px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.06);
+    pointer-events: auto; cursor: grab; user-select: none;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .node-role-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(15,23,42,0.16), 0 2px 4px rgba(15,23,42,0.08);
+  }
+  .node-role-badge:active { cursor: grabbing; }
+  .node-role-badge .role-glyph {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 9px; height: 9px; flex-shrink: 0;
+  }
+  /* Downward notch pointing at the card. Drawn as a rotated square so it
+     inherits the badge's background + border-color seamlessly. */
+  .node-role-badge::after {
+    content: ''; position: absolute;
+    left: 12px; bottom: -4px; width: 7px; height: 7px;
+    background: inherit;
+    border-right: 1px solid; border-bottom: 1px solid;
+    border-color: inherit;
+    transform: rotate(45deg);
+  }
+  /* Drag state — when dragging, hide the original in place so the ghost
+     (a fully-opaque clone in <body>) reads as the actual tag being lifted. */
+  .node-role-badge.dragging { visibility: hidden; }
+
+  /* Ghost badge that follows the cursor during a drag transfer. Full opacity
+     so it looks like the real tag being carried, with a slightly lifted
+     shadow to suggest depth. The downward notch is suppressed since the
+     ghost isn't anchored to any card. */
+  .node-role-badge-ghost {
+    position: fixed; pointer-events: none; z-index: 9999;
+    transform: translate(-50%, -50%) scale(1.05);
+    box-shadow: 0 8px 20px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.12);
+  }
+  .node-role-badge-ghost::after { display: none; }
+
+  /* Drop-target highlight on candidate nodes during a role drag. */
+  .node.role-drop-candidate {
+    outline: 2px dashed var(--primary); outline-offset: 3px;
+  }
+  .node.role-drop-hover {
+    outline-style: solid;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18), 0 8px 22px rgba(15,23,42,0.10);
+  }
+
+  /* Manual marks — solid, saturated. */
+  .node-role-badge.start { background: #16a34a; color: #fff; border-color: #15803d; }
+  .node-role-badge.end   { background: #dc2626; color: #fff; border-color: #b91c1c; }
+  /* Auto-inferred — dashed border + lighter fill, dark text for legibility. */
+  .node-role-badge.auto.start {
+    background: #dcfce7; color: #15803d; border-color: #16a34a; border-style: dashed;
+  }
+  .node-role-badge.auto.end {
+    background: #fee2e2; color: #b91c1c; border-color: #dc2626; border-style: dashed;
+  }
+  html[data-theme="dark"] .node-role-badge.start { background: #15803d; border-color: #166534; }
+  html[data-theme="dark"] .node-role-badge.end   { background: #b91c1c; border-color: #991b1b; }
+  html[data-theme="dark"] .node-role-badge.auto.start {
+    background: rgba(22,163,74,0.18); color: #4ade80; border-color: #16a34a;
+  }
+  html[data-theme="dark"] .node-role-badge.auto.end {
+    background: rgba(220,38,38,0.18); color: #f87171; border-color: #dc2626;
+  }
+
+  /* Inspector "Role" section chips — checkbox-style toggles for start/end. */
+  .role-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; font-size: 12px; font-weight: 500;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer; user-select: none;
+    color: var(--text-secondary);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .role-chip:hover { border-color: var(--text-muted); }
+  .role-chip .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--border);
+  }
+  .role-chip .dot.start { background: #16a34a; }
+  .role-chip .dot.end   { background: #dc2626; }
+  .role-chip.on { color: var(--text-primary); background: var(--surface); }
+  .role-chip.on.start { border-color: #16a34a; }
+  .role-chip.on.end   { border-color: #dc2626; }
+
   .node-head .menu-dots { color: var(--text-secondary); cursor: pointer; width: 22px; height: 22px; display: grid; place-items: center; font-size: 19px; border-radius: 5px; transition: background 0.12s; }
   .node-head .menu-dots:hover { background: var(--bg); }
   .node-head .menu-dots.confirming { background: var(--surface); box-shadow: 0 0 0 1px var(--border); }
@@ -2647,6 +2748,19 @@
     cursor: text; overflow: visible; text-overflow: clip; white-space: normal;
   }
   .path-item .m { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  /* End-to-end chip — shown next to the path name when the path starts at a
+     Start-marked node and ends at an End-marked one. Quiet green pill. */
+  .path-end-to-end-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px 1px 5px; font-size: 9.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    color: #15803d; background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.3); border-radius: 999px;
+    line-height: 1.4; flex-shrink: 0;
+  }
+  html[data-theme="dark"] .path-end-to-end-chip {
+    color: #4ade80; background: rgba(34,197,94,0.18); border-color: rgba(74,222,128,0.35);
+  }
   .path-item-chain {
     display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
     margin-top: 6px; font-size: 10.5px;

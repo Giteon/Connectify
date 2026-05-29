@@ -1,5 +1,21 @@
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const slug = new URLSearchParams(location.search).get('project');
+// Determine which project to load. Primary source is `?project=…` in the URL,
+// but some static-file servers (notably `npx serve` with clean-URLs) drop the
+// query string when redirecting `/foo.html` → `/foo`. As a fallback we read a
+// `cfg.navHint.project` value the previous page wrote to sessionStorage, then
+// clear it so refreshes don't keep latching onto a stale hint.
+const slug = (() => {
+  const fromQuery = new URLSearchParams(location.search).get('project');
+  if (fromQuery) return fromQuery;
+  try {
+    const hint = sessionStorage.getItem('cfg.navHint.project');
+    if (hint) {
+      sessionStorage.removeItem('cfg.navHint.project');
+      return hint;
+    }
+  } catch (_) {}
+  return null;
+})();
 const PUBLIC_GRAPH_EDIT_OPT_IN_KEY = 'cfg.publicGraphEditOptInSlugs';
 function rememberPublicGraphEditOptIn(s) {
   if (!s) return;
@@ -808,7 +824,6 @@ function initLeftNav(P) {
   // the shared helper in leftnav.js.
   const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
   wireCollapsable('leftnavProjects', 'lpHeaderToggle');
-  wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
   // Render the projects tree from cfg.customProjects (forks + user-created).
   // These are the user's own projects, so clicks go straight to edit mode.
@@ -1019,7 +1034,8 @@ function initForkFromView(P) {
 
   btn.addEventListener('click', () => {
     // Notify tutorial Step 2 (fork-clicked) before the modal opens.
-    if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+    // (notifyAction is a no-op when the tour isn't running.)
+    if (window.ConnectifyTutorial) {
       window.ConnectifyTutorial.notifyAction('fork-clicked', { slug });
     }
     openForkModal();
@@ -1036,7 +1052,7 @@ function initForkFromView(P) {
   document.getElementById('forkConfirmOk')?.addEventListener('click', () => {
     // Notify tutorial Step 3 (fork-confirmed). The page is about to
     // redirect into editing mode, so persist state immediately.
-    if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+    if (window.ConnectifyTutorial) {
       window.ConnectifyTutorial.notifyAction('fork-confirmed', { slug });
     }
     closeForkModal();

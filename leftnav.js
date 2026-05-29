@@ -235,11 +235,10 @@
 
   // ── Collapsable sections (Projects, My Teams) ─────────────────
   // Persists open/closed state to localStorage so it survives page nav.
-  // Defaults (when no stored state): projects expanded, teams collapsed.
+  // Defaults (when no stored state): projects expanded.
   const COLLAPSE_KEY_PREFIX = 'cfg.leftnav.collapsable.';
   const COLLAPSE_DEFAULTS = {
     leftnavProjects: true,
-    leftnavTeams: false,
   };
   function _readCollapseState(wrapId) {
     try {

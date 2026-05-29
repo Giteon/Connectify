@@ -96,6 +96,7 @@
     if (!opts.forceCreate) {
       const existingFork = customs.find((r) => r && r.forkedFrom === sourceSlug);
       if (existingFork && existingFork.slug) {
+        try { sessionStorage.setItem('cfg.navHint.project', existingFork.slug); } catch (_) {}
         global.location.href =
           'editing-mode-new.html?project=' + encodeURIComponent(existingFork.slug);
         return;
@@ -145,6 +146,7 @@
       project,
     });
     writeCustomProjects(customs);
+    try { sessionStorage.setItem('cfg.navHint.project', newSlug); } catch (_) {}
     global.location.href =
       'editing-mode-new.html?project=' + encodeURIComponent(newSlug);
   }

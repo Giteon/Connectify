@@ -172,6 +172,66 @@
   background-size: 13px 13px;
 }
 
+/* ── Form-mode step (name + language) ─────────────────────────
+   Used by the "personalize" step. Plain inputs/select, styled to
+   match the rest of the auth/onboarding surface. */
+.ob-form {
+  display: flex; flex-direction: column;
+  gap: 18px;
+  max-width: 520px;
+}
+.ob-form-field {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.ob-form-label {
+  font-size: 14px; font-weight: 600;
+  color: var(--lp-text);
+}
+.ob-form-label-optional {
+  font-weight: 500;
+  color: var(--lp-text-muted);
+}
+.ob-form-input,
+.ob-form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  border: 1px solid var(--lp-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font: inherit; font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color .12s, box-shadow .12s;
+}
+.ob-form-input::placeholder { color: var(--lp-text-muted); opacity: 0.85; }
+.ob-form-input:focus,
+.ob-form-select:focus {
+  outline: none;
+  border-color: var(--lp-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-primary) 18%, transparent);
+}
+
+/* Custom caret on the select — the wrapper hosts the chevron icon
+   so we can hide the browser's native arrow with appearance:none
+   above. */
+.ob-form-select-wrap {
+  position: relative;
+  display: block;
+}
+.ob-form-select { padding-right: 38px; cursor: pointer; }
+.ob-form-select-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  color: var(--lp-text-soft);
+  pointer-events: none;
+}
+
 /* ── Footer nav ───────────────────────────────────────────────── */
 .ob-footer {
   display: flex; justify-content: space-between;
@@ -224,6 +284,11 @@ html[data-theme="dark"] .ob-btn-primary:hover:not([disabled]) {
   opacity: 0;
   transition: opacity .25s ease;
 }
+/* The `display: flex` above overrides the `hidden` HTML attribute (which
+   normally produces `display: none`). Without an explicit override, the
+   overlay sits opacity:0 but pointer-events:auto across the whole page,
+   silently blocking every click on the underlying onboarding form. */
+.ob-finish[hidden] { display: none; }
 .ob-finish.is-open { opacity: 1; }
 
 .ob-finish-inner {

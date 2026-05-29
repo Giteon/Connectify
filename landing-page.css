@@ -777,6 +777,118 @@ html[data-theme="dark"] .lp-toolbar-btn[data-tool="theme"] .lp-toolbar-moon { di
 }
 .lp-card-link:hover { color: var(--lp-primary-hover); }
 
+/* ── Pricing cards ───────────────────────────────────────── */
+.lp-pricing-grid {
+  max-width: 920px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lp-price-card {
+  display: flex;
+  flex-direction: column;
+  padding: 36px 32px;
+  position: relative;
+}
+.lp-price-card--featured {
+  border-color: var(--lp-primary);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.10);
+}
+.lp-price-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--lp-primary);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lp-price-head { margin-bottom: 20px; }
+.lp-price-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-primary);
+  background: var(--lp-eyebrow-bg);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+.lp-price-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--lp-text);
+  line-height: 1.3;
+}
+.lp-price-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.lp-price-figure {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--lp-text);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.lp-price-period {
+  font-size: 14px;
+  color: var(--lp-text-soft);
+}
+.lp-price-tagline {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--lp-text-soft);
+  margin: 0 0 24px;
+}
+.lp-price-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-grow: 1;
+}
+.lp-price-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--lp-text);
+  line-height: 1.5;
+}
+.lp-price-features svg {
+  width: 16px;
+  height: 16px;
+  color: var(--lp-primary);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.lp-price-cta {
+  align-self: stretch;
+  text-align: center;
+  justify-content: center;
+}
+.lp-pricing-footnote {
+  text-align: center;
+  font-size: 14px;
+  color: var(--lp-text-muted);
+  margin: 24px auto 0;
+  max-width: 640px;
+  line-height: 1.6;
+}
+
 /* ── Testimonial cards ───────────────────────────────────── */
 .lp-testimonial-card {
   display: flex;

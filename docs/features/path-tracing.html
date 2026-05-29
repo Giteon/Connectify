@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Path Tracing — Connectify Docs</title>
+  <script>
+    try { if (localStorage.getItem('cfg.theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="../../theme.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="stylesheet" href="../../nav-dropdown.css" />
+</head>
+<body>
+  <header class="doc-topnav">
+    <a class="doc-brand" href="../../index.html">
+      <img src="../../icons/logo.png" width="32" height="32" alt="" />
+      <span class="doc-brand-wordmark">Connectify</span>
+      <span class="doc-brand-divider" aria-hidden="true"></span>
+      <span class="doc-brand-section">Docs</span>
+    </a>
+    <nav class="doc-nav-links" aria-label="Primary">
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger is-active" aria-haspopup="true" aria-expanded="false">
+          Product <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu nav-dd-menu--wide" role="menu">
+          <div class="nav-dd-grid">
+            <a class="nav-dd-item" role="menuitem" href="../features/build-and-connect.html">
+              <span class="nav-dd-item-title">Build &amp; Connect</span>
+              <span class="nav-dd-item-desc">Drag, drop, and wire nodes together</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/path-tracing.html">
+              <span class="nav-dd-item-title">Path Tracing</span>
+              <span class="nav-dd-item-desc">Trace data flow output ↔ input</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/collaborate-live.html">
+              <span class="nav-dd-item-title">Collaborate Live</span>
+              <span class="nav-dd-item-desc">Real-time editing &amp; comments</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/run-experiments.html">
+              <span class="nav-dd-item-title">Run Experiments</span>
+              <span class="nav-dd-item-desc">Variants, runs, and compare</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/discover-and-fork.html">
+              <span class="nav-dd-item-title">Discover &amp; Fork</span>
+              <span class="nav-dd-item-desc">Browse and fork community graphs</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/extend-with-plugins.html">
+              <span class="nav-dd-item-title">Extend with Plugins</span>
+              <span class="nav-dd-item-desc">Custom nodes in Python</span>
+            </a>
+          </div>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../index.html">All features &amp; docs →</a>
+        </div>
+      </div>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Solutions <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../workflows/ml-research-pipelines.html">
+            <span class="nav-dd-item-title">ML Research Pipelines</span>
+            <span class="nav-dd-item-desc">Prototype architectures end-to-end</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/data-science-workflows.html">
+            <span class="nav-dd-item-title">Data Science Workflows</span>
+            <span class="nav-dd-item-desc">Ingest → analyze → share</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/fine-tuning-and-adaptation.html">
+            <span class="nav-dd-item-title">Fine-tuning &amp; Adaptation</span>
+            <span class="nav-dd-item-desc">Customize foundation models</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/cross-team-collaboration.html">
+            <span class="nav-dd-item-title">Cross-team Collaboration</span>
+            <span class="nav-dd-item-desc">Research ↔ engineering handoff</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../index.html#use-cases">See all use cases →</a>
+        </div>
+      </div>
+
+      <a class="doc-nav-link" href="../../index.html#pricing">Pricing</a>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Resources <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../index.html">
+            <span class="nav-dd-item-title">Documentation</span>
+            <span class="nav-dd-item-desc">The hub — start here</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/node-types.html">
+            <span class="nav-dd-item-title">Node Types</span>
+            <span class="nav-dd-item-desc">Dataset, Model, Logic, Custom</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/type-system-and-adaptors.html">
+            <span class="nav-dd-item-title">Type System</span>
+            <span class="nav-dd-item-desc">Compatibility &amp; adaptors</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/keyboard-shortcuts.html">
+            <span class="nav-dd-item-title">Keyboard Shortcuts</span>
+            <span class="nav-dd-item-desc">Cheatsheet</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/glossary.html">
+            <span class="nav-dd-item-title">Glossary</span>
+            <span class="nav-dd-item-desc">Every term, defined</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/faq.html">
+            <span class="nav-dd-item-title">FAQ</span>
+            <span class="nav-dd-item-desc">Common questions</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../graphs-hub.html?tab=community">Community graphs →</a>
+        </div>
+      </div>
+    </nav>
+    <div class="doc-nav-cta">
+      <a class="doc-btn doc-btn-ghost" href="../../auth.html?view=login">Login</a>
+      <a class="doc-btn doc-btn-primary" href="../../graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+    </div>
+  </header>
+
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Features</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="build-and-connect.html">Build &amp; Connect</a></li>
+          <li><a class="active" href="path-tracing.html">Path Tracing</a></li>
+          <li><a href="collaborate-live.html">Collaborate Live</a></li>
+          <li><a href="run-experiments.html">Run Experiments</a></li>
+          <li><a href="discover-and-fork.html">Discover &amp; Fork</a></li>
+          <li><a href="extend-with-plugins.html">Extend with Plugins</a></li>
+        </ul>
+      </div>
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Reference</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="../reference/node-types.html">Node Types</a></li>
+          <li><a href="../reference/type-system-and-adaptors.html">Type System</a></li>
+          <li><a href="../reference/keyboard-shortcuts.html">Shortcuts</a></li>
+          <li><a href="../reference/glossary.html">Glossary</a></li>
+          <li><a href="../reference/faq.html">FAQ</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <article class="doc-content">
+      <nav class="doc-breadcrumbs">
+        <a href="../index.html">Docs</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <a href="../index.html#features">Features</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <span>Path Tracing</span>
+      </nav>
+
+      <header class="doc-header">
+        <span class="doc-eyebrow">Feature</span>
+        <h1 class="doc-title">Path Tracing</h1>
+        <p class="doc-intro">Trace data flow through your graph — from any output port back to the inputs that feed it. Use paths to debug, document, and reason about complex workflows.</p>
+      </header>
+
+      <h2>What is a path?</h2>
+      <p>A <strong>path</strong> is a saved trace through your graph: a chain of nodes and edges that produce a particular output. Paths are visual, named, and persist with the graph. They're useful when:</p>
+      <ul>
+        <li>You want to highlight the data flow that produces a specific metric.</li>
+        <li>You're reviewing a teammate's graph and need to understand what feeds what.</li>
+        <li>You're debugging an unexpected output and want to walk back to its source.</li>
+      </ul>
+
+      <h2>Entering path-draw mode</h2>
+      <p>Click the <strong>Path</strong> tool in the canvas toolbar (or press <code>P</code>). The cursor switches to crosshairs and the Paths panel slides in at the top-right of the canvas.</p>
+
+      <h2>Drawing a path</h2>
+      <ol class="doc-steps">
+        <li class="doc-step">
+          <div>
+            <h3>Click an output port</h3>
+            <p>Pick the port whose data you want to trace. Connectify highlights every node and edge that feeds into it.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Optionally narrow the source</h3>
+            <p>Click an input port further up the chain to bound the path. Everything between source and target lights up; everything else dims.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Save and name the path</h3>
+            <p>Click <strong>Save</strong> in the Paths panel. Give it a name like "Eval loss → augmented input" so you can re-open it later.</p>
+          </div>
+        </li>
+      </ol>
+
+      <h2>The Paths panel</h2>
+      <p>The Paths panel lives at the top-right of the canvas as a floating overlay. It lists every saved path on the current variant. Click a path chip to highlight it on the canvas; click again to clear.</p>
+      <div class="doc-callout doc-callout--info">
+        <p class="doc-callout-title">Variants get their own paths</p>
+        <p>Paths are scoped to the variant they were drawn on. When you switch variants the panel reloads with that variant's paths.</p>
+      </div>
+
+      <h2>Hiding the panel</h2>
+      <p>Close the Paths panel with the <strong>X</strong> in its header. A subtle banner appears on the canvas reminding you the panel is hidden — click the banner to bring it back. Closing the panel doesn't delete paths; it only hides the overlay.</p>
+
+      <h2>Common patterns</h2>
+      <h3>Documenting a result</h3>
+      <p>After running a graph and getting a number you want to ship, draw a path from that output back to the inputs that produced it. Save it with the metric name. The next person who opens the graph can click the path chip and instantly see provenance.</p>
+
+      <h3>Debugging</h3>
+      <p>If a node's output looks wrong, draw a path from that output. Walk the highlighted edges back, checking the <strong>Run Data</strong> tab in the Inspector on each node, until you find where the values diverge.</p>
+
+      <h3>Comparing variants</h3>
+      <p>Draw the same path on two variants. The structure may differ — that's the point. Side-by-side paths make ablation differences obvious.</p>
+
+      <section class="doc-related">
+        <h4 class="doc-related-title">Related</h4>
+        <div class="doc-related-grid">
+          <a class="doc-related-card" href="run-experiments.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Run Experiments</div>
+            <div class="doc-related-card-desc">Paths are most powerful after a run — inspect data on every node.</div>
+          </a>
+          <a class="doc-related-card" href="build-and-connect.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Build &amp; Connect</div>
+            <div class="doc-related-card-desc">First build the graph; then trace through it.</div>
+          </a>
+          <a class="doc-related-card" href="../reference/node-types.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Node Types</div>
+            <div class="doc-related-card-desc">Understand the I/O signatures behind a traced path.</div>
+          </a>
+          <a class="doc-related-card" href="../reference/glossary.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Glossary</div>
+            <div class="doc-related-card-desc">Path, port, edge — every term defined.</div>
+          </a>
+        </div>
+      </section>
+    </article>
+  </div>
+  <script src="../../nav-dropdown.js"></script>
+</body>
+</html>

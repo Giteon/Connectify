@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Type System &amp; Adaptors — Connectify Docs</title>
+  <script>
+    try { if (localStorage.getItem('cfg.theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="../../theme.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="stylesheet" href="../../nav-dropdown.css" />
+</head>
+<body>
+  <header class="doc-topnav">
+    <a class="doc-brand" href="../../index.html">
+      <img src="../../icons/logo.png" width="32" height="32" alt="" />
+      <span class="doc-brand-wordmark">Connectify</span>
+      <span class="doc-brand-divider" aria-hidden="true"></span>
+      <span class="doc-brand-section">Docs</span>
+    </a>
+    <nav class="doc-nav-links" aria-label="Primary">
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Product <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu nav-dd-menu--wide" role="menu">
+          <div class="nav-dd-grid">
+            <a class="nav-dd-item" role="menuitem" href="../features/build-and-connect.html">
+              <span class="nav-dd-item-title">Build &amp; Connect</span>
+              <span class="nav-dd-item-desc">Drag, drop, and wire nodes together</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/path-tracing.html">
+              <span class="nav-dd-item-title">Path Tracing</span>
+              <span class="nav-dd-item-desc">Trace data flow output ↔ input</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/collaborate-live.html">
+              <span class="nav-dd-item-title">Collaborate Live</span>
+              <span class="nav-dd-item-desc">Real-time editing &amp; comments</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/run-experiments.html">
+              <span class="nav-dd-item-title">Run Experiments</span>
+              <span class="nav-dd-item-desc">Variants, runs, and compare</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/discover-and-fork.html">
+              <span class="nav-dd-item-title">Discover &amp; Fork</span>
+              <span class="nav-dd-item-desc">Browse and fork community graphs</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/extend-with-plugins.html">
+              <span class="nav-dd-item-title">Extend with Plugins</span>
+              <span class="nav-dd-item-desc">Custom nodes in Python</span>
+            </a>
+          </div>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../index.html">All features &amp; docs →</a>
+        </div>
+      </div>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Solutions <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../workflows/ml-research-pipelines.html">
+            <span class="nav-dd-item-title">ML Research Pipelines</span>
+            <span class="nav-dd-item-desc">Prototype architectures end-to-end</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/data-science-workflows.html">
+            <span class="nav-dd-item-title">Data Science Workflows</span>
+            <span class="nav-dd-item-desc">Ingest → analyze → share</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/fine-tuning-and-adaptation.html">
+            <span class="nav-dd-item-title">Fine-tuning &amp; Adaptation</span>
+            <span class="nav-dd-item-desc">Customize foundation models</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/cross-team-collaboration.html">
+            <span class="nav-dd-item-title">Cross-team Collaboration</span>
+            <span class="nav-dd-item-desc">Research ↔ engineering handoff</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../index.html#use-cases">See all use cases →</a>
+        </div>
+      </div>
+
+      <a class="doc-nav-link" href="../../index.html#pricing">Pricing</a>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger is-active" aria-haspopup="true" aria-expanded="false">
+          Resources <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../index.html">
+            <span class="nav-dd-item-title">Documentation</span>
+            <span class="nav-dd-item-desc">The hub — start here</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/node-types.html">
+            <span class="nav-dd-item-title">Node Types</span>
+            <span class="nav-dd-item-desc">Dataset, Model, Logic, Custom</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/type-system-and-adaptors.html">
+            <span class="nav-dd-item-title">Type System</span>
+            <span class="nav-dd-item-desc">Compatibility &amp; adaptors</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/keyboard-shortcuts.html">
+            <span class="nav-dd-item-title">Keyboard Shortcuts</span>
+            <span class="nav-dd-item-desc">Cheatsheet</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/glossary.html">
+            <span class="nav-dd-item-title">Glossary</span>
+            <span class="nav-dd-item-desc">Every term, defined</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/faq.html">
+            <span class="nav-dd-item-title">FAQ</span>
+            <span class="nav-dd-item-desc">Common questions</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../graphs-hub.html?tab=community">Community graphs →</a>
+        </div>
+      </div>
+    </nav>
+    <div class="doc-nav-cta">
+      <a class="doc-btn doc-btn-ghost" href="../../auth.html?view=login">Login</a>
+      <a class="doc-btn doc-btn-primary" href="../../graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+    </div>
+  </header>
+
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Reference</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="node-types.html">Node Types</a></li>
+          <li><a class="active" href="type-system-and-adaptors.html">Type System</a></li>
+          <li><a href="keyboard-shortcuts.html">Shortcuts</a></li>
+          <li><a href="glossary.html">Glossary</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Features</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="../features/build-and-connect.html">Build &amp; Connect</a></li>
+          <li><a href="../features/extend-with-plugins.html">Extend with Plugins</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <article class="doc-content">
+      <nav class="doc-breadcrumbs">
+        <a href="../index.html">Docs</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <a href="../index.html#reference">Reference</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <span>Type System &amp; Adaptors</span>
+      </nav>
+
+      <header class="doc-header">
+        <span class="doc-eyebrow">Reference</span>
+        <h1 class="doc-title">Type System &amp; Adaptors</h1>
+        <p class="doc-intro">Connectify's type system catches mismatched connections before you run anything. When types don't match exactly but a known conversion exists, an adaptor bridges them automatically.</p>
+      </header>
+
+      <h2>Built-in types</h2>
+      <p>Every port carries a <strong>semantic type</strong>. The built-ins are:</p>
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Pill</th><th>What it represents</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>jpg</code> / <code>png</code> / <code>image</code></td><td><span class="doc-type doc-type--image">image</span></td><td>Bitmap images. Concrete formats are subtypes of <code>image</code>.</td></tr>
+          <tr><td><code>tensor</code></td><td><span class="doc-type doc-type--tensor">tensor</span></td><td>N-dimensional numeric arrays. Carries shape + dtype metadata.</td></tr>
+          <tr><td><code>float</code> / <code>int</code></td><td><span class="doc-type doc-type--float">float</span></td><td>Scalar numerics. Used for metrics and scalar config.</td></tr>
+          <tr><td><code>string</code> / <code>text</code></td><td><span class="doc-type doc-type--string">string</span></td><td>Strings and string sequences (for tokenized or raw text).</td></tr>
+          <tr><td><code>label</code></td><td><span class="doc-type doc-type--label">label</span></td><td>Supervisory labels — class ids, regression targets, or structured annotations.</td></tr>
+          <tr><td><code>table</code></td><td>—</td><td>Columnar tabular data with named columns and dtypes.</td></tr>
+          <tr><td><code>checkpoint</code></td><td>—</td><td>Reference to model weights.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Compatibility rules</h2>
+      <p>Two ports connect cleanly when one of the following holds:</p>
+      <ol>
+        <li><strong>Exact match.</strong> Output <code>jpg</code> → input <code>jpg</code>.</li>
+        <li><strong>Subtype match.</strong> Output <code>jpg</code> → input <code>image</code> (jpg is a kind of image).</li>
+        <li><strong>Adaptor available.</strong> Output <code>jpg</code> → input <code>png</code> — Connectify offers to insert a <code>jpg → png</code> adaptor.</li>
+      </ol>
+      <p>When none of these hold, the connection is rejected and the editor explains why.</p>
+
+      <h2>Adaptors</h2>
+      <p>An <strong>adaptor</strong> is a small named conversion that sits on an edge. It has an identity, a label, and a settings block. When two ports' types differ but a known adaptor exists, Connectify shows the <strong>Adaptor Dialog</strong>:</p>
+      <ul>
+        <li><strong>Accept</strong> — insert with default settings.</li>
+        <li><strong>Configure</strong> — adjust settings (e.g., JPEG quality on a <code>png → jpg</code> adaptor) before inserting.</li>
+        <li><strong>Cancel</strong> — abandon the connection.</li>
+      </ul>
+
+      <h3>Built-in adaptors</h3>
+      <table>
+        <thead>
+          <tr><th>From</th><th>To</th><th>Adaptor</th><th>Common settings</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>jpg</code></td><td><code>png</code></td><td>JPG→PNG</td><td>colorspace, dpi</td></tr>
+          <tr><td><code>png</code></td><td><code>jpg</code></td><td>PNG→JPG</td><td>quality, background</td></tr>
+          <tr><td><code>image</code></td><td><code>tensor</code></td><td>Image→Tensor</td><td>channels, normalize, dtype</td></tr>
+          <tr><td><code>tensor</code></td><td><code>image</code></td><td>Tensor→Image</td><td>channels, denormalize, clamp</td></tr>
+          <tr><td><code>float</code></td><td><code>tensor</code></td><td>Float→Tensor</td><td>shape (scalar by default)</td></tr>
+          <tr><td><code>string</code></td><td><code>tensor</code></td><td>String→Tensor</td><td>tokenizer, pad, truncate</td></tr>
+          <tr><td><code>table</code></td><td><code>tensor</code></td><td>Table→Tensor</td><td>columns, dtype</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Stacking adaptors</h2>
+      <p>If a single adaptor can't bridge a gap, Connectify looks for a two-step chain. For example, <code>jpg → tensor</code> is implemented as <code>jpg → image → tensor</code>. Stacked adaptors render as a single labeled chip on the edge so the canvas stays clean.</p>
+
+      <div class="doc-callout doc-callout--note">
+        <p class="doc-callout-title">Adaptor chains are bounded</p>
+        <p>Connectify won't search chains longer than two steps. If no path exists, the connection is rejected — write a Custom node or a missing adaptor.</p>
+      </div>
+
+      <h2>Registering custom types</h2>
+      <p>Plugins can register types via <code>types.register()</code>. Registered types automatically get:</p>
+      <ul>
+        <li>A color-coded port pill.</li>
+        <li>Eligibility for adaptor matching (you provide the adaptor function).</li>
+        <li>Compatibility with subtype matching, if the type declares a parent.</li>
+      </ul>
+      <pre><code>from connectify import types
+
+types.register(
+    'embedding_vec',
+    parent='tensor',          # Subtype of tensor
+    shape=(768,),
+    dtype='float32',
+    color='#7c3aed',
+)
+</code></pre>
+
+      <h2>Writing a custom adaptor</h2>
+      <pre><code>from connectify import Adaptor, types
+
+class TextToEmbedding(Adaptor):
+    from_type = types.text
+    to_type   = types.embedding_vec
+    label     = 'Text → Embedding'
+
+    settings = { 'model': str }  # which embedder to use
+
+    def convert(self, value, model):
+        return embed_with(model, value)
+</code></pre>
+      <p>Drop the adaptor into <code>plugins/</code> and reload. It joins the catalog and is offered automatically whenever those types meet.</p>
+
+      <section class="doc-related">
+        <h4 class="doc-related-title">Related</h4>
+        <div class="doc-related-grid">
+          <a class="doc-related-card" href="node-types.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Node Types</div>
+            <div class="doc-related-card-desc">Where these types appear on each node's I/O.</div>
+          </a>
+          <a class="doc-related-card" href="../features/build-and-connect.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Build &amp; Connect</div>
+            <div class="doc-related-card-desc">Hands-on: wiring nodes and resolving mismatches.</div>
+          </a>
+          <a class="doc-related-card" href="../features/extend-with-plugins.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Extend with Plugins</div>
+            <div class="doc-related-card-desc">Where types and adaptors get registered.</div>
+          </a>
+          <a class="doc-related-card" href="glossary.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Glossary</div>
+            <div class="doc-related-card-desc">Port, edge, adaptor — defined.</div>
+          </a>
+        </div>
+      </section>
+    </article>
+  </div>
+  <script src="../../nav-dropdown.js"></script>
+</body>
+</html>

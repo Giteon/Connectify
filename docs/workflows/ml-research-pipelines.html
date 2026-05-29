@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ML Research Pipelines — Connectify Docs</title>
+  <script>
+    try { if (localStorage.getItem('cfg.theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="../../theme.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="stylesheet" href="../../nav-dropdown.css" />
+</head>
+<body>
+  <header class="doc-topnav">
+    <a class="doc-brand" href="../../index.html">
+      <img src="../../icons/logo.png" width="32" height="32" alt="" />
+      <span class="doc-brand-wordmark">Connectify</span>
+      <span class="doc-brand-divider" aria-hidden="true"></span>
+      <span class="doc-brand-section">Docs</span>
+    </a>
+    <nav class="doc-nav-links" aria-label="Primary">
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Product <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu nav-dd-menu--wide" role="menu">
+          <div class="nav-dd-grid">
+            <a class="nav-dd-item" role="menuitem" href="../features/build-and-connect.html">
+              <span class="nav-dd-item-title">Build &amp; Connect</span>
+              <span class="nav-dd-item-desc">Drag, drop, and wire nodes together</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/path-tracing.html">
+              <span class="nav-dd-item-title">Path Tracing</span>
+              <span class="nav-dd-item-desc">Trace data flow output ↔ input</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/collaborate-live.html">
+              <span class="nav-dd-item-title">Collaborate Live</span>
+              <span class="nav-dd-item-desc">Real-time editing &amp; comments</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/run-experiments.html">
+              <span class="nav-dd-item-title">Run Experiments</span>
+              <span class="nav-dd-item-desc">Variants, runs, and compare</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/discover-and-fork.html">
+              <span class="nav-dd-item-title">Discover &amp; Fork</span>
+              <span class="nav-dd-item-desc">Browse and fork community graphs</span>
+            </a>
+            <a class="nav-dd-item" role="menuitem" href="../features/extend-with-plugins.html">
+              <span class="nav-dd-item-title">Extend with Plugins</span>
+              <span class="nav-dd-item-desc">Custom nodes in Python</span>
+            </a>
+          </div>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../index.html">All features &amp; docs →</a>
+        </div>
+      </div>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger is-active" aria-haspopup="true" aria-expanded="false">
+          Solutions <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../workflows/ml-research-pipelines.html">
+            <span class="nav-dd-item-title">ML Research Pipelines</span>
+            <span class="nav-dd-item-desc">Prototype architectures end-to-end</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/data-science-workflows.html">
+            <span class="nav-dd-item-title">Data Science Workflows</span>
+            <span class="nav-dd-item-desc">Ingest → analyze → share</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/fine-tuning-and-adaptation.html">
+            <span class="nav-dd-item-title">Fine-tuning &amp; Adaptation</span>
+            <span class="nav-dd-item-desc">Customize foundation models</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../workflows/cross-team-collaboration.html">
+            <span class="nav-dd-item-title">Cross-team Collaboration</span>
+            <span class="nav-dd-item-desc">Research ↔ engineering handoff</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../index.html#use-cases">See all use cases →</a>
+        </div>
+      </div>
+
+      <a class="doc-nav-link" href="../../index.html#pricing">Pricing</a>
+
+      <div class="nav-dd">
+        <button type="button" class="nav-dd-trigger" aria-haspopup="true" aria-expanded="false">
+          Resources <span class="nav-dd-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="nav-dd-menu" role="menu">
+          <a class="nav-dd-item" role="menuitem" href="../index.html">
+            <span class="nav-dd-item-title">Documentation</span>
+            <span class="nav-dd-item-desc">The hub — start here</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/node-types.html">
+            <span class="nav-dd-item-title">Node Types</span>
+            <span class="nav-dd-item-desc">Dataset, Model, Logic, Custom</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/type-system-and-adaptors.html">
+            <span class="nav-dd-item-title">Type System</span>
+            <span class="nav-dd-item-desc">Compatibility &amp; adaptors</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/keyboard-shortcuts.html">
+            <span class="nav-dd-item-title">Keyboard Shortcuts</span>
+            <span class="nav-dd-item-desc">Cheatsheet</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/glossary.html">
+            <span class="nav-dd-item-title">Glossary</span>
+            <span class="nav-dd-item-desc">Every term, defined</span>
+          </a>
+          <a class="nav-dd-item" role="menuitem" href="../reference/faq.html">
+            <span class="nav-dd-item-title">FAQ</span>
+            <span class="nav-dd-item-desc">Common questions</span>
+          </a>
+          <div class="nav-dd-sep"></div>
+          <a class="nav-dd-item nav-dd-item--footer" role="menuitem" href="../../graphs-hub.html?tab=community">Community graphs →</a>
+        </div>
+      </div>
+    </nav>
+    <div class="doc-nav-cta">
+      <a class="doc-btn doc-btn-ghost" href="../../auth.html?view=login">Login</a>
+      <a class="doc-btn doc-btn-primary" href="../../graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
+    </div>
+  </header>
+
+  <div class="doc-layout">
+    <aside class="doc-sidebar">
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Workflows</h4>
+        <ul class="doc-sidebar-list">
+          <li><a class="active" href="ml-research-pipelines.html">ML Research Pipelines</a></li>
+          <li><a href="data-science-workflows.html">Data Science Workflows</a></li>
+          <li><a href="fine-tuning-and-adaptation.html">Fine-tuning &amp; Adaptation</a></li>
+          <li><a href="cross-team-collaboration.html">Cross-team Collaboration</a></li>
+        </ul>
+      </div>
+      <div class="doc-sidebar-section">
+        <h4 class="doc-sidebar-title">Features used</h4>
+        <ul class="doc-sidebar-list">
+          <li><a href="../features/build-and-connect.html">Build &amp; Connect</a></li>
+          <li><a href="../features/run-experiments.html">Run Experiments</a></li>
+          <li><a href="../features/path-tracing.html">Path Tracing</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <article class="doc-content">
+      <nav class="doc-breadcrumbs">
+        <a href="../index.html">Docs</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <a href="../index.html#workflows">Workflows</a>
+        <span class="doc-breadcrumbs-sep">/</span>
+        <span>ML Research Pipelines</span>
+      </nav>
+
+      <header class="doc-header">
+        <span class="doc-eyebrow">Workflow tutorial</span>
+        <h1 class="doc-title">ML Research Pipelines</h1>
+        <p class="doc-intro">An end-to-end tutorial: build a complete ML pipeline as a Connectify graph, from data loading through training to evaluation, then run two ablation variants and compare.</p>
+      </header>
+
+      <h2>What you'll build</h2>
+      <p>A CIFAR-10 image classification pipeline:</p>
+      <ul>
+        <li><strong>Dataset</strong> node loading CIFAR-10.</li>
+        <li>Two <strong>Logic</strong> augmentation nodes (random crop + horizontal flip).</li>
+        <li>A <strong>Model</strong> node training a small CNN.</li>
+        <li>An evaluation node reporting top-1 accuracy.</li>
+        <li>Two variants — <strong>Baseline</strong> and <strong>No augmentation</strong> — for comparison.</li>
+      </ul>
+      <p>Estimated time: 10–15 minutes.</p>
+
+      <h2>Step-by-step</h2>
+      <ol class="doc-steps">
+        <li class="doc-step">
+          <div>
+            <h3>Create a new project</h3>
+            <p>From the Graphs Hub, click <strong>New graph</strong>. Name it "CIFAR-10 ablation". You'll land in the editor with one empty variant ("v1") and a blank canvas.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Add the Dataset node</h3>
+            <p>Click <strong>+ Node → Dataset</strong>. In the Inspector, set <code>source</code> to <code>cifar-10</code> and <code>split</code> to <code>train</code>. Its single output port produces <span class="doc-type doc-type--image">image</span> data with a <span class="doc-type doc-type--label">label</span> sidecar.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Add augmentation</h3>
+            <p>Add two <strong>Logic</strong> nodes — <code>random_crop</code> (padding=4) and <code>horizontal_flip</code> (p=0.5). Wire Dataset → random_crop → horizontal_flip. Both nodes pass <span class="doc-type doc-type--image">image</span> through unchanged.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Add the Model node</h3>
+            <p>Click <strong>+ Node → Model</strong>. Choose <code>small_cnn</code> from the model library. The model has two inputs (<span class="doc-type doc-type--image">image</span>, <span class="doc-type doc-type--label">label</span>) and one output (<span class="doc-type doc-type--tensor">tensor</span> for predictions). Wire augmented images and labels in.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Configure training</h3>
+            <p>Click the Model node. In the Config tab set <code>epochs</code> to <code>10</code>, <code>lr</code> to <code>1e-3</code>, <code>batch_size</code> to <code>128</code>. Leave the optimizer at the default (AdamW).</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Add evaluation</h3>
+            <p>Add a <strong>Logic → eval/top1_accuracy</strong> node. Wire the model's predictions and the labels in. Its output is a <span class="doc-type doc-type--float">float</span> — the metric you care about.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Run the baseline</h3>
+            <p>Click <strong>Run</strong>. Watch edges animate as data flows. When the model finishes training, click the eval node and check Run Data — you should see something around 78–82% accuracy on a freshly initialized CNN.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Create the ablation variant</h3>
+            <p>Click <strong>+ Variant</strong>. Name it "No augmentation". In the new variant, delete both augmentation nodes and wire Dataset → Model directly.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Set the baseline and compare</h3>
+            <p>Right-click the "v1" tab → <strong>Set as baseline</strong>. Switch to "No augmentation", click <strong>Run</strong>. When it finishes, open <strong>Compare → v1 (Baseline)</strong>. You'll see the structural diff and the accuracy delta side by side.</p>
+          </div>
+        </li>
+        <li class="doc-step">
+          <div>
+            <h3>Trace the result</h3>
+            <p>On the baseline, switch to the <strong>Path</strong> tool and click the accuracy output. Save the path as "Top-1 → augmented input". Anyone opening the project later can click that chip to see exactly what produced the metric.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="doc-callout doc-callout--info">
+        <p class="doc-callout-title">Going further</p>
+        <p>Add more variants for a learning-rate sweep, swap in a ResNet, or add a third augmentation. Variants are cheap — make as many as you need.</p>
+      </div>
+
+      <section class="doc-related">
+        <h4 class="doc-related-title">Related</h4>
+        <div class="doc-related-grid">
+          <a class="doc-related-card" href="../features/run-experiments.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Run Experiments</div>
+            <div class="doc-related-card-desc">Full reference on variants, runs, and compare.</div>
+          </a>
+          <a class="doc-related-card" href="fine-tuning-and-adaptation.html">
+            <div class="doc-related-card-label">Workflow</div>
+            <div class="doc-related-card-title">Fine-tuning &amp; Adaptation</div>
+            <div class="doc-related-card-desc">Apply the same pattern to foundation-model adaptation.</div>
+          </a>
+          <a class="doc-related-card" href="../features/path-tracing.html">
+            <div class="doc-related-card-label">Feature</div>
+            <div class="doc-related-card-title">Path Tracing</div>
+            <div class="doc-related-card-desc">Document what produced your headline number.</div>
+          </a>
+          <a class="doc-related-card" href="../reference/node-types.html">
+            <div class="doc-related-card-label">Reference</div>
+            <div class="doc-related-card-title">Node Types</div>
+            <div class="doc-related-card-desc">Detailed I/O for Dataset, Model, Logic.</div>
+          </a>
+        </div>
+      </section>
+    </article>
+  </div>
+  <script src="../../nav-dropdown.js"></script>
+</body>
+</html>

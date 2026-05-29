@@ -173,13 +173,19 @@
   };
 
   api.notifyAction = function notifyAction(name, ctx) {
-    const step = findStep(activeStepId);
+    // Read the step from persisted state (not the in-memory activeStepId).
+    // The overlay might still be resolving its target (waitForElement polling),
+    // in which case activeStepId is 0 and the action would be silently dropped.
+    // The user's action is the source of truth — if they did the thing the
+    // current step is waiting for, advance regardless of overlay readiness.
+    const state = readState();
+    if (state.skipped || state.completed) return;
+    if (!state.started) return;
+    const step = findStep(state.currentStep);
     if (!step || !step.actionTrigger) return;
-    if (step.actionTrigger === name) {
-      // Optional payload validator (returns truthy to advance)
-      if (typeof step.actionGuard === 'function' && !step.actionGuard(ctx)) return;
-      api.next();
-    }
+    if (step.actionTrigger !== name) return;
+    if (typeof step.actionGuard === 'function' && !step.actionGuard(ctx)) return;
+    api.next();
   };
 
   api.isActive = function isActive() {

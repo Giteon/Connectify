@@ -240,7 +240,22 @@ function openAdaptorDetailsPopover(opts) {
 }
 
 // ── Load project data then init ────────────────────────────
-const slug = new URLSearchParams(location.search).get('project');
+// Determine which project to load. `?project=…` is the primary source; fall
+// back to a `cfg.navHint.project` sessionStorage hint for environments where
+// the query string is dropped during URL rewriting (e.g. `npx serve` with
+// clean-URLs). The hint is cleared after first read.
+const slug = (() => {
+  const fromQuery = new URLSearchParams(location.search).get('project');
+  if (fromQuery) return fromQuery;
+  try {
+    const hint = sessionStorage.getItem('cfg.navHint.project');
+    if (hint) {
+      sessionStorage.removeItem('cfg.navHint.project');
+      return hint;
+    }
+  } catch (_) {}
+  return null;
+})();
 let IS_CUSTOM_PROJECT = false;
 function _readCustomProjectBySlug(targetSlug) {
   try {
@@ -2118,6 +2133,7 @@ function initApp() {
     canvasWidth: activeVariant.canvasWidth || P.canvasWidth,
     canvasHeight: activeVariant.canvasHeight || P.canvasHeight,
   });
+  recomputeAutoRoles();
   initSubgraphFeature(activeVariant.subgraphs || []);
   (function seedBundledDemoPaths() {
     if (IS_CUSTOM_PROJECT) return;
@@ -2238,6 +2254,7 @@ function initApp() {
   initFindBar();
   initMinimap();
   initKebab();
+  initRoleBadgeDragTransfer();
   initCanvasContextMenu();
   initActiveEdgeDeleteKey();
 
@@ -2317,6 +2334,7 @@ function snapshotActiveVariant() {
     outputs: (n.outputs || []).map(p => ({ ...p })),
     description: n.description, fn: n.fn, fw: n.fw, by: n.by,
     views: n.views, downloads: n.downloads,
+    tags: Array.isArray(n.tags) ? [...n.tags] : [],
   }));
   variants[idx].connections = Canvas.getConnections().map(c => Canvas.snapshotConnection(c));
   variants[idx].subgraphs = getSubgraphSnapshot();
@@ -3708,7 +3726,8 @@ function addCatalogNode(item) {
     applyNewNodeBadge(el);
   }, 700);
   // Tutorial Steps 9-10: notify after a Dataset/Model/Logic is added via the palette.
-  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+  // (notifyAction is a no-op when the tour isn't running.)
+  if (window.ConnectifyTutorial) {
     window.ConnectifyTutorial.notifyAction('node-added', { type: item.type, id: node.id });
   }
 }
@@ -4472,6 +4491,16 @@ function handlePathPick(id) {
     ids.push(id);
     setPathHint('Keep going downstream, or hit Save when you’re done.');
   }
+  // Slice 3 — if the newest pick is an End-marked node (manual or auto)
+  // and the path has at least 2 nodes, nudge the user toward saving.
+  // Doesn't force-save (user may want to extend past the marker).
+  if (ids.length >= 2 && typeof nodeHasRole === 'function') {
+    const head = ids[ids.length - 1];
+    if (nodeHasRole(head, 'end')) {
+      const headName = (Canvas.getNode(head)?.label) || (Canvas.getNode(head)?.name) || head;
+      setPathHint(`Reached “${headName}” (End node). Save when ready, or keep going.`);
+    }
+  }
   renderPaths();
   applyPathHighlights();
   fitAroundSelection();
@@ -4519,7 +4548,7 @@ function pathDrawSave() {
     requestAnimationFrame(() => focusSavedPath(savedPathId));
   }
   // Tutorial Step 12: notify that a path was saved.
-  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+  if (window.ConnectifyTutorial) {
     window.ConnectifyTutorial.notifyAction('path-saved', { pathId: savedPathId });
   }
 }
@@ -4738,10 +4767,24 @@ function renderPathItem(p) {
   const more = nodeIds.length - previewIds.length;
   const tail = more > 0 ? `<span class="pd-arrow">→</span><span class="pd-pill">+${more}</span>` : '';
   const focused = FOCUSED_PATH_ID === p.id ? ' focused' : '';
+  // Slice 3 — end-to-end chip: shown when path starts at a Start-marked node
+  // AND ends at an End-marked node. Tells the user at a glance "this path
+  // covers your full data flow." Uses the same nodeHasRole check as the
+  // draw-mode hint so manual and auto marks both count.
+  const startsAtMarked = nodeIds.length >= 2
+    && typeof nodeHasRole === 'function'
+    && nodeHasRole(nodeIds[0], 'start');
+  const endsAtMarked = nodeIds.length >= 2
+    && typeof nodeHasRole === 'function'
+    && nodeHasRole(nodeIds[nodeIds.length - 1], 'end');
+  const endToEndChip = (startsAtMarked && endsAtMarked)
+    ? `<span class="path-end-to-end-chip" title="Path covers a marked Start to a marked End"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;"><polyline points="20 6 9 17 4 12"/></svg>end-to-end</span>`
+    : '';
   return `
     <div class="path-item${focused}" data-id="${p.id}">
       <div class="path-item-top">
         <div class="t" data-act="rename-inline" role="button" tabindex="0" title="Click to rename">${esc(p.name)}</div>
+        ${endToEndChip}
         <div class="path-item-actions">
           <button data-act="edit" title="Edit path"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button data-act="extract" title="Extract to variant"><img src="icons/export.png" alt="Extract to variant" /></button>
@@ -6490,7 +6533,7 @@ function showRunComparison(aId, bId) {
 function startRun(opts) {
   if (ACTIVE_RUN) return; // one at a time (wireframe constraint)
   // Tutorial Step 13: notify when a run is kicked off.
-  if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+  if (window.ConnectifyTutorial) {
     window.ConnectifyTutorial.notifyAction('run-started', { opts: opts || {} });
   }
   const cfg = opts || {};
@@ -7064,14 +7107,16 @@ function initHistoryStack() {
   Canvas.onChange((kind) => {
     renderSubgraphs();
     CANVAS_CHANGE_EPOCH += 1;
+    // Re-infer auto start/end roles after any structural mutation
+    // (add/remove node, add/remove connection, layout). Cheap O(N+E).
+    recomputeAutoRoles();
     // Tutorial Step 11: an edge was just drawn between two nodes.
     // Skip while history is being applied — undo/redo, variant switches and
     // demo-path seeding all replay 'add-connection' under HISTORY_APPLYING, and
     // those should NOT count as the user dragging a new edge.
     if (kind === 'add-connection'
         && !HISTORY_APPLYING
-        && window.ConnectifyTutorial
-        && window.ConnectifyTutorial.isActive()) {
+        && window.ConnectifyTutorial) {
       window.ConnectifyTutorial.notifyAction('connection-added', { kind });
     }
     if (HISTORY_APPLYING) { lastState = captureCanvasState(); return; }
@@ -7339,6 +7384,221 @@ function initMinimap() {
   });
 }
 
+/* ── Node role tags (start/end) ───────────────────────────
+   Manual marking via node.tags[]; auto-inference via node._autoRole.
+   Two-layer system:
+     - node.tags includes 'start'/'end' → manual mark (persisted)
+     - node._autoRole === 'start'/'end' → inferred (transient, not persisted)
+   Rendering shows manual badges solid, auto badges dashed/dim.
+   Manual marks suppress auto for that role across the whole graph. */
+
+/* Recompute _autoRole on every node. Only assigns when the graph is
+   unambiguous: either a single node OR a strictly linear chain
+   (1 connected component, every node has in/out degree ≤ 1, no cycles).
+   Any manual 'start' tag suppresses all auto-start; same for 'end'. */
+function recomputeAutoRoles() {
+  if (typeof Canvas === 'undefined' || !Canvas.getAllNodes) return;
+  const nodes = Canvas.getAllNodes();
+  const conns = Canvas.getConnections() || [];
+
+  // Build in/out degrees and an undirected adjacency for component check.
+  const inDeg = new Map();
+  const outDeg = new Map();
+  const adj = new Map();
+  nodes.forEach(n => { inDeg.set(n.id, 0); outDeg.set(n.id, 0); adj.set(n.id, new Set()); });
+  conns.forEach(c => {
+    const from = c?.from?.[0], to = c?.to?.[0];
+    if (!from || !to || from === to) return;
+    if (!inDeg.has(from) || !inDeg.has(to)) return;
+    outDeg.set(from, outDeg.get(from) + 1);
+    inDeg.set(to, inDeg.get(to) + 1);
+    adj.get(from).add(to);
+    adj.get(to).add(from);
+  });
+
+  // Linear-chain check: every node has in≤1 AND out≤1, and (if any nodes)
+  // the graph is a single connected component. Cycles are allowed by the
+  // degree check alone; we don't auto-tag cycles since they have no 0-deg
+  // endpoints anyway.
+  let isLinear = true;
+  for (const n of nodes) {
+    if (inDeg.get(n.id) > 1 || outDeg.get(n.id) > 1) { isLinear = false; break; }
+  }
+  if (isLinear && nodes.length > 1) {
+    // BFS from any node; must reach all.
+    const seen = new Set();
+    const queue = [nodes[0].id];
+    seen.add(nodes[0].id);
+    while (queue.length) {
+      const id = queue.shift();
+      adj.get(id).forEach(nbr => { if (!seen.has(nbr)) { seen.add(nbr); queue.push(nbr); } });
+    }
+    if (seen.size !== nodes.length) isLinear = false;
+  }
+
+  // Suppression: a manual mark anywhere kills auto for that role.
+  const hasManualStart = nodes.some(n => Array.isArray(n.tags) && n.tags.includes('start'));
+  const hasManualEnd   = nodes.some(n => Array.isArray(n.tags) && n.tags.includes('end'));
+
+  const changed = [];
+  nodes.forEach(n => {
+    let next = null;
+    if (isLinear) {
+      if (nodes.length === 1) {
+        // Single node: auto-start only (per spec).
+        next = 'start';
+      } else {
+        if (inDeg.get(n.id) === 0) next = 'start';
+        else if (outDeg.get(n.id) === 0) next = 'end';
+      }
+    }
+    if (next === 'start' && hasManualStart) next = null;
+    if (next === 'end'   && hasManualEnd)   next = null;
+    if ((n._autoRole || null) !== next) {
+      n._autoRole = next;
+      changed.push(n.id);
+    }
+  });
+  changed.forEach(id => Canvas.renderNode(id));
+}
+
+/* Return node IDs that carry the given role, either manually (node.tags)
+   or via auto-inference (node._autoRole). Used by paths integration to
+   seed/validate path drawing. */
+function findNodesWithRole(role) {
+  if (typeof Canvas === 'undefined' || !Canvas.getAllNodes) return [];
+  return Canvas.getAllNodes()
+    .filter(n => (Array.isArray(n.tags) && n.tags.includes(role)) || n._autoRole === role)
+    .map(n => n.id);
+}
+
+function nodeHasRole(nodeId, role) {
+  const n = Canvas.getNode && Canvas.getNode(nodeId);
+  if (!n) return false;
+  return (Array.isArray(n.tags) && n.tags.includes(role)) || n._autoRole === role;
+}
+
+/* Move a role from one node to another. Handles both manual (tag removed
+   from source, added to target) and auto-inferred (no removal needed; the
+   manual mark on the target will suppress the source's auto-role via
+   recomputeAutoRoles). Idempotent if source === target. */
+function moveNodeRole(sourceId, targetId, role) {
+  if (!sourceId || !targetId || sourceId === targetId) return;
+  if (role !== 'start' && role !== 'end') return;
+  const src = Canvas.getNode(sourceId);
+  const tgt = Canvas.getNode(targetId);
+  if (!tgt) return;
+  // Remove manual tag from source (no-op for auto-only badges).
+  if (src && Array.isArray(src.tags)) {
+    const i = src.tags.indexOf(role);
+    if (i >= 0) src.tags.splice(i, 1);
+  }
+  if (!Array.isArray(tgt.tags)) tgt.tags = [];
+  if (!tgt.tags.includes(role)) tgt.tags.push(role);
+  snapshotActiveVariant();
+  Canvas.renderNode(sourceId);
+  Canvas.renderNode(targetId);
+  recomputeAutoRoles();
+  // If inspector is open on either node, refresh it.
+  if (typeof renderInspectorSubtab === 'function' && _currentInspectorNode) {
+    if (_currentInspectorNode.id === sourceId || _currentInspectorNode.id === targetId) {
+      const nd = Canvas.getNode(_currentInspectorNode.id);
+      if (nd) {
+        _currentInspectorNode.tags = nd.tags;
+        renderInspectorSubtab();
+      }
+    }
+  }
+}
+
+/* Drag-to-transfer for role badges. Canvas fires onRoleBadgeDragStart when
+   the user mousedowns a Start/End badge; we take over with document-level
+   move/up to follow the cursor with a ghost badge, highlight other nodes
+   as drop targets, and finalize the transfer on release. */
+function initRoleBadgeDragTransfer() {
+  if (typeof Canvas === 'undefined' || !Canvas.onRoleBadgeDragStart) return;
+  Canvas.onRoleBadgeDragStart((sourceId, role, downEvent, badgeEl) => {
+    // Snapshot the real badge's box so the ghost can match exactly, then
+    // hide the original (visibility, not display — preserves layout) so the
+    // ghost reads as the real tag being lifted off rather than a duplicate.
+    const srcRect = badgeEl.getBoundingClientRect();
+    const ghost = badgeEl.cloneNode(true);
+    ghost.classList.add('node-role-badge-ghost');
+    ghost.style.width  = srcRect.width  + 'px';
+    ghost.style.height = srcRect.height + 'px';
+    ghost.style.left = downEvent.clientX + 'px';
+    ghost.style.top  = downEvent.clientY + 'px';
+    document.body.appendChild(ghost);
+    badgeEl.classList.add('dragging');
+    document.body.style.cursor = 'grabbing';
+    // Mark every OTHER node as a drop candidate.
+    const inner = Canvas.getCanvasInner();
+    const allNodes = inner ? Array.from(inner.querySelectorAll('.node')) : [];
+    allNodes.forEach(n => { if (n.dataset.nodeId !== sourceId) n.classList.add('role-drop-candidate'); });
+    let lastHover = null;
+    const findTargetUnder = (x, y) => {
+      // Temporarily hide the ghost so elementFromPoint sees what's under.
+      ghost.style.display = 'none';
+      const el = document.elementFromPoint(x, y);
+      ghost.style.display = '';
+      if (!el) return null;
+      const node = el.closest('.node[data-node-id]');
+      if (!node) return null;
+      if (node.dataset.nodeId === sourceId) return null;
+      return node;
+    };
+    const onMove = (e) => {
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      const target = findTargetUnder(e.clientX, e.clientY);
+      if (target !== lastHover) {
+        if (lastHover) lastHover.classList.remove('role-drop-hover');
+        if (target)    target.classList.add('role-drop-hover');
+        lastHover = target;
+      }
+    };
+    const cleanup = () => {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onUp, true);
+      document.removeEventListener('keydown', onKey, true);
+      ghost.remove();
+      // If the original badge element still exists (cancel case), un-hide it.
+      // On successful drop, renderNode rebuilds the badge so this is a no-op.
+      badgeEl.classList.remove('dragging');
+      document.body.style.cursor = '';
+      allNodes.forEach(n => n.classList.remove('role-drop-candidate', 'role-drop-hover'));
+    };
+    const onUp = (e) => {
+      const target = findTargetUnder(e.clientX, e.clientY);
+      cleanup();
+      if (target) moveNodeRole(sourceId, target.dataset.nodeId, role);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') cleanup(); };
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+    document.addEventListener('keydown', onKey, true);
+  });
+}
+
+function toggleNodeRole(nodeId, role) {
+  const nd = Canvas.getNode(nodeId);
+  if (!nd || (role !== 'start' && role !== 'end')) return;
+  if (!Array.isArray(nd.tags)) nd.tags = [];
+  const i = nd.tags.indexOf(role);
+  if (i >= 0) nd.tags.splice(i, 1);
+  else nd.tags.push(role);
+  snapshotActiveVariant();
+  Canvas.renderNode(nodeId);
+  // Manual mark may have just suppressed/freed auto-roles across the graph.
+  recomputeAutoRoles();
+  // If the inspector is open on this node, refresh it so the toggle reflects.
+  if (typeof renderInspectorSubtab === 'function'
+      && _currentInspectorNode && _currentInspectorNode.id === nodeId) {
+    _currentInspectorNode.tags = nd.tags;
+    renderInspectorSubtab();
+  }
+}
+
 /* ── Kebab menu on nodes ──────────────────────────────────
    Tiny stub — just a Delete item, for completeness. Canvas's
    onKebabClick surfaces the trigger location. */
@@ -7349,6 +7609,13 @@ function initKebab() {
   // relative to the kebab button that was clicked.
   Canvas.onKebabClick((nodeId, kebabEl) => {
     const deleteDisabled = PATH_DRAW.active;
+    const nd0 = Canvas.getNode(nodeId);
+    const tags0 = Array.isArray(nd0?.tags) ? nd0.tags : [];
+    const isStart = tags0.includes('start');
+    const isEnd   = tags0.includes('end');
+    const checkSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const startIcon = isStart ? checkSvg : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`;
+    const endIcon   = isEnd   ? checkSvg : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6" fill="currentColor"/></svg>`;
     menu._nodeId = nodeId;
     menu.innerHTML = `
       <div class="kebab-item" data-action="inspect">
@@ -7358,6 +7625,14 @@ function initKebab() {
       <div class="kebab-item" data-action="start-path">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M6.5 17.5C10 13 14 11 17.5 6.5" stroke-dasharray="3 3"/></svg>
         Start path from here
+      </div>
+      <div class="kebab-item" data-action="toggle-start">
+        ${startIcon}
+        ${isStart ? 'Unmark as Start' : 'Mark as Start'}
+      </div>
+      <div class="kebab-item" data-action="toggle-end">
+        ${endIcon}
+        ${isEnd ? 'Unmark as End' : 'Mark as End'}
       </div>
       <div class="kebab-item danger${deleteDisabled ? ' disabled' : ''}" data-action="delete" aria-disabled="${deleteDisabled ? 'true' : 'false'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6"/></svg>
@@ -7374,6 +7649,8 @@ function initKebab() {
       hide();
       if (act === 'inspect'    && nd) openInspector(nd);
       if (act === 'start-path' && nd) pathDrawStart({ seedIds: [nd.id] });
+      if (act === 'toggle-start' && nd) toggleNodeRole(nd.id, 'start');
+      if (act === 'toggle-end'   && nd) toggleNodeRole(nd.id, 'end');
       if (act === 'delete'     && nd) {
         if (PATH_DRAW.active) return;
         startInlineNodeDeleteConfirm(nd, kebabEl);
@@ -7774,7 +8051,32 @@ function renderConfigSubtab(n) {
   const cfg = _stubConfigForNode(n);
   const { inputs, outputs } = _stubVariablesForNode(n);
   const cfgRows = cfg.map(([k, v]) => `<div class="cfg-row"><span class="k">${esc(k)}</span><span class="v">${esc(String(v))}</span></div>`).join('');
+  const tags = Array.isArray(n.tags) ? n.tags : [];
+  const isStart = tags.includes('start');
+  const isEnd   = tags.includes('end');
   return `
+    <div class="insp-section-v2" data-sec="role">
+      <button type="button" class="insp-sec-head">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+        Role
+      </button>
+      <div class="insp-sec-body">
+        <div class="cfg-row" style="gap:10px;align-items:center;">
+          <span class="k">Mark as</span>
+          <span class="v" style="display:flex;gap:6px;flex-wrap:wrap;">
+            <label class="role-chip ${isStart ? 'on start' : ''}" data-role-toggle="start">
+              <input type="checkbox" ${isStart ? 'checked' : ''} data-role-input="start" style="display:none;" />
+              <span class="dot start"></span>Start
+            </label>
+            <label class="role-chip ${isEnd ? 'on end' : ''}" data-role-toggle="end">
+              <input type="checkbox" ${isEnd ? 'checked' : ''} data-role-input="end" style="display:none;" />
+              <span class="dot end"></span>End
+            </label>
+          </span>
+        </div>
+      </div>
+    </div>
+
     <div class="insp-section-v2" data-sec="config">
       <button type="button" class="insp-sec-head">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
@@ -7920,6 +8222,15 @@ function bindSubtabContentEvents(n) {
   master.querySelector('#rdRunSelect')?.addEventListener('change', e => {
     _selectedRunId = e.target.value;
     renderInspectorSubtab();
+  });
+  // Role chips (Start / End) — mirror the kebab toggles.
+  master.querySelectorAll('[data-role-toggle]').forEach(chip => {
+    chip.addEventListener('click', e => {
+      e.preventDefault();
+      const role = chip.dataset.roleToggle;
+      if (!_currentInspectorNode || !role) return;
+      toggleNodeRole(_currentInspectorNode.id, role);
+    });
   });
 }
 
@@ -8091,6 +8402,21 @@ function pathDrawStart(opts) {
   PATH_DRAW.active = true;
   PATH_DRAW.nodeIds = Array.isArray(opts.seedIds) ? opts.seedIds.filter(id => Canvas.getNode(id)) : [];
   PATH_DRAW.editingPathId = opts.editingPathId || null;
+
+  // Slice 3 — auto-seed from a marked Start node when the user enters draw
+  // mode cold (no caller-provided seed, not editing). If exactly one Start
+  // node exists in the graph, drop it in as the first pick so the user can
+  // immediately keep extending downstream. Multiple Starts → no auto-seed
+  // (the post-render hint will tell them to pick one).
+  let autoSeededFromStart = false;
+  if (!PATH_DRAW.nodeIds.length && !PATH_DRAW.editingPathId) {
+    const starts = (typeof findNodesWithRole === 'function') ? findNodesWithRole('start') : [];
+    if (starts.length === 1) {
+      PATH_DRAW.nodeIds = [starts[0]];
+      autoSeededFromStart = true;
+    }
+  }
+
   document.body.classList.add('building-path');
   clearFocusedPath();
 
@@ -8105,6 +8431,17 @@ function pathDrawStart(opts) {
   if (PATH_DRAW.nodeIds.length) {
     if (PATH_DRAW.editingPathId) fitPathNodes(PATH_DRAW.nodeIds);
     else fitAroundSelection();
+  }
+  // Surface the auto-seed in the banner hint so it's not magic.
+  if (autoSeededFromStart) {
+    const seedId = PATH_DRAW.nodeIds[0];
+    const seedName = Canvas.getNode(seedId)?.label || Canvas.getNode(seedId)?.name || seedId;
+    setPathHint(`Started at “${seedName}” (your Start node). Pick the next downstream node.`);
+  } else if (!PATH_DRAW.nodeIds.length) {
+    const starts = (typeof findNodesWithRole === 'function') ? findNodesWithRole('start') : [];
+    if (starts.length > 1) {
+      setPathHint(`Multiple Start nodes — pick one of the ${starts.length} marked Starts to begin.`);
+    }
   }
 }
 
@@ -8340,7 +8677,6 @@ function initLeftnavProjects() {
   // the shared helper in leftnav.js.
   const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
   wireCollapsable('leftnavProjects', 'lpHeaderToggle');
-  wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
   document.getElementById('lpAddProject')?.addEventListener('click', (e) => {
     e.preventDefault();

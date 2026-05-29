@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connectify — Log in or sign up</title>
   <script>
-    /* Match the landing-page default: dark unless the user explicitly
-       picked light. Other in-app pages default to light, but the auth
-       page lives in the marketing surface so it follows the landing
-       convention. */
+    /* Light by default. Matches landing's new default; only opts into
+       dark when the user explicitly picked dark elsewhere in the app. */
     try {
-      if (localStorage.getItem('cfg.theme') !== 'light') {
+      if (localStorage.getItem('cfg.theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     } catch (_) {}

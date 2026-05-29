@@ -267,6 +267,9 @@ window.Canvas = (function () {
   let onConnectionConflictCb = null;
   let onAdaptorRequiredCb = null;
   let onAdaptorChipClickCb = null;
+  // Fired when the user starts dragging a role badge (Start/End) off a node.
+  // Host implements the drop-target tracking and tag transfer.
+  let onRoleBadgeDragStartCb = null;
   // Fired after any mutation that changes the graph structure or node
   // positions. Hosts can hook this for undo/redo, autosave, dirty flags.
   let onChangeCb = null;
@@ -583,7 +586,26 @@ window.Canvas = (function () {
     const { data, el } = s;
     const hasIn  = data.inputs  && data.inputs.length  > 0;
     const hasOut = data.outputs && data.outputs.length > 0;
+    const tags = Array.isArray(data.tags) ? data.tags : [];
+    const isStart = tags.includes('start');
+    const isEnd   = tags.includes('end');
+    // Auto-inferred role (transient, set by editor's recomputeAutoRoles).
+    // Suppressed by any manual mark of the same role on the same node.
+    const auto = data._autoRole;
+    const autoStart = auto === 'start' && !isStart;
+    const autoEnd   = auto === 'end'   && !isEnd;
+    const showStart = isStart || autoStart;
+    const showEnd   = isEnd   || autoEnd;
+    // ▶ play triangle for Start, ■ square for End — small SVG glyphs.
+    const startGlyph = `<span class="role-glyph"><svg viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg></span>`;
+    const endGlyph   = `<span class="role-glyph"><svg viewBox="0 0 10 10" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="0.5"/></svg></span>`;
+    const roleBadgesHtml = (showStart || showEnd) ? `
+      <div class="node-role-badges">
+        ${showStart ? `<span class="node-role-badge start${autoStart ? ' auto' : ''}" title="${autoStart ? 'Auto-inferred start node — drag to move' : 'Start node — drag to move'}">${startGlyph}Start</span>` : ''}
+        ${showEnd   ? `<span class="node-role-badge end${autoEnd ? ' auto' : ''}"   title="${autoEnd   ? 'Auto-inferred end node — drag to move'   : 'End node — drag to move'}">${endGlyph}End</span>`     : ''}
+      </div>` : '';
     el.innerHTML = `
+      ${roleBadgesHtml}
       <div class="node-head">
         <span class="type-icon">${ICONS[data.type]}</span>
         <span class="type-label">${data.type}</span>
@@ -599,6 +621,29 @@ window.Canvas = (function () {
       ${hasOut ? `<div class="node-section" data-section="out"><span class="left">${ARROW_OUT}<span>Outputs</span></span>${CARET}</div><div class="io-list" data-io-list="out">${renderIoRows(data.outputs,'out')}</div>` : ''}`;
     _syncNodeBottomCorners(el);
     _attachNodeListeners(id);
+    _attachRoleBadgeDrag(id);
+  }
+
+  // Wire role badges (Start / End) as drag handles. Mousedown fires the host
+  // callback with (sourceNodeId, role, event); the host (editing-mode.js)
+  // takes over with document-level move/up to track the drop target.
+  function _attachRoleBadgeDrag(id) {
+    const { el } = nodeState.get(id) || {};
+    if (!el) return;
+    el.querySelectorAll('.node-role-badge').forEach(badge => {
+      badge.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        // Determine role from class list — 'start' or 'end'.
+        const role = badge.classList.contains('start') ? 'start'
+                   : badge.classList.contains('end')   ? 'end'
+                   : null;
+        if (!role) return;
+        // Don't let the node-head drag handler claim this gesture.
+        e.stopPropagation();
+        e.preventDefault();
+        if (onRoleBadgeDragStartCb) onRoleBadgeDragStartCb(id, role, e, badge);
+      });
+    });
   }
 
   // Keep section backgrounds clipped to the card's rounded bottom corners.
@@ -2002,6 +2047,7 @@ window.Canvas = (function () {
     onAdaptorRequired(cb)    { onAdaptorRequiredCb    = cb; },
     onAdaptorChipClick(cb)    { onAdaptorChipClickCb    = cb; },
     onChange(cb)             { onChangeCb             = cb; },
+    onRoleBadgeDragStart(cb) { onRoleBadgeDragStartCb = cb; },
     zoomIn, zoomOut
   };
 })();

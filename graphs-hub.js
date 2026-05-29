@@ -16,7 +16,6 @@
       document.addEventListener('DOMContentLoaded', () => {
         const wireCollapsable = (window.ConnectifyLeftnav && window.ConnectifyLeftnav.wireCollapsable) || function() {};
         wireCollapsable('leftnavProjects', 'lpHeaderToggle');
-        wireCollapsable('leftnavTeams', 'ltHeaderToggle');
 
         // Render the projects tree from cfg.customProjects (forks + user-created).
         // graphs-hub doesn't have a current project, so nothing is marked active.
@@ -217,10 +216,14 @@
       // out of GRAPHS). loadBundledCatalog() will match this entry by slug
       // and skip re-adding it. Synced with `graphs/onboarding-starter/graph.json`.
       { title:'Onboarding Starter', slug:'onboarding-starter', owner:'Connectify', shortOwner:'Connectify', domain:'Tutorial', modality:'—', method:'Getting Started', role:'Public', status:'Stable', license:'MIT', updatedHours:1, forks:0, stars:0, downloads:0, activity:100, openContrib:true, team:'Connectify', abstract:"A small starter graph designed for first-time users. Fork it to learn the basics.", starred:false, recentRank:0, editedAgo:'just now', editedBy:'Connectify Team', collaborators:['CF'], collaboratorExtra:0 },
-      { title:'Neurological Disease Analysis', owner:'RazLab', shortOwner:'you · RazLab', domain:'Neuroscience', modality:'MRI', method:'Disease Detection', role:'Admin', status:'Experimental', license:'MIT', updatedHours:6, forks:38, stars:214, downloads:12000, activity:57, openContrib:true, team:'Neuron Forge', abstract:'MRI/PET workflow for lesion segmentation and progression scoring.', starred:true, recentRank:1, editedAgo:'2 hours ago', editedBy:'Jesh B.', collaborators:['LR','MK','SP'], collaboratorExtra:38 },
-      { title:'Human Genome Analysis', owner:'Broad Institute', shortOwner:'you · Broad Institute', domain:'Genomics', modality:'Sequence', method:'Bioinformatics', role:'Admin', status:'Stable', license:'CC-BY-4.0', updatedHours:14, forks:14, stars:88, downloads:0, activity:66, openContrib:true, team:'Genome Guild', abstract:'Population-scale variant analysis with explainable ranking stages.', starred:false, recentRank:2, editedAgo:'6 hours ago', editedBy:'Mina K.', collaborators:['AM','TP','JW'], collaboratorExtra:12 },
-      { title:'Autonomous Vehicle Navigation', owner:'Waymo', shortOwner:'Waymo', domain:'Autonomous Driving', modality:'LiDAR+Vision', method:'Perception', role:'View Only', status:'Stable', license:'Apache-2.0', updatedHours:2, forks:200, stars:1200, downloads:0, activity:98, openContrib:false, team:'Vector Lab', abstract:'Perception-to-planning graph with branch-level ablation tracing.', starred:true, recentRank:3, editedAgo:'1 day ago', editedBy:'Ria S.', collaborators:['RC','DN','YK'], collaboratorExtra:22 },
-      { title:'Public Health Monitoring', owner:'UCLA', shortOwner:'UCLA', domain:'Public Health', modality:'Multimodal', method:'Forecasting', role:'Contributor', status:'Stable', license:'CC-BY-4.0', updatedHours:55, forks:55, stars:310, downloads:0, activity:91, openContrib:true, team:'Vector Lab', abstract:'County-level outbreak warning with EHR + wastewater + mobility inputs.', starred:false, recentRank:4, editedAgo:'2 days ago', editedBy:'Lana R.', collaborators:['LR','SP','AQ'], collaboratorExtra:9 }
+      // These four sample graphs used to ship with Admin/Contributor roles so
+      // the dashboard looked populated for demo purposes. New users now start
+      // with an empty My Graphs, so they're tagged as Public — still browseable
+      // in Community, but not pre-claimed as yours.
+      { title:'Neurological Disease Analysis', owner:'RazLab', shortOwner:'RazLab', domain:'Neuroscience', modality:'MRI', method:'Disease Detection', role:'Public', status:'Experimental', license:'MIT', updatedHours:6, forks:38, stars:214, downloads:12000, activity:57, openContrib:true, team:'Neuron Forge', abstract:'MRI/PET workflow for lesion segmentation and progression scoring.', starred:false, recentRank:1, editedAgo:'2 hours ago', editedBy:'Jesh B.', collaborators:['LR','MK','SP'], collaboratorExtra:38 },
+      { title:'Human Genome Analysis', owner:'Broad Institute', shortOwner:'Broad Institute', domain:'Genomics', modality:'Sequence', method:'Bioinformatics', role:'Public', status:'Stable', license:'CC-BY-4.0', updatedHours:14, forks:14, stars:88, downloads:0, activity:66, openContrib:true, team:'Genome Guild', abstract:'Population-scale variant analysis with explainable ranking stages.', starred:false, recentRank:2, editedAgo:'6 hours ago', editedBy:'Mina K.', collaborators:['AM','TP','JW'], collaboratorExtra:12 },
+      { title:'Autonomous Vehicle Navigation', owner:'Waymo', shortOwner:'Waymo', domain:'Autonomous Driving', modality:'LiDAR+Vision', method:'Perception', role:'Public', status:'Stable', license:'Apache-2.0', updatedHours:2, forks:200, stars:1200, downloads:0, activity:98, openContrib:false, team:'Vector Lab', abstract:'Perception-to-planning graph with branch-level ablation tracing.', starred:false, recentRank:3, editedAgo:'1 day ago', editedBy:'Ria S.', collaborators:['RC','DN','YK'], collaboratorExtra:22 },
+      { title:'Public Health Monitoring', owner:'UCLA', shortOwner:'UCLA', domain:'Public Health', modality:'Multimodal', method:'Forecasting', role:'Public', status:'Stable', license:'CC-BY-4.0', updatedHours:55, forks:55, stars:310, downloads:0, activity:91, openContrib:true, team:'Vector Lab', abstract:'County-level outbreak warning with EHR + wastewater + mobility inputs.', starred:false, recentRank:4, editedAgo:'2 days ago', editedBy:'Lana R.', collaborators:['LR','SP','AQ'], collaboratorExtra:9 }
     ];
 
     /* ── Community seed graphs ─────────────────────────────────
@@ -755,14 +758,50 @@
 
     function renderDashboard() {
       const role = dashboardRoleFilter;
-      let rows = GRAPHS.filter(g => !g.dummy && hasMyGraphAccess(g));
+      const allOwned = GRAPHS.filter(g => !g.dummy && hasMyGraphAccess(g));
+      let rows = allOwned;
       if (dashboardView === 'starred') rows = rows.filter(g => g.starred);
       if (role) rows = rows.filter(g => g.role === role);
       if (dashboardView === 'recent') rows.sort((a, b) => a.recentRank - b.recentRank);
       else if (dashboardView === 'all') rows.sort((a, b) => a.title.localeCompare(b.title));
       else rows.sort((a, b) => a.recentRank - b.recentRank);
 
-      q('#dashboardCards').innerHTML = rows.map(renderCard).join('') || '<div class="panel">No graphs match this filter.</div>';
+      const host = q('#dashboardCards');
+      if (rows.length) {
+        host.innerHTML = rows.map(renderCard).join('');
+        return;
+      }
+      // Two empty states:
+      //   1. True empty — the user has zero owned graphs at all → friendly
+      //      onboarding-style empty state with CTAs.
+      //   2. Filtered empty — user has graphs but the current filter excludes
+      //      every row → terse "no matches" message.
+      if (!allOwned.length) {
+        host.innerHTML = `
+          <div class="dashboard-empty" role="status">
+            <div class="dashboard-empty-art" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6.5 7.5L11 16.5"/><path d="M17.5 7.5L13 16.5"/><path d="M7 6h10" stroke-dasharray="2 3"/></svg>
+            </div>
+            <h3 class="dashboard-empty-title">No graphs yet</h3>
+            <p class="dashboard-empty-text">
+              Start a new graph from a template, fork a public graph from the community,
+              or build your own from scratch.
+            </p>
+            <div class="dashboard-empty-actions">
+              <button type="button" class="dashboard-empty-btn dashboard-empty-btn--primary" id="dashboardEmptyNewGraph">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Start a new graph
+              </button>
+              <a class="dashboard-empty-btn" href="graphs-hub.html?tab=community">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+                Explore the community
+              </a>
+            </div>
+          </div>`;
+        host.querySelector('#dashboardEmptyNewGraph')?.addEventListener('click', openNewGraphModal);
+      } else {
+        host.innerHTML = '<div class="panel">No graphs match this filter.</div>';
+      }
     }
 
     function initTopicPills() {
@@ -1544,9 +1583,13 @@
         if (kind === 'preview') {
           // Let the tutorial know which graph the user previewed; it will
           // advance Step 1 if the slug matches the onboarding starter.
-          if (window.ConnectifyTutorial && window.ConnectifyTutorial.isActive()) {
+          // (notifyAction is a no-op when the tour isn't running.)
+          if (window.ConnectifyTutorial) {
             window.ConnectifyTutorial.notifyAction('preview-clicked', { slug });
           }
+          // Belt-and-suspenders: also stash the slug in sessionStorage so
+          // view-mode can recover it if a clean-URL redirect strips the query.
+          try { sessionStorage.setItem('cfg.navHint.project', slug); } catch (_) {}
           window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
         } else if (kind === 'fork') {
           forkGraph(g);

@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="icons/logo.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/logo.png" />
   <title>ConnectifyAI — Graphs Hub</title>
   <script>
     /* First-visit defaults for the in-app pages (hub/view/edit):
@@ -25,7 +27,7 @@
     } catch (_) {}
   </script>
   <link rel="stylesheet" href="theme.css" />
-  <link rel="stylesheet" href="graphs-hub.css" />
+  <link rel="stylesheet" href="graphs-hub.css?v=3" />
   <!-- leftnav.css last so it owns the leftnav styling on every page. -->
   <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="tutorial.css" />
@@ -253,28 +255,6 @@
           </div>
           <div id="communityOpenList" class="open-chart"></div>
         </div>
-        <div class="section">
-          <div class="section-head">
-            <h2 class="section-title">Popular Graph Categories</h2>
-          </div>
-          <div class="category-grid">
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/neuroscience.svg" alt="" aria-hidden="true" /></div><div class="category-name">Neuroscience</div><div class="category-count">142 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/genomics.svg" alt="" aria-hidden="true" /></div><div class="category-name">Genomics</div><div class="category-count">126 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/autonomous-driving.svg" alt="" aria-hidden="true" /></div><div class="category-name">Autonomous Driving</div><div class="category-count">98 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/nlp.svg" alt="" aria-hidden="true" /></div><div class="category-name">NLP</div><div class="category-count">121 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/drug-discovery.svg" alt="" aria-hidden="true" /></div><div class="category-name">Drug Discovery</div><div class="category-count">87 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/climate.svg" alt="" aria-hidden="true" /></div><div class="category-name">Climate</div><div class="category-count">74 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/bioinformatics.svg" alt="" aria-hidden="true" /></div><div class="category-name">Bioinformatics</div><div class="category-count">133 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/public-health.svg" alt="" aria-hidden="true" /></div><div class="category-name">Public Health</div><div class="category-count">92 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/oncology.svg" alt="" aria-hidden="true" /></div><div class="category-name">Oncology</div><div class="category-count">69 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/ophthalmology.svg" alt="" aria-hidden="true" /></div><div class="category-name">Ophthalmology</div><div class="category-count">41 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/cardiology.svg" alt="" aria-hidden="true" /></div><div class="category-name">Cardiology</div><div class="category-count">57 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/synthetic-biology.svg" alt="" aria-hidden="true" /></div><div class="category-name">Synthetic Biology</div><div class="category-count">46 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/behavioral-science.svg" alt="" aria-hidden="true" /></div><div class="category-name">Behavioral Science</div><div class="category-count">53 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/agriculture.svg" alt="" aria-hidden="true" /></div><div class="category-name">Agriculture</div><div class="category-count">38 Graphs</div></div>
-            <div class="category-card"><div class="category-icon"><img src="icons/categories/geophysics.svg" alt="" aria-hidden="true" /></div><div class="category-name">Geophysics</div><div class="category-count">35 Graphs</div></div>
-          </div>
-        </div>
       </section>
 
       <section id="tab-my-team" class="tab-pane">
@@ -428,19 +408,42 @@
                     <span class="set-row-desc">Used for sign-in and notifications.</span>
                   </div>
                   <div class="set-row-control">
-                    <input type="email" id="setEmail" class="set-input" value="jugglerfox@gmail.com" />
+                    <input type="email" id="setEmail" class="set-input" autocomplete="email" placeholder="you@example.com" />
                   </div>
                 </div>
                 <div class="set-divider"></div>
                 <div class="set-row">
                   <div class="set-row-label">
                     <span class="set-row-title">Password</span>
-                    <span class="set-row-desc">Last changed 3 months ago.</span>
+                    <span class="set-row-desc">Choose a strong, unique password.</span>
                   </div>
                   <div class="set-row-control">
-                    <button type="button" class="btn">Change password</button>
+                    <button type="button" class="btn" id="setPwToggle">Change password</button>
                   </div>
                 </div>
+                <div class="set-pw-fields" id="setPwFields" hidden>
+                  <div class="set-pw-field">
+                    <label class="set-row-title" for="setPwCurrent">Current password</label>
+                    <input type="password" id="setPwCurrent" class="set-input" autocomplete="current-password" />
+                  </div>
+                  <div class="set-pw-field">
+                    <label class="set-row-title" for="setPwNew">New password</label>
+                    <input type="password" id="setPwNew" class="set-input" autocomplete="new-password" />
+                  </div>
+                  <div class="set-pw-field">
+                    <label class="set-row-title" for="setPwConfirm">Confirm new password</label>
+                    <input type="password" id="setPwConfirm" class="set-input" autocomplete="new-password" />
+                  </div>
+                  <div class="set-pw-actions">
+                    <span class="set-pw-msg" id="setPwMsg" role="status" hidden></span>
+                    <button type="button" class="btn btn--ghost" id="setPwCancel">Cancel</button>
+                    <button type="button" class="btn primary" id="setPwSave">Update password</button>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-section-foot">
+                <span class="set-save-status" id="setEmailStatus" hidden>Saved</span>
+                <button type="button" class="btn primary" id="setEmailSave">Save email</button>
               </div>
             </section>
 
@@ -752,10 +755,11 @@
   <script src="static-graph-loader.js"></script>
   <script src="fork-project.js"></script>
   <script src="leftnav.js"></script>
-  <script src="auth.js"></script>
+  <script src="command-palette.js"></script>
+  <script src="auth.js?v=3"></script>
   <script src="tutorial-system.js"></script>
   <script src="tutorial-steps.js"></script>
-  <script src="graphs-hub.js"></script>
+  <script src="graphs-hub.js?v=3"></script>
   <script src="theme.js"></script>
 </body>
 </html>

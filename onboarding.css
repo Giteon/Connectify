@@ -232,6 +232,52 @@
   pointer-events: none;
 }
 
+/* ── Password step (strength meter + hint) ───────────────────── */
+.ob-pw-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.ob-pw-bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 5px;
+  background: var(--lp-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ob-pw-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--lp-text-muted);
+  transition: width .2s ease, background .2s ease;
+}
+.ob-pw-fill.is-weak   { background: #ef4444; }
+.ob-pw-fill.is-ok     { background: #f59e0b; }
+.ob-pw-fill.is-good   { background: #3b82f6; }
+.ob-pw-fill.is-strong { background: #22c55e; }
+.ob-pw-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lp-text-soft);
+}
+.ob-pw-label.is-weak   { color: #ef4444; }
+.ob-pw-label.is-ok     { color: #f59e0b; }
+.ob-pw-label.is-good   { color: #3b82f6; }
+.ob-pw-label.is-strong { color: #22c55e; }
+.ob-pw-hint {
+  display: block;
+  margin-top: 6px;
+  min-height: 16px;
+  font-size: 12.5px;
+  color: var(--lp-text-soft);
+}
+.ob-pw-hint.is-error { color: #ef4444; }
+
 /* ── Footer nav ───────────────────────────────────────────────── */
 .ob-footer {
   display: flex; justify-content: space-between;

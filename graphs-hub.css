@@ -1024,50 +1024,11 @@ body.graph-cards--list .card-footer { grid-column: 2; grid-row: 4; }
   overflow: visible;
 }
 
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-}
-.category-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 22px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-  cursor: pointer;
-}
-.category-card:hover {
-  border-color: var(--primary);
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.08);
-  transform: translateY(-1px);
-}
-.category-icon {
-  width: 44px; height: 44px; display: grid; place-items: center; color: var(--primary); margin-bottom: 12px;
-}
-.category-icon svg { width: 36px; height: 36px; }
-.category-icon img {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  filter: brightness(0) saturate(0) opacity(0.86);
-}
-html[data-theme="dark"] .category-icon img {
-  filter: brightness(0) invert(1) opacity(0.9);
-}
-.category-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
-.category-count { font-size: 12px; color: var(--text-muted); }
-
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .queue-item { border: 1px solid var(--border-light); border-radius: 9px; padding: 9px; margin-bottom: 8px; }
 
 @media (max-width: 1200px) {
   .split { grid-template-columns: 1fr; }
-  .category-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 760px) {
   .layout { grid-template-columns: 1fr; }
@@ -1075,7 +1036,6 @@ html[data-theme="dark"] .category-icon img {
   .main { padding: 16px; }
   .header { flex-direction: column; }
   .community-search-filters { justify-content: flex-end; }
-  .category-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ============================================================
@@ -1674,6 +1634,7 @@ html[data-theme="dark"] .ng-card-overlay { background: rgba(11, 18, 32, 0.42); }
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
+.set-input--err { border-color: var(--dot-red); box-shadow: 0 0 0 3px rgba(239,68,68,.18); }
 .set-textarea { width: 280px; height: auto; padding: 9px 11px; resize: vertical; line-height: 1.5; }
 .set-select { width: 200px; cursor: pointer; appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
@@ -1728,6 +1689,7 @@ html[data-theme="dark"] .ng-card-overlay { background: rgba(11, 18, 32, 0.42); }
 .btn--danger { border-color: rgba(239,68,68,.4); color: var(--dot-red); background: transparent; }
 .btn--danger:hover { background: var(--dot-red); border-color: var(--dot-red); color: #fff; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn[hidden] { display: none; }
 
 /* ── Section footer (save) ── */
 .settings-section-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
@@ -1735,6 +1697,17 @@ html[data-theme="dark"] .ng-card-overlay { background: rgba(11, 18, 32, 0.42); }
 .set-save-status[hidden] { display: none; }
 .set-save-status::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--dot-green)
   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/10px no-repeat; }
+
+/* ── Change-password reveal ── */
+.set-pw-fields { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; margin-top: 4px; border-top: 1px solid var(--border-light); }
+.set-pw-fields[hidden] { display: none; }
+.set-pw-field { display: flex; flex-direction: column; gap: 6px; }
+.set-pw-field .set-input { width: 320px; }
+.set-pw-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 2px; }
+.set-pw-msg { margin-right: auto; font-size: 12px; font-weight: 600; }
+.set-pw-msg[hidden] { display: none; }
+.set-pw-msg.err { color: var(--dot-red); }
+.set-pw-msg.ok { color: var(--dot-green); }
 
 /* ── Theme picker ── */
 .set-theme-options { display: flex; gap: 12px; flex-wrap: wrap; }

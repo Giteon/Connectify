@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="icons/logo.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/logo.png" />
   <title>Connectify — Welcome</title>
   <script>
     try {
@@ -265,6 +267,27 @@
           </button>
         </div>
       </section>
+
+      <!-- Final step: password (only shown when an account still needs
+           creating — i.e. the user signed up with just an email). The
+           controller removes this step entirely for already-logged-in
+           users or guests. -->
+      <section class="ob-step" data-step="password" data-mode="password">
+        <h2 class="ob-q">Last step — secure your account</h2>
+        <p class="ob-sub">Create a password for <strong data-signup-email>your account</strong>.</p>
+        <div class="ob-form">
+          <label class="ob-form-field">
+            <span class="ob-form-label">Create a password</span>
+            <input type="password" class="ob-form-input" data-input="password" name="password"
+                   minlength="8" placeholder="At least 8 characters" autocomplete="new-password" spellcheck="false" />
+            <div class="ob-pw-strength" data-strength hidden>
+              <span class="ob-pw-bar"><span class="ob-pw-fill" data-strength-fill></span></span>
+              <span class="ob-pw-label" data-strength-label></span>
+            </div>
+            <span class="ob-pw-hint" data-pw-hint></span>
+          </label>
+        </div>
+      </section>
     </div>
 
     <!-- ── Footer nav ─────────────────────────────────────────── -->
@@ -312,8 +335,35 @@
           })
         : 'graphs-hub.html?tab=dashboard&new=1';
 
-      const steps = Array.from(document.querySelectorAll('.ob-step'));
+      // ── Account context ──────────────────────────────────────
+      // The password step (and the account creation it drives) only
+      // applies to a user who signed up with just an email. We pull
+      // that email from sessionStorage (survives clean-URL redirects)
+      // with a query-param fallback.
+      const pendingEmail = (function() {
+        try {
+          const fromSession = sessionStorage.getItem('cfg.signup.email');
+          if (fromSession) return fromSession.trim();
+        } catch (_) {}
+        const e = params.get('email');
+        return e ? e.trim() : '';
+      })();
+      const alreadyLoggedIn = !!(Auth && typeof Auth.isLoggedIn === 'function' && Auth.isLoggedIn());
+      const needsPassword = !!pendingEmail && !alreadyLoggedIn;
+
+      let steps = Array.from(document.querySelectorAll('.ob-step'));
+      // Drop the password step unless we actually need to create an account.
+      const pwStepEl = steps.find(s => s.dataset.step === 'password');
+      if (!needsPassword && pwStepEl) {
+        pwStepEl.remove();
+        steps = steps.filter(s => s !== pwStepEl);
+      } else if (needsPassword) {
+        const emailSpan = document.querySelector('[data-signup-email]');
+        if (emailSpan) emailSpan.textContent = pendingEmail;
+      }
+
       const answers = {};
+      if (needsPassword) answers.password = '';
       let stepIdx = 0;
       let profileInteracted = false;
 
@@ -331,13 +381,16 @@
         backBtn.disabled = stepIdx === 0;
         const step = steps[stepIdx];
         if (stepIdx === steps.length - 1) {
-          nextBtn.textContent = 'Finish';
+          nextBtn.textContent = step.dataset.mode === 'password' ? 'Create account' : 'Finish';
         } else if (step.dataset.step === 'profile' && !profileInteracted) {
           nextBtn.textContent = 'Skip';
         } else {
           nextBtn.textContent = 'Next';
         }
         nextBtn.disabled = !hasAnswer(step);
+        // Hide the topnav "Skip for now" on the password step — it's the
+        // account commit, nothing to skip past.
+        if (skipBtn) skipBtn.hidden = step.dataset.mode === 'password';
       }
 
       function hasAnswer(step) {
@@ -347,6 +400,10 @@
         // Form mode is always satisfied — every input either has a default
         // (language) or is optional (name). The user can always proceed.
         if (step.dataset.mode === 'form') return true;
+        // Password step: requires a valid password.
+        if (step.dataset.mode === 'password') {
+          return !!(v && Auth && Auth.validators && Auth.validators.password(v).ok);
+        }
         return v != null && v !== '';
       }
 
@@ -414,6 +471,57 @@
         });
       });
 
+      // Wire the password step — live validation + strength meter.
+      (function wirePasswordStep() {
+        const step = steps.find(s => s.dataset.mode === 'password');
+        if (!step) return;
+        const inp = step.querySelector('[data-input="password"]');
+        const hint = step.querySelector('[data-pw-hint]');
+        const wrap = step.querySelector('[data-strength]');
+        const fillEl = step.querySelector('[data-strength-fill]');
+        const labelEl = step.querySelector('[data-strength-label]');
+        if (!inp) return;
+
+        const LABELS = ['Weak', 'Weak', 'Okay', 'Good', 'Strong', 'Strong'];
+        const KLASS = ['weak', 'weak', 'ok', 'good', 'strong', 'strong'];
+
+        function render() {
+          const v = inp.value;
+          answers.password = v;
+          const res = (Auth && Auth.validators)
+            ? Auth.validators.password(v)
+            : { ok: false, strength: 0, msg: '' };
+          if (wrap) {
+            if (!v) {
+              wrap.hidden = true;
+            } else {
+              wrap.hidden = false;
+              const score = Math.min(5, res.strength || 0);
+              if (fillEl) {
+                fillEl.style.width = Math.max(8, (score / 5) * 100) + '%';
+                fillEl.className = 'ob-pw-fill is-' + KLASS[score];
+              }
+              if (labelEl) {
+                labelEl.textContent = LABELS[score];
+                labelEl.className = 'ob-pw-label is-' + KLASS[score];
+              }
+            }
+          }
+          if (hint) {
+            hint.classList.remove('is-error');
+            hint.textContent = (v && !res.ok) ? res.msg : '';
+          }
+          updateProgress();
+        }
+        inp.addEventListener('input', render);
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (!nextBtn.disabled) nextBtn.click();
+          }
+        });
+      })();
+
       backBtn.addEventListener('click', () => {
         if (stepIdx > 0) showStep(stepIdx - 1);
       });
@@ -422,16 +530,55 @@
         if (stepIdx < steps.length - 1) showStep(stepIdx + 1);
         else finish({ skipped: false });
       });
-      skipBtn.addEventListener('click', () => finish({ skipped: true }));
+      skipBtn.addEventListener('click', () => {
+        // When an account still needs creating, "Skip for now" skips the
+        // questionnaire but jumps to the password step — the user still
+        // sets a password to finish creating their account.
+        if (needsPassword) {
+          const pwIdx = steps.findIndex(s => s.dataset.mode === 'password');
+          if (pwIdx >= 0 && stepIdx !== pwIdx) { showStep(pwIdx); return; }
+          return;
+        }
+        finish({ skipped: true });
+      });
 
       // ── Personalization animation + redirect ────────────────
       // Long enough to feel like real setup work without dragging.
       // Status lines rotate through to suggest behind-the-scenes work.
-      function finish({ skipped }) {
+      async function finish({ skipped }) {
+        // Create the account first if we're carrying a pending signup
+        // email. The password lives in answers.password (validated by the
+        // password step). On failure we surface the error and bounce back.
+        if (needsPassword) {
+          const pw = answers.password;
+          if (!pw || !(Auth && Auth.validators && Auth.validators.password(pw).ok)) {
+            const pwIdx = steps.findIndex(s => s.dataset.mode === 'password');
+            if (pwIdx >= 0) showStep(pwIdx);
+            return;
+          }
+          nextBtn.disabled = true;
+          try {
+            await Auth.signup({ email: pendingEmail, password: pw });
+            try { sessionStorage.removeItem('cfg.signup.email'); } catch (_) {}
+          } catch (err) {
+            nextBtn.disabled = false;
+            const pwIdx = steps.findIndex(s => s.dataset.mode === 'password');
+            if (pwIdx >= 0) showStep(pwIdx);
+            const hint = document.querySelector('[data-pw-hint]');
+            if (hint) {
+              hint.textContent = (err && err.message) || 'Could not create your account.';
+              hint.classList.add('is-error');
+            }
+            return;
+          }
+        }
+
         // Persist what we have (even partial) so it's still useful if
-        // the user came back through here.
+        // the user came back through here. Never store the raw password.
         if (Auth && typeof Auth.setOnboarding === 'function') {
-          Auth.setOnboarding(Object.assign({}, answers, { skipped: !!skipped }));
+          const toSave = Object.assign({}, answers);
+          delete toSave.password;
+          Auth.setOnboarding(Object.assign(toSave, { skipped: !!skipped }));
         }
         const overlay = document.getElementById('obFinish');
         const status = document.getElementById('obFinishStatus');

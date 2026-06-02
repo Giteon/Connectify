@@ -754,6 +754,70 @@
     color: var(--text-muted);
   }
 
+  /* ── Add-Custom modal, step 2 (upload + inferred ports) ── */
+  .ac-up { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .ac-back {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    background: transparent; border: none; cursor: pointer; font-family: inherit;
+    font-size: 12.5px; color: var(--text-muted); padding: 2px 0;
+  }
+  .ac-back:hover { color: var(--text-primary); }
+  .ac-back svg { width: 14px; height: 14px; }
+  .ac-back em { font-style: normal; font-weight: 600; color: var(--text-primary); text-transform: capitalize; }
+
+  .ac-drop {
+    display: grid; place-items: center; gap: 6px; text-align: center;
+    border: 1.5px dashed var(--border); border-radius: 10px;
+    padding: 22px 14px; cursor: pointer; background: var(--bg);
+    transition: border-color .12s, background .12s;
+  }
+  .ac-drop:hover, .ac-drop.dragover { border-color: var(--primary); background: var(--surface); }
+  .ac-drop.has-file { border-style: solid; border-color: var(--primary); }
+  .ac-drop svg { width: 22px; height: 22px; color: var(--text-muted); }
+  .ac-drop.has-file svg { color: var(--primary); }
+  .ac-drop-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .ac-drop-sub { font-size: 11px; color: var(--text-muted); }
+
+  .ac-field { display: flex; flex-direction: column; gap: 5px; }
+  .ac-field label { font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+  .ac-field input {
+    font-family: inherit; font-size: 13px; color: var(--text-primary);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 10px; outline: none;
+  }
+  .ac-field input:focus { border-color: var(--primary); }
+
+  .ac-preview {
+    border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 12px; background: var(--bg); display: flex; flex-direction: column; gap: 9px;
+  }
+  .ac-preview-detail { font-size: 11.5px; color: var(--text-muted); }
+  .ac-preview-ports { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ac-port-head {
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text-muted); margin-bottom: 5px;
+  }
+  .ac-port-list { display: flex; flex-direction: column; gap: 4px; }
+  .ac-port-row {
+    display: flex; align-items: center; gap: 6px; justify-content: space-between;
+    font-size: 12px; color: var(--text-primary);
+  }
+  .ac-port-row .ac-port-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ac-port-row .ac-port-type {
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 9px;
+    background: var(--primary-soft); color: var(--primary); flex-shrink: 0;
+  }
+  .ac-port-empty { font-size: 11.5px; color: var(--text-muted); font-style: italic; }
+
+  .ac-actions { display: flex; justify-content: flex-end; }
+  .ac-add-btn {
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer;
+    background: var(--primary); color: #fff;
+  }
+  .ac-add-btn:disabled { opacity: .5; cursor: default; }
+  .ac-add-btn:not(:disabled):hover { filter: brightness(1.05); }
+
   /* Generic list cards used inside drawers (Discover, History, Paths, etc.) */
   .item-card {
     border: 1px solid var(--border); border-radius: 9px;
@@ -2053,9 +2117,18 @@
     opacity: 0.38;
     filter: grayscale(0.65) saturate(0.65);
   }
+  .node.find-match-active {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.55), 0 12px 28px rgba(37,99,235,0.20);
+    z-index: 5;
+  }
   html[data-theme="dark"] .node.find-match {
     border-color: #60a5fa;
     box-shadow: 0 0 0 2px rgba(96,165,250,0.38), 0 8px 24px rgba(2,6,23,0.55);
+  }
+  html[data-theme="dark"] .node.find-match-active {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(147,197,253,0.6), 0 12px 30px rgba(2,6,23,0.6);
   }
   @keyframes findNodeDance {
     0%, 100%   { transform: scale(1); filter: brightness(1); }
@@ -2069,87 +2142,6 @@
   .node.dragging { box-shadow: 0 8px 24px rgba(15,23,42,0.12); }
 
   .node-head:active { cursor: grabbing; }
-
-  /* Start/End role badges — sit fully above the card with a small gap, with
-     a downward notch (::after) pointing at the card so it reads as "this tag
-     labels the node below". Left-aligned to avoid colliding with the top-right
-     "New" pill. Manual marks render solid; auto-inferred uses .auto for a
-     dashed border + lighter fill (more "tentative" than "washed out"). */
-  .node-role-badges {
-    position: absolute; bottom: calc(100% + 8px); left: 4px;
-    display: flex; gap: 6px; pointer-events: none; z-index: 2;
-  }
-  .node-role-badge {
-    position: relative;
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px; font-size: 11.5px; font-weight: 600;
-    line-height: 1.1; letter-spacing: 0.1px;
-    border-radius: 6px; border: 1px solid transparent;
-    box-shadow: 0 2px 5px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.06);
-    pointer-events: auto; cursor: grab; user-select: none;
-    transition: transform 0.1s, box-shadow 0.1s;
-  }
-  .node-role-badge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(15,23,42,0.16), 0 2px 4px rgba(15,23,42,0.08);
-  }
-  .node-role-badge:active { cursor: grabbing; }
-  .node-role-badge .role-glyph {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 9px; height: 9px; flex-shrink: 0;
-  }
-  /* Downward notch pointing at the card. Drawn as a rotated square so it
-     inherits the badge's background + border-color seamlessly. */
-  .node-role-badge::after {
-    content: ''; position: absolute;
-    left: 12px; bottom: -4px; width: 7px; height: 7px;
-    background: inherit;
-    border-right: 1px solid; border-bottom: 1px solid;
-    border-color: inherit;
-    transform: rotate(45deg);
-  }
-  /* Drag state — when dragging, hide the original in place so the ghost
-     (a fully-opaque clone in <body>) reads as the actual tag being lifted. */
-  .node-role-badge.dragging { visibility: hidden; }
-
-  /* Ghost badge that follows the cursor during a drag transfer. Full opacity
-     so it looks like the real tag being carried, with a slightly lifted
-     shadow to suggest depth. The downward notch is suppressed since the
-     ghost isn't anchored to any card. */
-  .node-role-badge-ghost {
-    position: fixed; pointer-events: none; z-index: 9999;
-    transform: translate(-50%, -50%) scale(1.05);
-    box-shadow: 0 8px 20px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.12);
-  }
-  .node-role-badge-ghost::after { display: none; }
-
-  /* Drop-target highlight on candidate nodes during a role drag. */
-  .node.role-drop-candidate {
-    outline: 2px dashed var(--primary); outline-offset: 3px;
-  }
-  .node.role-drop-hover {
-    outline-style: solid;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.18), 0 8px 22px rgba(15,23,42,0.10);
-  }
-
-  /* Manual marks — solid, saturated. */
-  .node-role-badge.start { background: #16a34a; color: #fff; border-color: #15803d; }
-  .node-role-badge.end   { background: #dc2626; color: #fff; border-color: #b91c1c; }
-  /* Auto-inferred — dashed border + lighter fill, dark text for legibility. */
-  .node-role-badge.auto.start {
-    background: #dcfce7; color: #15803d; border-color: #16a34a; border-style: dashed;
-  }
-  .node-role-badge.auto.end {
-    background: #fee2e2; color: #b91c1c; border-color: #dc2626; border-style: dashed;
-  }
-  html[data-theme="dark"] .node-role-badge.start { background: #15803d; border-color: #166534; }
-  html[data-theme="dark"] .node-role-badge.end   { background: #b91c1c; border-color: #991b1b; }
-  html[data-theme="dark"] .node-role-badge.auto.start {
-    background: rgba(22,163,74,0.18); color: #4ade80; border-color: #16a34a;
-  }
-  html[data-theme="dark"] .node-role-badge.auto.end {
-    background: rgba(220,38,38,0.18); color: #f87171; border-color: #dc2626;
-  }
 
   /* Inspector "Role" section chips — checkbox-style toggles for start/end. */
   .role-chip {

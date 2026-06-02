@@ -42,7 +42,7 @@
       phase: 'hub',
       title: 'Preview the Tutorial Graph',
       text:
-        "This is a small graph built for first-time users. Click its Preview button to see how a graph looks before you build your own.",
+        "Preview this starter graph to see what's possible.",
       onBeforeShow: () => {
         try {
           const openFn = window.openNewGraphModal_ || null;
@@ -83,11 +83,11 @@
       phase: 'view',
       title: 'Fork to make it yours',
       text:
-        "View mode is read-only. Click Fork to create your own editable copy — we'll drop you straight onto the canvas.",
+        "Fork to create your own editable copy.",
       selector: '#forkBtn',
       position: 'right',
       highlightPadding: 6,
-      video: 'images/videos/fork-project.mp4',
+      video: 'images/videos/fork%20(zoomed).mp4',
       videoZoom: 2,
       // Advance the moment Fork is clicked (the fork + redirect happen next).
       actionTrigger: 'fork-clicked',
@@ -99,7 +99,7 @@
       phase: 'edit',
       title: 'Welcome to the canvas',
       text:
-        "This is your editing canvas. Nodes are connected by edges that carry data. Pan by dragging and zoom with scroll. Let's finish building this pipeline, then run it.",
+        "Pan by dragging, zoom with scroll. Let's build and run this pipeline.",
       selector: '#canvasArea',
       position: 'center',
       highlight: 'none',
@@ -111,7 +111,7 @@
       phase: 'edit',
       title: 'Open the catalog',
       text:
-        "This graph still needs an input. Click the Dataset tool in the palette to open the catalog drawer.",
+        "Click Dataset to open the catalog.",
       selector: '#fpDataset',
       position: 'right',
       highlightPadding: 4,
@@ -123,7 +123,7 @@
       phase: 'edit',
       title: "Add the dataset",
       text:
-        "Click Add on the Sample Dataset — it drops onto the canvas, tagged as your Start node, and its Inspector opens automatically.",
+        "Click Add on the Sample Dataset.",
       // Safety: make sure the Datasets tab is showing even if the drawer was
       // toggled. (No-op if it's already there.)
       onBeforeShow: () => { try { H() && H().openDatasetCatalog(); } catch (_) {} },
@@ -143,7 +143,7 @@
       phase: 'edit',
       title: 'The Inspector',
       text:
-        "Adding a node opens its Inspector automatically — your home for a node's config, run data, and variables. Reopen it any time by clicking a node, or via the tab on the right edge.",
+        "The Inspector shows a node's config and run data. Click any node to reopen it.",
       // Collapse the catalog now that the dataset is placed. Don't dim the
       // canvas here, so the dataset the user just added stays bright.
       onBeforeShow: () => { try { H() && H().closeLeftDrawer(); } catch (_) {} },
@@ -159,7 +159,7 @@
       phase: 'edit',
       title: 'Chain them up',
       text:
-        "Drag from the new dataset's output anchor to the transformer model's input anchor to connect them, like this:",
+        "Drag from dataset output to transformer input.",
       onBeforeShow: () => {
         try {
           const h = H(); if (!h) return;
@@ -195,7 +195,7 @@
       phase: 'edit',
       title: "Let's run an experiment",
       text:
-        "Now make a path — the slice of the graph you want to run. Click the Path tool in the toolbar to start tracing.",
+        "Click Path to trace a slice of the graph.",
       selector: '#fpPath',
       position: 'right',
       highlightPadding: 4,
@@ -206,7 +206,7 @@
       phase: 'edit',
       title: 'Click along the path',
       text:
-        "Click the highlighted node to add it to the path. Work left to right through all three nodes — the dataset first, then each one downstream.",
+        "Click highlighted nodes left-to-right.",
       onBeforeShow: () => {
         try {
           global._tutorialPathStepActive = true;
@@ -234,7 +234,7 @@
       phase: 'edit',
       title: 'Save the path',
       text:
-        "All three nodes are chained. Click Save path to keep this trace so you can run and re-run it as an experiment.",
+        "Click Save path.",
       selector: () => {
         const btns = Array.from(document.querySelectorAll('[data-pd-act="save"]'));
         return btns.find(b => b.getBoundingClientRect().width > 0) || btns[0] ||
@@ -249,7 +249,7 @@
       phase: 'edit',
       title: 'Run it',
       text:
-        "Now click Run to execute your path. Watch the edges animate as data flows through the graph.",
+        "Click Run to execute the path.",
       selector: '#runBtn',
       position: 'bottom',
       highlightPadding: 4,
@@ -262,7 +262,7 @@
       phase: 'edit',
       title: 'Your run is underway',
       text:
-        "The Runs panel peeks up from the bottom while your run progresses. When it finishes, it grows to full height automatically.",
+        "Results appear here as the pipeline executes.",
       onBeforeShow: () => { try { H() && H().ensureRunsOpen(); } catch (_) {} },
       selector: () => document.getElementById('bottomPanel'),
       position: 'top',
@@ -276,7 +276,7 @@
       phase: 'edit',
       title: 'Run summary',
       text:
-        "Here's the output of your run — accuracy, F1, loss, and the per-class breakdown. Every run you kick off is saved with results like these.",
+        "View your metrics and results.",
       // Spotlight the expanded drawer; tooltip sits at the page top-left.
       selector: () => document.getElementById('bottomPanel'),
       position: 'page-top-left',
@@ -287,7 +287,7 @@
       phase: 'edit',
       title: 'Close the Runs panel',
       text:
-        "When you're done reviewing, close the panel with the × in its top-right corner to get your canvas back.",
+        "Close with the × button.",
       selector: () => document.getElementById('bpClose'),
       position: 'left',
       highlightPadding: 6,
@@ -300,7 +300,7 @@
       phase: 'edit',
       title: 'Create a subgroup',
       text:
-        'Subgroups keep related nodes together. Click the Subgroup tool in the palette to start.',
+        'Click Subgroup to organize nodes.',
       selector: '#fpMarquee',
       position: 'right',
       highlightPadding: 4,
@@ -311,7 +311,7 @@
       phase: 'edit',
       title: 'Draw a subgroup',
       text:
-        'Drag a box around all three nodes to select them, then confirm the subgroup — like this:',
+        'Drag a box to select nodes, then confirm.',
       selector: () => document.getElementById('canvasArea'),
       position: 'top-left',
       highlight: 'none',
@@ -326,7 +326,7 @@
       phase: 'edit',
       title: 'Collapse the subgroup',
       text:
-        "Nice — that's your subgroup. Click the collapse toggle on its header to tuck the nodes away into a single tidy block.",
+        "Click the collapse toggle.",
       selector: () => {
         const boxes = document.querySelectorAll('.subgraph-box');
         const box = boxes.length ? boxes[boxes.length - 1] : null;
@@ -344,7 +344,7 @@
       phase: 'edit',
       title: 'Make a variant',
       text:
-        "Variants are parallel copies of your graph for ablation studies — tweak one thing, run it, and compare. Open the variants row in the top bar if it's collapsed, then click + to spin up a fresh one.",
+        "Variants let you A/B test ideas. Click + to create one.",
       onBeforeShow: () => { try { H() && H().openVariantRow(); } catch (_) {} },
       selector: () => document.getElementById('variantAdd'),
       position: 'bottom',
@@ -356,7 +356,7 @@
       phase: 'edit',
       title: 'Open version history',
       text:
-        "Version history lets you save and revert snapshots of your graph. Click History in the top bar to open it.",
+        "Click History to save snapshots.",
       selector: () => document.getElementById('tbHistoryBtn'),
       position: 'bottom',
       highlightPadding: 6,
@@ -367,7 +367,7 @@
       phase: 'edit',
       title: 'Save a snapshot',
       text:
-        "Now click Save snapshot to capture this moment. You can always revert to it later.",
+        "Click Save snapshot.",
       selector: () => document.getElementById('historySave'),
       position: 'right',
       highlightPadding: 6,
@@ -383,7 +383,7 @@
       phase: 'edit',
       title: "You're all set!",
       text:
-        "You've previewed, forked, built a pipeline, run an experiment, and organized it. Explore more node types, paths, and collaborators when you're ready.",
+        "You've completed the tour! Explore more when ready.",
       selector: null,
       position: 'center',
       highlight: 'none',

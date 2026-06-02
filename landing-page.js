@@ -680,4 +680,19 @@
       });
     });
   })();
+
+  /* Stash graphs-hub tab before navigation — clean-URL static servers may drop ?tab=. */
+  (function wireHubTabNavHints() {
+    const KEY = 'cfg.navHint.hubTab';
+    const VALID = new Set(['dashboard', 'community', 'settings', 'my-team']);
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href*="graphs-hub"]');
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/[?&]tab=([^&]+)/);
+      if (m && VALID.has(m[1])) {
+        try { sessionStorage.setItem(KEY, m[1]); } catch (_) {}
+      }
+    }, true);
+  })();
 })();

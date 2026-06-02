@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="icons/logo.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/logo.png" />
   <title>ConnectifyAI — Build. Collaborate. Accelerate science.</title>
   <script>
     /* Light mode is the landing page default. Honors a stored `cfg.theme`
@@ -14,7 +16,7 @@
     } catch (_) {}
   </script>
   <link rel="stylesheet" href="theme.css" />
-  <link rel="stylesheet" href="landing-page.css" />
+  <link rel="stylesheet" href="landing-page.css?v=8" />
   <link rel="stylesheet" href="nav-dropdown.css" />
 </head>
 <body>
@@ -138,12 +140,25 @@
         <span class="lp-tour-toggle-dot" aria-hidden="true"></span>
         <span class="lp-tour-toggle-label">Tour: <span data-tour-state>ON</span></span>
       </button>
-      <a class="lp-btn lp-btn-ghost" href="auth.html" id="lpLoginBtn">Log in / Sign up</a>
+      <button type="button" class="lp-btn lp-btn-ghost" id="lpLoginBtn">Log in / Sign up</button>
       <a class="lp-btn lp-btn-primary" href="graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
     </div>
   </header>
 
   <main class="lp-main">
+    <div class="lp-flow" aria-hidden="true">
+      <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice">
+        <path class="lp-flow-edge" d="M -40 140 C 280 120, 360 360, 700 340 S 1180 120, 1500 220" />
+        <path class="lp-flow-edge" d="M -40 480 C 300 520, 420 300, 720 320 S 1160 540, 1500 460" />
+        <path class="lp-flow-edge" d="M 200 -40 C 320 220, 620 260, 740 460 S 1080 660, 1180 740" />
+        <path class="lp-flow-edge" d="M 1500 80 C 1180 200, 1020 420, 720 380 S 260 520, -40 360" />
+
+        <path class="lp-flow-pulse" d="M -40 140 C 280 120, 360 360, 700 340 S 1180 120, 1500 220" />
+        <path class="lp-flow-pulse lp-flow-pulse--2" d="M -40 480 C 300 520, 420 300, 720 320 S 1160 540, 1500 460" />
+        <path class="lp-flow-pulse lp-flow-pulse--3" d="M 200 -40 C 320 220, 620 260, 740 460 S 1080 660, 1180 740" />
+        <path class="lp-flow-pulse lp-flow-pulse--4" d="M 1500 80 C 1180 200, 1020 420, 720 380 S 260 520, -40 360" />
+      </svg>
+    </div>
     <aside class="lp-toolbar" id="lpToolbar" aria-label="Demo controls">
       <button type="button" class="lp-toolbar-btn" data-tool="shuffle" aria-label="Shuffle headline">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M16 21h5v-5"/><path d="M21 21l-7-7"/><path d="M3 3l7 7"/><path d="M3 21l7-7"/></svg>
@@ -176,7 +191,7 @@
       </div>
 
       <p class="lp-subhead">
-        Collaborate on groundbreaking research and accelerate science.
+        Build. Collaborate. Accelerate science.
       </p>
       <div class="lp-hero-cta">
         <a class="lp-btn lp-btn-primary lp-btn-lg" href="graphs-hub.html?tab=dashboard&amp;new=1">Start building</a>
@@ -457,7 +472,7 @@
               Share runs with collaborators
             </li>
           </ul>
-          <a class="lp-btn lp-btn-primary lp-btn-lg lp-price-cta" href="graphs-hub.html?tab=dashboard&amp;credits=1">Buy credits</a>
+          <a class="lp-btn lp-btn-primary lp-btn-lg lp-price-cta" id="lpBuyCreditsBtn" href="graphs-hub.html?tab=dashboard">Buy credits</a>
         </div>
       </div>
       <p class="lp-pricing-footnote">
@@ -511,40 +526,163 @@
       </div>
       <div class="lp-footer-col">
         <h4 class="lp-footer-title">Legal</h4>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms of Service</a>
+        <a href="/docs/legal/privacy-policy.html">Privacy Policy</a>
+        <a href="/docs/legal/terms-of-service.html">Terms of Service</a>
       </div>
     </div>
     <div class="lp-footer-bottom">
       <p>&copy; 2026 ConnectifyAI. All rights reserved.</p>
-      <div class="lp-footer-socials">
+      <!-- <div class="lp-footer-socials">
         <a href="https://github.com" aria-label="GitHub" target="_blank">GitHub</a>
         <a href="https://twitter.com" aria-label="Twitter" target="_blank">Twitter</a>
         <a href="https://discord.com" aria-label="Discord" target="_blank">Discord</a>
-      </div>
+      </div> -->
     </div>
   </footer>
+
+  <!-- ─────────────────────────────────────────────────────
+       "Start building" choice modal
+       Intercepts Start-building CTAs for logged-out visitors and
+       offers two equally-weighted paths: create an account, or
+       jump straight in as a guest.
+       ───────────────────────────────────────────────────── -->
+  <div class="lp-start-modal" id="lpStartModal" hidden>
+    <div class="lp-start-backdrop" data-close></div>
+    <div class="lp-start-card" role="dialog" aria-modal="true" aria-labelledby="lpStartTitle">
+      <button type="button" class="lp-start-x" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h2 class="lp-start-title" id="lpStartTitle">Let's get you building</h2>
+      <p class="lp-start-sub">Create an account to save and sync your work — or dive straight in. You can always sign up later.</p>
+      <div class="lp-start-options">
+        <button type="button" class="lp-start-option" data-choice="account">
+          <span class="lp-start-option-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span class="lp-start-option-title">Log in or sign up</span>
+          <span class="lp-start-option-desc">Save your graphs and pick up on any device.</span>
+        </button>
+        <button type="button" class="lp-start-option" data-choice="guest">
+          <span class="lp-start-option-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          </span>
+          <span class="lp-start-option-title">Continue as a guest</span>
+          <span class="lp-start-option-desc">Start building now. Your work stays in this browser.</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="landing-page.js"></script>
   <script src="nav-dropdown.js"></script>
   <script src="auth.js"></script>
   <script>
-    /* When the visitor is already logged in, the topbar "Login" link is
-       redundant — swap it for a chip that links straight into the hub so
-       returning users don't need to round-trip through auth.html. The
-       primary CTAs ("Start building") always navigate; no auth-gating. */
+    /* Logged-in topnav: avatar + name chip with account menu (auth.js). */
+    if (window.ConnectifyAuth && typeof window.ConnectifyAuth.wireLandingAuth === 'function') {
+      window.ConnectifyAuth.wireLandingAuth();
+    }
+
+    /* "Buy credits" pricing CTA → stash the purchase intent in localStorage
+       BEFORE navigating. The hub reads this flag on load and opens the credits
+       modal in buy mode. We can't pass intent via the URL: this static host's
+       clean-URL redirect (.html → extensionless) drops the query string. The
+       href still points at the hub so the link degrades gracefully if JS is off. */
     (function() {
-      const Auth = window.ConnectifyAuth;
-      if (!Auth) return;
-      const user = Auth.getCurrentUser();
-      const btn = document.getElementById('lpLoginBtn');
-      if (user && btn) {
-        btn.textContent = user.username || user.name || user.email;
-        btn.title = `Signed in as ${user.email}`;
-        btn.href = 'graphs-hub.html?tab=dashboard';
-        btn.removeAttribute('id');
-      }
+      const buyBtn = document.getElementById('lpBuyCreditsBtn');
+      if (!buyBtn) return;
+      buyBtn.addEventListener('click', () => {
+        try { localStorage.setItem('cfg.credits.intent', 'buy'); } catch (_) {}
+      });
     })();
-  </script>
+
+    /* ── "Start building" choice modal ─────────────────────────
+       For logged-out visitors, intercept the Start-building CTAs
+       (any ?new=1 link) and offer a choice: create an account or
+       continue as a guest. Logged-in users skip the modal and go
+       straight to the hub. Both paths pre-arm the onboarding tour
+       (when enabled) and stash the hub-tab nav hint, mirroring the
+       behavior of the existing landing-page.js click handlers. */
+    (function startBuildingChoice() {
+      const Auth = window.ConnectifyAuth;
+      const modal = document.getElementById('lpStartModal');
+      if (!modal) return;
+      const TARGET = 'graphs-hub.html?tab=dashboard&new=1';
+      const STATE_KEY = 'cfg.tutorialState';
+
+      function tourOn() {
+        try {
+          const raw = localStorage.getItem(STATE_KEY);
+          if (!raw) return true;
+          const s = JSON.parse(raw);
+          return !(s.skipped || s.completed);
+        } catch (_) { return true; }
+      }
+      function preArmTour() {
+        if (!tourOn()) return;
+        try {
+          localStorage.setItem(STATE_KEY, JSON.stringify({
+            started: true, currentStep: 1, completedSteps: [],
+            skipped: false, completed: false, lastActivity: Date.now(),
+          }));
+        } catch (_) {}
+      }
+      function setHubHint() {
+        try { sessionStorage.setItem('cfg.navHint.hubTab', 'dashboard'); } catch (_) {}
+      }
+
+      let lastFocus = null;
+      function open() {
+        lastFocus = document.activeElement;
+        modal.hidden = false;
+        requestAnimationFrame(() => modal.classList.add('is-open'));
+        document.addEventListener('keydown', onKey, true);
+        const first = modal.querySelector('.lp-start-option');
+        if (first) first.focus();
+      }
+      function close() {
+        modal.classList.remove('is-open');
+        document.removeEventListener('keydown', onKey, true);
+        setTimeout(() => { modal.hidden = true; }, 180);
+        if (lastFocus && typeof lastFocus.focus === 'function') {
+          try { lastFocus.focus(); } catch (_) {}
+        }
+      }
+      function onKey(e) { if (e.key === 'Escape') close(); }
+
+      function goGuest() {
+        setHubHint();
+        preArmTour();
+        location.href = TARGET;
+      }
+      function goAccount() {
+        setHubHint();
+        preArmTour();
+        if (Auth && typeof Auth.navigateToAuth === 'function') {
+          Auth.navigateToAuth('signup', TARGET);
+        } else {
+          location.href = 'auth.html?view=signup&return=' + encodeURIComponent(TARGET);
+        }
+      }
+
+      // Capture-phase interception so we can stop the existing
+      // pre-arm/nav-hint handlers from also firing on the same click.
+      document.addEventListener('click', (e) => {
+        const a = e.target.closest('a[href*="new=1"]');
+        if (!a) return;
+        if (Auth && typeof Auth.isLoggedIn === 'function' && Auth.isLoggedIn()) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        open();
+      }, true);
+
+      modal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-close]')) { close(); return; }
+        const opt = e.target.closest('.lp-start-option');
+        if (!opt) return;
+        if (opt.dataset.choice === 'guest') goGuest();
+        else goAccount();
+      });
+    })();
+</script>
 </body>
 </html>

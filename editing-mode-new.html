@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="icons/logo.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/logo.png" />
   <title>ConnectifyAI — Editing (new)</title>
   <script>
     /* Pre-paint theme + leftnav state so the page doesn't flash before JS runs.
@@ -342,6 +344,13 @@
       <svg class="find-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <input type="text" id="findInput" placeholder="Find a node by name…" />
       <span class="fc" id="findCount"></span>
+      <button id="findPrev" aria-label="Previous match" title="Previous match (⇧⏎)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+      </button>
+      <button id="findNext" aria-label="Next match" title="Next match (⏎)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <span class="find-sep"></span>
       <button id="findClose" aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -526,35 +535,78 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
-    <div class="add-custom-grid">
-      <button type="button" class="add-custom-opt" data-kind="model">
-        <span class="add-custom-ico" data-kind="model">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
-        </span>
-        <span class="add-custom-label">Model</span>
-        <span class="add-custom-desc">An ML model — local file or hosted weights.</span>
-      </button>
-      <button type="button" class="add-custom-opt" data-kind="dataset">
-        <span class="add-custom-ico" data-kind="dataset">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
-        </span>
-        <span class="add-custom-label">Dataset</span>
-        <span class="add-custom-desc">A file, table, or batch of records.</span>
-      </button>
-      <button type="button" class="add-custom-opt" data-kind="logic">
-        <span class="add-custom-ico" data-kind="logic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        </span>
-        <span class="add-custom-label">Logic</span>
-        <span class="add-custom-desc">A function or transform written in code.</span>
-      </button>
-      <button type="button" class="add-custom-opt" data-kind="endpoint">
-        <span class="add-custom-ico" data-kind="endpoint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
-        </span>
-        <span class="add-custom-label">Endpoint</span>
-        <span class="add-custom-desc">An external HTTP API or hosted service.</span>
-      </button>
+    <!-- Step 1: pick the kind -->
+    <div class="add-custom-step" data-step="kind">
+      <div class="add-custom-grid">
+        <button type="button" class="add-custom-opt" data-kind="model">
+          <span class="add-custom-ico" data-kind="model">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
+          </span>
+          <span class="add-custom-label">Model</span>
+          <span class="add-custom-desc">An ML model — local file or hosted weights.</span>
+        </button>
+        <button type="button" class="add-custom-opt" data-kind="dataset">
+          <span class="add-custom-ico" data-kind="dataset">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+          </span>
+          <span class="add-custom-label">Dataset</span>
+          <span class="add-custom-desc">A file, table, or batch of records.</span>
+        </button>
+        <button type="button" class="add-custom-opt" data-kind="logic">
+          <span class="add-custom-ico" data-kind="logic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </span>
+          <span class="add-custom-label">Logic</span>
+          <span class="add-custom-desc">A function or transform written in code.</span>
+        </button>
+        <button type="button" class="add-custom-opt" data-kind="endpoint">
+          <span class="add-custom-ico" data-kind="endpoint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+          </span>
+          <span class="add-custom-label">Endpoint</span>
+          <span class="add-custom-desc">An external HTTP API or hosted service.</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: upload a file; we infer ports from it -->
+    <div class="add-custom-step" data-step="upload" hidden>
+      <div class="ac-up">
+        <button type="button" class="ac-back" id="acBack">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Custom <em id="acKindName">model</em></span>
+        </button>
+
+        <label class="ac-drop" id="acDrop">
+          <input type="file" id="acFileInput" hidden />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div class="ac-drop-title" id="acDropTitle">Drop a file or click to browse</div>
+          <div class="ac-drop-sub" id="acDropSub">CSV, JSON, .py, .pt — we’ll infer the ports</div>
+        </label>
+
+        <div class="ac-field">
+          <label for="acName">Name</label>
+          <input type="text" id="acName" placeholder="My custom node" autocomplete="off" />
+        </div>
+
+        <div class="ac-preview" id="acPreview" hidden>
+          <div class="ac-preview-detail" id="acPreviewDetail"></div>
+          <div class="ac-preview-ports">
+            <div class="ac-port-col">
+              <div class="ac-port-head">Inputs</div>
+              <div class="ac-port-list" id="acPreviewInputs"></div>
+            </div>
+            <div class="ac-port-col">
+              <div class="ac-port-head">Outputs</div>
+              <div class="ac-port-list" id="acPreviewOutputs"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ac-actions">
+          <button type="button" class="ac-add-btn" id="acAddBtn" disabled>Add to canvas</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -768,10 +820,12 @@
 <script src="catalog-data.js"></script>
 <script src="static-graph-loader.js"></script>
 <script src="leftnav.js"></script>
+<script src="command-palette.js"></script>
 <script src="auth.js"></script>
 <script src="tutorial-system.js"></script>
 <script src="tutorial-steps.js"></script>
-<script src="editing-mode.js?v=13"></script>
+<script src="custom-node-detect.js"></script>
+<script src="editing-mode.js?v=15"></script>
 
 <script src="theme.js"></script>
 

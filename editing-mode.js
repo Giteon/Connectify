@@ -362,8 +362,30 @@ function readJSON(key, fallback) {
 function writeJSON(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
 }
+function _resolveProjectDisplayTitle(P) {
+  try {
+    const saved = localStorage.getItem(KEY.projectTitle);
+    if (saved && saved.trim()) return saved.trim();
+  } catch (_) {}
+  if (P) {
+    const fromProject = String(P.title || P.name || '').trim();
+    if (fromProject) return fromProject;
+  }
+  try {
+    const raw = localStorage.getItem('cfg.customProjects');
+    const rows = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(rows)) {
+      const row = rows.find(r => r && r.slug === slug);
+      if (row) {
+        const fromRow = (row.title || (row.project && row.project.title) || '').trim();
+        if (fromRow) return fromRow;
+      }
+    }
+  } catch (_) {}
+  return '';
+}
 function _setProjectTitleUi(name) {
-  const safe = (String(name || '').trim() || 'Untitled graph');
+  const safe = (String(name || '').trim() || 'Untitled project');
   const el = document.getElementById('bcProject');
   if (el) el.textContent = safe;
   const ptName = document.getElementById('ptName');
@@ -373,7 +395,7 @@ function _setProjectTitleUi(name) {
   document.title = 'ConnectifyAI — ' + safe + ' (Editing, new)';
 }
 function _persistProjectTitle(name) {
-  const safe = (String(name || '').trim() || 'Untitled graph');
+  const safe = (String(name || '').trim() || 'Untitled project');
   try { localStorage.setItem(KEY.projectTitle, safe); } catch (_) { /* storage */ }
   if (window.PROJECT) window.PROJECT.title = safe;
   if (IS_CUSTOM_PROJECT) {
@@ -400,7 +422,7 @@ function initProjectTitleRename() {
     const start = (e) => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
       if (nameEl.isContentEditable) return;
-      const original = (nameEl.textContent || '').trim() || 'Untitled graph';
+      const original = (nameEl.textContent || '').trim() || 'Untitled project';
       nameEl.setAttribute('contenteditable', 'true');
       nameEl.focus();
       const range = document.createRange();
@@ -439,6 +461,7 @@ function cloneGraph(g) {
       ...n,
       inputs:  (n.inputs  || []).map(p => ({ ...p })),
       outputs: (n.outputs || []).map(p => ({ ...p })),
+      custom: n.custom ? { ...n.custom } : undefined,
     })),
     connections: (g.connections || []).map(c => Canvas.snapshotConnection(c)),
     subgraphs: _cloneSubgraphs(g.subgraphs || []),
@@ -2169,10 +2192,7 @@ function initSubgraphFeature(initialSubgraphs) {
 
 function initApp() {
   const P = window.PROJECT;
-  const savedTitle = (() => {
-    try { return localStorage.getItem(KEY.projectTitle) || ''; } catch (_) { return ''; }
-  })();
-  if (savedTitle && savedTitle.trim()) P.title = savedTitle.trim();
+  P.title = _resolveProjectDisplayTitle(P) || P.title || 'Untitled project';
   _setProjectTitleUi(P.title);
   document.getElementById('bcOrg').textContent = P.org;
   initProjectTitleRename();
@@ -2420,6 +2440,7 @@ function snapshotActiveVariant() {
     description: n.description, fn: n.fn, fw: n.fw, by: n.by,
     views: n.views, downloads: n.downloads,
     tags: Array.isArray(n.tags) ? [...n.tags] : [],
+    custom: n.custom ? { ...n.custom } : undefined,
   }));
   variants[idx].connections = Canvas.getConnections().map(c => Canvas.snapshotConnection(c));
   variants[idx].subgraphs = getSubgraphSnapshot();
@@ -3434,26 +3455,68 @@ function renderUploadsPanel() {
     return;
   }
 
-  panel.innerHTML = custom.map(c => `
-    <div class="item-card" data-custom-id="${c.id}">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <strong style="font-size:13px;">${c.name}</strong>
-        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${c.kind}</span>
+  panel.innerHTML = custom.map(c => {
+    const p = c.inferredPorts || {};
+    const ins = (p.inputs || []).length;
+    const outs = (p.outputs || []).length;
+    const portsLine = (ins || outs)
+      ? `${ins} in · ${outs} out`
+      : '';
+    const meta = [c.file && c.file.name, portsLine].filter(Boolean).join(' · ');
+    return `
+    <div class="item-card kind-${esc(c.kind)}" data-custom-id="${esc(c.id)}" role="button" tabindex="0" title="Add ${esc(c.name)} to canvas">
+      <div class="row">
+        <span class="kind-dot"></span>
+        <strong class="title">${esc(c.name)}</strong>
+        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${esc(c.kind)}</span>
       </div>
-      ${c.desc ? `<div style="font-size:11.5px;color:var(--text-muted);">${c.desc}</div>` : ''}
-    </div>`).join('');
+      ${meta ? `<div class="sub">${esc(meta)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Clicking (or Enter/Space on) a card drops that definition onto the canvas.
+  panel.querySelectorAll('.item-card[data-custom-id]').forEach(card => {
+    const drop = () => {
+      const def = custom.find(c => c.id === card.dataset.customId);
+      if (def) dropCustomNode(def);
+    };
+    card.addEventListener('click', drop);
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); drop(); }
+    });
+  });
 }
 
-/* Add-Custom-Node modal — opened from the "+ Add" button in the
-   left drawer search row. Picking a kind creates a stub custom node
-   record (name auto-generated for now) and refreshes the Uploads list. */
+/* Add-Custom-Node modal — opened from the "+ Add" button in the left
+   drawer search row. Two-step flow: (1) pick a kind, (2) upload a file we
+   inspect to infer typed ports (see custom-node-detect.js). On confirm we
+   persist a reusable definition to 'cfg.customNodes' and drop it on canvas.
+   Files are read for schema only — bytes are discarded (metadata-only). */
 function initAddCustomModal() {
   const backdrop = document.getElementById('addCustomBackdrop');
   const openBtn = document.getElementById('addCustomBtn');
   const closeBtn = document.getElementById('addCustomClose');
   if (!backdrop || !openBtn) return;
 
+  const stepKind = backdrop.querySelector('[data-step="kind"]');
+  const stepUpload = backdrop.querySelector('[data-step="upload"]');
+  const backBtn = backdrop.querySelector('#acBack');
+  const kindName = backdrop.querySelector('#acKindName');
+  const drop = backdrop.querySelector('#acDrop');
+  const fileInput = backdrop.querySelector('#acFileInput');
+  const dropTitle = backdrop.querySelector('#acDropTitle');
+  const dropSub = backdrop.querySelector('#acDropSub');
+  const nameInput = backdrop.querySelector('#acName');
+  const preview = backdrop.querySelector('#acPreview');
+  const previewDetail = backdrop.querySelector('#acPreviewDetail');
+  const previewInputs = backdrop.querySelector('#acPreviewInputs');
+  const previewOutputs = backdrop.querySelector('#acPreviewOutputs');
+  const addBtn = backdrop.querySelector('#acAddBtn');
+
+  let curKind = null, curFile = null, curPorts = null;
+
   function open() {
+    resetFlow();
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
   }
@@ -3461,9 +3524,57 @@ function initAddCustomModal() {
     backdrop.classList.remove('open');
     backdrop.setAttribute('aria-hidden', 'true');
   }
+  function showStep(step) {
+    if (stepKind) stepKind.hidden = step !== 'kind';
+    if (stepUpload) stepUpload.hidden = step !== 'upload';
+  }
+  function resetFlow() {
+    curKind = null; curFile = null; curPorts = null;
+    if (nameInput) nameInput.value = '';
+    if (drop) drop.classList.remove('has-file', 'dragover');
+    if (dropTitle) dropTitle.textContent = 'Drop a file or click to browse';
+    if (dropSub) dropSub.textContent = 'CSV, JSON, .py, .pt — we’ll infer the ports';
+    if (preview) preview.hidden = true;
+    if (addBtn) addBtn.disabled = true;
+    if (fileInput) fileInput.value = '';
+    showStep('kind');
+  }
+  function updateAddEnabled() {
+    if (addBtn) addBtn.disabled = !(nameInput && nameInput.value.trim());
+  }
+  function renderPorts(el, ports) {
+    if (!el) return;
+    if (!ports || !ports.length) { el.innerHTML = '<div class="ac-port-empty">None</div>'; return; }
+    el.innerHTML = ports.map(p =>
+      `<div class="ac-port-row"><span class="ac-port-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="ac-port-type">${esc(p.type || 'any')}</span></div>`
+    ).join('');
+  }
+  function showPreview() {
+    if (!curPorts) { if (preview) preview.hidden = true; return; }
+    if (preview) preview.hidden = false;
+    if (previewDetail) previewDetail.textContent = curPorts.detail || '';
+    renderPorts(previewInputs, curPorts.inputs);
+    renderPorts(previewOutputs, curPorts.outputs);
+  }
+  async function handleFile(file) {
+    if (!file) return;
+    curFile = file;
+    if (drop) drop.classList.add('has-file');
+    if (dropTitle) dropTitle.textContent = file.name;
+    if (dropSub) dropSub.textContent = _humanFileSize(file.size);
+    if (nameInput && !nameInput.value.trim()) {
+      nameInput.value = String(file.name).replace(/\.[^.]+$/, '');
+    }
+    curPorts = await (window.CustomNodeDetect
+      ? CustomNodeDetect.inferPorts(curKind, file)
+      : Promise.resolve(null));
+    showPreview();
+    updateAddEnabled();
+  }
 
   openBtn.addEventListener('click', open);
   closeBtn?.addEventListener('click', close);
+  backBtn?.addEventListener('click', () => { resetFlow(); });
   backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && backdrop.classList.contains('open')) close();
@@ -3471,27 +3582,65 @@ function initAddCustomModal() {
 
   backdrop.querySelectorAll('.add-custom-opt').forEach(btn => {
     btn.addEventListener('click', () => {
-      const kind = btn.dataset.kind;
-      const name = window.prompt(`Name your custom ${kind}:`, `My ${kind}`);
-      if (!name) return;
-      let custom = [];
-      try { custom = JSON.parse(localStorage.getItem('cfg.customNodes') || '[]'); } catch (_) {}
-      custom.push({
-        id: `custom_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
-        kind, name: name.trim(),
-        desc: '', createdAt: new Date().toISOString()
-      });
-      try { localStorage.setItem('cfg.customNodes', JSON.stringify(custom)); } catch (_) {}
-      close();
-      // Switch to Uploads tab so the user sees their new node.
-      const leftEl = document.getElementById('drawerLeft');
-      leftEl?.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'uploads'));
-      leftEl?.querySelectorAll('.drawer-panel').forEach(p => p.classList.toggle('active', p.id === 'panelUploads'));
-      const ds = document.getElementById('discoverSearch');
-      if (ds) ds.style.display = 'flex';
-      renderUploadsPanel();
+      curKind = btn.dataset.kind;
+      if (kindName) kindName.textContent = curKind;
+      showStep('upload');
     });
   });
+
+  // Drag/drop + click-to-browse on the drop zone.
+  ['dragenter', 'dragover'].forEach(ev => drop?.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.add('dragover');
+  }));
+  ['dragleave', 'dragend'].forEach(ev => drop?.addEventListener(ev, () => drop.classList.remove('dragover')));
+  drop?.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  fileInput?.addEventListener('change', () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (f) handleFile(f);
+  });
+  nameInput?.addEventListener('input', updateAddEnabled);
+
+  addBtn?.addEventListener('click', () => {
+    const name = nameInput && nameInput.value.trim();
+    if (!name || !curKind) return;
+    const fallback = window.CustomNodeDetect
+      ? CustomNodeDetect.defaultPorts(curKind)
+      : { inputs: [], outputs: [] };
+    const havePorts = curPorts && ((curPorts.inputs || []).length || (curPorts.outputs || []).length);
+    const ports = havePorts
+      ? { inputs: curPorts.inputs, outputs: curPorts.outputs }
+      : { inputs: fallback.inputs, outputs: fallback.outputs };
+    const def = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      kind: curKind,
+      name,
+      desc: curFile ? curFile.name : '',
+      file: curFile ? { name: curFile.name, size: curFile.size } : null,
+      detected: curPorts ? (curPorts.detail || '') : '',
+      inferredPorts: { inputs: ports.inputs, outputs: ports.outputs },
+      createdAt: new Date().toISOString(),
+    };
+    let custom = [];
+    try { custom = JSON.parse(localStorage.getItem('cfg.customNodes') || '[]'); } catch (_) {}
+    custom.push(def);
+    try { localStorage.setItem('cfg.customNodes', JSON.stringify(custom)); } catch (_) {}
+    close();
+    dropCustomNode(def);
+    renderUploadsPanel();
+  });
+}
+
+// Human-readable byte size for upload chips ("2.4 KB", "1.1 MB").
+function _humanFileSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 function initDiscover() {
@@ -3863,7 +4012,44 @@ function applyNewNodeBadge(el) {
   el.addEventListener('pointerdown', clear, { once: true, capture: true });
 }
 
-// Drops a catalog item onto the canvas as a new node at the viewport center.
+// Drops a saved custom-node definition (from My Uploads) onto the canvas.
+// The definition carries inferred ports + file metadata; we map its `kind`
+// to a canvas node `type` and attach a `custom` block for the Inspector and
+// for persistence (see snapshotActiveVariant's whitelist).
+const CUSTOM_KIND_TYPE = { model: 'Model', dataset: 'Dataset', logic: 'Logic', endpoint: 'Logic' };
+const CUSTOM_KIND_COLOR = { model: 'blue', dataset: 'green', logic: 'purple', endpoint: 'yellow' };
+function dropCustomNode(def) {
+  if (!def) return;
+  const center = Canvas.getViewportCenter();
+  const id = 'n_' + Date.now().toString(36);
+  const ports = def.inferredPorts || {};
+  const node = {
+    id,
+    type: CUSTOM_KIND_TYPE[def.kind] || 'Model',
+    label: def.name || 'Custom node',
+    icon: 'square',
+    color: CUSTOM_KIND_COLOR[def.kind] || 'blue',
+    user: creatorAvatar('You'),
+    x: center.x - 110, y: center.y - 60,
+    inputs: (ports.inputs || []).map(p => ({ ...p })),
+    outputs: (ports.outputs || []).map(p => ({ ...p })),
+    custom: {
+      defId: def.id,
+      kind: def.kind,
+      fileName: def.file ? def.file.name : null,
+      fileSize: def.file ? def.file.size : null,
+      detected: def.detected || '',
+    },
+  };
+  const el = Canvas.addNode(node);
+  el.classList.add('drop-in');
+  setTimeout(() => { el.classList.remove('drop-in'); applyNewNodeBadge(el); }, 700);
+  const added = (Canvas.getNode && Canvas.getNode(node.id)) || node;
+  if (typeof _setSelectedNodes === 'function') _setSelectedNodes([node.id]);
+  if (typeof openInspector === 'function') openInspector(added);
+}
+
+// Drops a catalog item onto the canvas at the viewport center.
 // Maps the catalog color + I/O strings into the node data shape Canvas expects.
 function addCatalogNode(item) {
   const center = Canvas.getViewportCenter();
@@ -7476,10 +7662,13 @@ function initFindBar() {
   const input = document.getElementById('findInput');
   const count = document.getElementById('findCount');
   const close = document.getElementById('findClose');
+  const prev = document.getElementById('findPrev');
+  const next = document.getElementById('findNext');
   const canvasEl = document.getElementById('canvas');
-  let lastFitKey = '';
   let activeMatchIds = [];
   let findDanceTimer = null;
+  let matches = [];   // node objects matching the query, in stable order
+  let cursor = -1;    // index of the active match within `matches`
 
   const matchesFor = (q) => {
     const qn = q.trim().toLowerCase();
@@ -7488,6 +7677,8 @@ function initFindBar() {
       .filter(n => (n.label || n.name || '').toLowerCase().includes(qn));
   };
   const clearHighlights = () => {
+    document.querySelectorAll('.node.find-match-active')
+      .forEach(el => el.classList.remove('find-match-active'));
     if (!activeMatchIds.length) return;
     activeMatchIds.forEach(id => {
       const el = document.querySelector(`.node[data-node-id="${id}"]`);
@@ -7526,82 +7717,82 @@ function initFindBar() {
       setTimeout(() => el.classList.remove('find-dance'), 560);
     });
   };
-  const fitMatches = (ids, opts = {}) => {
-    if (!ids.length) return;
-    const force = !!opts.force;
+  const getReserve = () => {
     const occ = (typeof getCanvasOcclusionReserve === 'function')
       ? getCanvasOcclusionReserve()
       : { left: 0, right: 0, top: 0, bottom: 0 };
-    const reserve = {
-      left: (occ.left || 0) + 18,
-      right: (occ.right || 0) + 18,
-      top: (occ.top || 0) + 72,   // topbar + find bar
+    return {
+      left:   (occ.left   || 0) + 18,
+      right:  (occ.right  || 0) + 18,
+      top:    (occ.top    || 0) + 72,   // topbar + find bar
       bottom: (occ.bottom || 0) + 22,
     };
-    const fitKey = ids.join('|') + `|${reserve.left},${reserve.right},${reserve.top},${reserve.bottom}`;
-    if (!force && fitKey === lastFitKey) return false;
-    lastFitKey = fitKey;
-    Canvas.fitToNodes(ids, {
-      padding: 34,
-      reserve,
-      maxZoom: 1.5,
-      minZoom: 0.25,
-    });
-    return true;
   };
-  const syncMatches = ({ fit = true } = {}) => {
+  // Center the active match while preserving the user's current zoom.
+  // `ifNeeded` skips the pan when the node is already comfortably on-screen,
+  // so stepping between nearby matches doesn't jiggle the view.
+  const centerOn = (id) => {
+    const z = (Canvas.getTransform && Canvas.getTransform().zoom) || 1;
+    Canvas.fitToNodes([id], {
+      padding: 80,
+      reserve: getReserve(),
+      maxZoom: z,
+      minZoom: z,
+      ifNeeded: true,
+    });
+  };
+  const setActive = (idx) => {
+    if (!matches.length) { cursor = -1; return; }
+    cursor = ((idx % matches.length) + matches.length) % matches.length;
+    const activeId = matches[cursor].id;
+    document.querySelectorAll('.node.find-match-active')
+      .forEach(el => el.classList.remove('find-match-active'));
+    document.querySelector(`.node[data-node-id="${activeId}"]`)
+      ?.classList.add('find-match-active');
+    count.textContent = (cursor + 1) + ' of ' + matches.length;
+    centerOn(activeId);
+    if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
+    findDanceTimer = setTimeout(() => {
+      danceNodes([activeId]);
+      findDanceTimer = null;
+    }, 200);
+  };
+  const syncMatches = () => {
     const q = input.value.trim();
     if (!q) {
-      lastFitKey = '';
       clearHighlights();
       applyDimming([]);
       count.textContent = '';
+      matches = [];
+      cursor = -1;
       return;
     }
-    const ids = matchesFor(q).map(n => n.id);
-    count.textContent = ids.length
-      ? ids.length + ' match' + (ids.length === 1 ? '' : 'es')
-      : 'no matches';
+    matches = matchesFor(q);
+    const ids = matches.map(n => n.id);
     applyHighlights(ids);
     applyDimming(ids);
-    if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
-    const didFit = (fit && ids.length) ? !!fitMatches(ids) : false;
-    if (ids.length) {
-      if (didFit) {
-        findDanceTimer = setTimeout(() => {
-          danceNodes(ids);
-          findDanceTimer = null;
-        }, 360);
-      } else {
-        danceNodes(ids);
-      }
+    if (!ids.length) {
+      count.textContent = 'no matches';
+      cursor = -1;
+      if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
+      return;
     }
+    setActive(0);
   };
-  const updateCount = () => {
-    syncMatches({ fit: true });
-  };
-  const jump = () => {
-    const nodes = matchesFor(input.value);
-    if (!nodes.length) return;
-    const ids = nodes.map(n => n.id);
-    applyHighlights(ids);
-    if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
-    const didFit = !!fitMatches(ids, { force: true });
-    if (didFit) {
-      findDanceTimer = setTimeout(() => {
-        danceNodes(ids);
-        findDanceTimer = null;
-      }, 360);
-    } else {
-      danceNodes(ids);
-    }
+  const updateCount = () => { syncMatches(); };
+  const step = (dir) => {
+    if (!matches.length) return;
+    setActive(cursor + dir);
   };
 
   function open()  {
+    // Re-pressing Cmd+F while the bar is open re-selects the query (browser-style).
+    if (!bar.hidden && input.value) { input.focus(); input.select(); return; }
     bar.hidden = false;
     input.value = '';
     count.textContent = '';
-    lastFitKey = '';
+    matches = [];
+    cursor = -1;
     if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
     clearHighlights();
     applyDimming([]);
@@ -7611,7 +7802,8 @@ function initFindBar() {
     bar.hidden = true;
     input.value = '';
     count.textContent = '';
-    lastFitKey = '';
+    matches = [];
+    cursor = -1;
     if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
     clearHighlights();
     applyDimming([]);
@@ -7620,13 +7812,19 @@ function initFindBar() {
   document.addEventListener('keydown', e => {
     const isFindShortcut = (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'f';
     if (isFindShortcut) { e.preventDefault(); open(); return; }
+    const isFindNext = (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'g';
+    if (isFindNext && !bar.hidden) { e.preventDefault(); step(e.shiftKey ? -1 : 1); return; }
     if (e.key === 'Escape' && !bar.hidden) closeBar();
   });
   close.addEventListener('click', closeBar);
+  prev?.addEventListener('click', () => { step(-1); input.focus(); });
+  next?.addEventListener('click', () => { step(1);  input.focus(); });
   input.addEventListener('input', updateCount);
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  { e.preventDefault(); jump(); }
-    if (e.key === 'Escape') { e.preventDefault(); closeBar(); }
+    if (e.key === 'Enter')          { e.preventDefault(); step(e.shiftKey ? -1 : 1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); step(-1); }
+    else if (e.key === 'Escape')    { e.preventDefault(); closeBar(); }
   });
   canvasEl?.addEventListener('mousedown', e => {
     if (bar.hidden) return;
@@ -8033,12 +8231,10 @@ function initV2Layout(P) {
 
 /* ── Project title chip in topbar ──────────────────────────── */
 function initProjectTitle(P) {
-  const nameEl = document.getElementById('ptName');
   const variantLabel = document.getElementById('ptVariantLabel');
-  const projectName = (P && P.name) ? P.name : 'Untitled project';
-  if (nameEl) nameEl.textContent = projectName;
-  const lpCur = document.getElementById('lpCurrentProjectName');
-  if (lpCur) lpCur.textContent = projectName;
+  const projectName = _resolveProjectDisplayTitle(P) || (P && P.title) || 'Untitled project';
+  if (P) P.title = projectName;
+  _setProjectTitleUi(projectName);
 
   // Owner breadcrumb: prefer explicit org/owner field, else the first
   // contributor with role Owner, else the first contributor, else "Guest".
@@ -8106,7 +8302,7 @@ function initLeftnavCredits() {
   if (!btn) return;
   btn.addEventListener('click', () => {
     if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
-      window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
+      window.ConnectifyLeftnav.showCreditsModal();
     }
   });
 }
@@ -9050,15 +9246,87 @@ function initLeftnavProjects() {
   });
 
   document.getElementById('leftnavSearch')?.addEventListener('click', () => {
-    const ev = new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true });
-    document.dispatchEvent(ev);
+    if (window.CommandPalette) window.CommandPalette.open();
+    else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
   });
+
+  registerCommandPaletteEditorProviders();
 
   // Auth: render chip + wire click → login modal or account menu. See
   // auth.js for the full surface.
   if (window.ConnectifyAuth && typeof window.ConnectifyAuth.wireLeftnavAuth === 'function') {
     window.ConnectifyAuth.wireLeftnavAuth();
   }
+}
+
+/**
+ * Contribute editor-specific results to the ⌘K palette: every node in the
+ * current graph (jump + inspect), plus the canvas actions a power user reaches
+ * for most. Items are pulled fresh on each open, so the node list always
+ * reflects the live graph.
+ */
+function registerCommandPaletteEditorProviders() {
+  const CP = window.CommandPalette;
+  if (!CP) return;
+
+  CP.register({
+    id: 'editor-nodes',
+    getItems() {
+      if (typeof Canvas === 'undefined' || !Canvas.getAllNodes) return [];
+      return Canvas.getAllNodes().map(n => ({
+        group: 'Nodes',
+        title: n.label || n.name || n.id,
+        subtitle: [n.type, n.name].filter(Boolean).join(' · '),
+        swatch: n.color || 'var(--border)',
+        keywords: ['node', n.type, n.name, ...(n.tags || [])].filter(Boolean),
+        tag: n.type,
+        run: () => {
+          Canvas.fitToNodes([n.id], { maxZoom: 1, animate: true });
+          const fresh = Canvas.getNode(n.id);
+          if (fresh && typeof openInspectorV2 === 'function') openInspectorV2(fresh);
+        }
+      }));
+    }
+  });
+
+  CP.register({
+    id: 'editor-actions',
+    getItems() {
+      const items = [{
+        group: 'Actions',
+        title: 'Add node',
+        subtitle: 'Open the Discover panel',
+        icon: CP.ICONS.plus,
+        keywords: ['add', 'new', 'node', 'create', 'discover', 'model', 'dataset', 'logic'],
+        run: () => document.getElementById('toolDiscover')?.click()
+      }];
+      if (typeof historyUndo === 'function') {
+        items.push({
+          group: 'Actions', title: 'Undo', keywords: ['undo', 'revert', 'back'],
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
+          run: () => historyUndo()
+        });
+      }
+      if (typeof historyRedo === 'function') {
+        items.push({
+          group: 'Actions', title: 'Redo', keywords: ['redo', 'forward'],
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>',
+          run: () => historyRedo()
+        });
+      }
+      if (typeof Canvas !== 'undefined' && Canvas.getAllNodes && Canvas.fitToNodes) {
+        items.push({
+          group: 'Actions', title: 'Zoom to fit', keywords: ['fit', 'zoom', 'frame', 'center', 'view'],
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
+          run: () => {
+            const ids = Canvas.getAllNodes().map(n => n.id);
+            if (ids.length) Canvas.fitToNodes(ids, { animate: true });
+          }
+        });
+      }
+      return items;
+    }
+  });
 }
 
 // Topbar Paths button → toggles the floating Paths panel.

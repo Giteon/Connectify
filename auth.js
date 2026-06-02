@@ -208,6 +208,72 @@
     return publicUser(u);
   }
 
+  // ── Account: change email ─────────────────────────────────────────
+  // Email is the primary key in the users map, so a change re-keys the
+  // record and updates the session. Throws (with a `field`) on a bad
+  // format or a collision with another account.
+  async function changeEmail(newEmail) {
+    const s = readSession();
+    if (!s) throw new Error('Not signed in.');
+    const next = normEmail(newEmail);
+    const eV = validators.email(next);
+    if (!eV.ok) throw Object.assign(new Error(eV.msg), { field: 'email' });
+    const users = readUsers();
+    const cur = users[s.email];
+    if (!cur) throw new Error('Account not found.');
+    if (next === s.email) return publicUser(cur);
+    if (Object.prototype.hasOwnProperty.call(users, next)) {
+      throw Object.assign(new Error('An account with that email already exists.'), { field: 'email' });
+    }
+    delete users[s.email];
+    cur.email = next;
+    users[next] = cur;
+    writeUsers(users);
+    writeSession({ email: next, since: s.since || new Date().toISOString() });
+    notify('email');
+    return publicUser(cur);
+  }
+
+  // ── Account: change password ──────────────────────────────────────
+  // Verifies the current password, then re-hashes the new one with a
+  // fresh salt. Throws (with a `field`) on a wrong current password or
+  // a new password that fails the format check.
+  async function changePassword({ currentPassword, newPassword } = {}) {
+    const s = readSession();
+    if (!s) throw new Error('Not signed in.');
+    const users = readUsers();
+    const u = users[s.email];
+    if (!u) throw new Error('Account not found.');
+    const curHash = await hashPassword(String(currentPassword || ''), u.salt);
+    if (!safeEqual(curHash, u.hash)) {
+      throw Object.assign(new Error('Current password is incorrect.'), { field: 'current' });
+    }
+    const pV = validators.password(newPassword);
+    if (!pV.ok) throw Object.assign(new Error(pV.msg), { field: 'new' });
+    const salt = randomSaltHex();
+    u.salt = salt;
+    u.hash = await hashPassword(String(newPassword), salt);
+    writeUsers(users);
+    notify('password');
+    return true;
+  }
+
+  // ── Account: delete ───────────────────────────────────────────────
+  // Removes the current user's record and clears the session. The UI is
+  // responsible for confirming first and redirecting afterwards.
+  function deleteAccount() {
+    const s = readSession();
+    if (!s) return false;
+    const users = readUsers();
+    if (users[s.email]) {
+      delete users[s.email];
+      writeUsers(users);
+    }
+    writeSession(null);
+    notify('logout');
+    return true;
+  }
+
   // ── Change listeners ──────────────────────────────────────────────
   const listeners = new Set();
   function notify(reason) {
@@ -518,6 +584,33 @@
         gap: 0;
       }
 
+      /* Landing page topnav — logged-in avatar chip */
+      .lp-auth-chip.is-user {
+        padding: 4px;
+        background: transparent;
+        border: none;
+        color: var(--lp-text, var(--text-primary, #0f172a));
+      }
+      .lp-auth-chip.is-user:hover {
+        background: var(--lp-bg-soft, var(--bg, #f8fafc));
+        border: none;
+      }
+      .lp-auth-chip .la-avatar {
+        flex: 0 0 auto;
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #fff;
+        font-size: 12px; font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        overflow: hidden;
+      }
+      .lp-auth-chip .la-avatar-img {
+        width: 100%; height: 100%;
+        object-fit: cover; border-radius: 50%; display: block;
+      }
+
       /* User menu popover (Log out) */
       .am-menu {
         position: fixed;
@@ -740,6 +833,53 @@
     }
   }
 
+  function renderLandingAuthChip() {
+    const btn = document.getElementById('lpLoginBtn');
+    if (!btn) return;
+    ensureChipStyles();
+    const user = getCurrentUser();
+    if (!user) {
+      btn.className = 'lp-btn lp-btn-ghost';
+      btn.textContent = 'Log in / Sign up';
+      btn.title = '';
+      btn.setAttribute('aria-label', 'Log in or sign up');
+      return;
+    }
+    const display = displayName(user);
+    btn.className = 'lp-btn lp-btn-ghost lp-auth-chip is-user';
+    btn.title = `${display} — account menu`;
+    btn.setAttribute('aria-label', `Signed in as ${display}. Open account menu.`);
+    const avatarInner = user.avatar
+      ? `<img class="la-avatar-img" src="${escapeHtml(user.avatar)}" alt="" />`
+      : escapeHtml(avatarLetter(user));
+    const avatarBg = user.avatar ? 'transparent' : colorForKey(user.email);
+    btn.innerHTML = `<span class="la-avatar" style="background:${avatarBg}">${avatarInner}</span>`;
+  }
+
+  let landingWired = false;
+  function wireLandingAuth() {
+    const btn = document.getElementById('lpLoginBtn');
+    if (!btn) return;
+    renderLandingAuthChip();
+    if (landingWired) return;
+    landingWired = true;
+    btn.addEventListener('click', (e) => {
+      if (isLoggedIn()) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (userMenuEl) closeUserMenu();
+        else openUserMenu(btn);
+      } else {
+        e.preventDefault();
+        navigateToAuth('login');
+      }
+    });
+    onChange(() => {
+      renderLandingAuthChip();
+      closeUserMenu();
+    });
+  }
+
   let leftnavWired = false;
   function wireLeftnavAuth() {
     const btn = document.getElementById('leftnavAuth');
@@ -770,6 +910,10 @@
     login,
     logout,
     updateProfile,
+    changeEmail,
+    changePassword,
+    deleteAccount,
+    showConfirm,
     getCurrentUser,
     isLoggedIn,
     isEmailTaken,
@@ -778,7 +922,9 @@
     onChange,
     navigateToAuth,
     wireLeftnavAuth,
+    wireLandingAuth,
     renderLeftnavChip,
+    renderLandingAuthChip,
     setOnboarding,
     getOnboarding,
     hasCompletedOnboarding,

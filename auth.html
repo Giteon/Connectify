@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="icons/logo.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="icons/logo.png" />
   <title>Connectify — Log in or sign up</title>
   <script>
     /* Light by default. Matches landing's new default; only opts into
@@ -52,9 +54,12 @@
         </div>
 
         <!-- ─── Sign up ───────────────────────────────────────── -->
+        <!-- Email-only first step. The password is collected at the very
+             end of the onboarding flow, where the account is actually
+             created. Here we just validate + hand the email off. -->
         <form class="auth-form" data-view="signup" novalidate autocomplete="on">
           <h1 class="auth-title">Create your account</h1>
-          <p class="auth-sub">Free demo – your account lives in this browser.</p>
+          <p class="auth-sub">Enter your email to get started.</p>
 
           <label class="auth-field" data-field="email">
             <span class="auth-label">Email</span>
@@ -65,20 +70,7 @@
             <span class="auth-hint" data-hint="email"></span>
           </label>
 
-          <label class="auth-field" data-field="password">
-            <span class="auth-label">Create a password</span>
-            <span class="auth-input-wrap">
-              <input class="auth-input" type="password" name="password" autocomplete="new-password" minlength="8" required
-                     placeholder="At least 8 characters" />
-            </span>
-            <div class="auth-strength" data-strength hidden>
-              <span class="auth-strength-bar"><span class="auth-strength-fill" data-strength-fill></span></span>
-              <span class="auth-strength-label" data-strength-label></span>
-            </div>
-            <span class="auth-hint" data-hint="password"></span>
-          </label>
-
-          <button type="submit" class="auth-submit">Create account</button>
+          <button type="submit" class="auth-submit">Continue</button>
           <p class="auth-form-err" data-form-err></p>
         </form>
 
@@ -108,7 +100,7 @@
         </form>
 
         <p class="auth-fine">
-          By continuing, you agree to Connectify's terms of service.
+          By continuing, you agree to Connectify's <a href="/docs/legal/terms-of-service.html">Terms of Service</a> and <a href="/docs/legal/privacy-policy.html">Privacy Policy</a>.
         </p>
       </div>
     </section>
@@ -368,17 +360,18 @@
           const data = new FormData(form);
           const originalLabel = submit.textContent;
           submit.disabled = true;
-          submit.textContent = view === 'signup' ? 'Creating…' : 'Logging in…';
+          submit.textContent = view === 'signup' ? 'Continuing…' : 'Logging in…';
 
           try {
             if (view === 'signup') {
-              await Auth.signup({
-                email: data.get('email'),
-                password: data.get('password'),
-              });
-              // New user → onboarding. Carry the return URL along so
-              // onboarding lands them at the right place when done.
-              location.href = 'onboarding.html?return=' + encodeURIComponent(returnTo);
+              // Don't create the account yet — the password (and thus the
+              // account) is collected at the end of onboarding. Hand the
+              // email off via sessionStorage (survives clean-URL redirects)
+              // with a query-param fallback.
+              const email = String(data.get('email') || '').trim();
+              try { sessionStorage.setItem('cfg.signup.email', email.toLowerCase()); } catch (_) {}
+              location.href = 'onboarding.html?return=' + encodeURIComponent(returnTo)
+                + '&email=' + encodeURIComponent(email);
             } else {
               await Auth.login({
                 identifier: data.get('identifier'),

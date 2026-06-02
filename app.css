@@ -1097,6 +1097,70 @@ header.topbar .brand + .breadcrumb {
 
 .node > .io-list:last-child > .io-row:last-child { border-bottom-left-radius: 11px; border-bottom-right-radius: 11px; }
 
+/* Start/End role badges (canvas) — shared by editing-mode and view-mode. */
+.node-role-badges {
+  position: absolute; bottom: calc(100% + 8px); left: 4px;
+  display: flex; gap: 6px; pointer-events: none; z-index: 2;
+}
+.node-role-badge {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 11.5px; font-weight: 600;
+  line-height: 1.1; letter-spacing: 0.1px;
+  border-radius: 6px; border: 1px solid transparent;
+  box-shadow: 0 2px 5px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.06);
+  pointer-events: auto; cursor: grab; user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.node-role-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(15,23,42,0.16), 0 2px 4px rgba(15,23,42,0.08);
+}
+.node-role-badge:active { cursor: grabbing; }
+.node-role-badge .role-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 9px; height: 9px; flex-shrink: 0;
+}
+.node-role-badge .role-glyph svg { width: 100%; height: 100%; }
+.node-role-badge::after {
+  content: ''; position: absolute;
+  left: 12px; bottom: -4px; width: 7px; height: 7px;
+  background: inherit;
+  border-right: 1px solid; border-bottom: 1px solid;
+  border-color: inherit;
+  transform: rotate(45deg);
+}
+.node-role-badge.dragging { visibility: hidden; }
+.node-role-badge-ghost {
+  position: fixed; pointer-events: none; z-index: 9999;
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 8px 20px rgba(15,23,42,0.25), 0 2px 4px rgba(15,23,42,0.12);
+}
+.node-role-badge-ghost::after { display: none; }
+.node.role-drop-candidate {
+  outline: 2px dashed var(--primary); outline-offset: 3px;
+}
+.node.role-drop-hover {
+  outline-style: solid;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.18), 0 8px 22px rgba(15,23,42,0.10);
+}
+.node-role-badge.start { background: #16a34a; color: #fff; border-color: #15803d; }
+.node-role-badge.end   { background: #dc2626; color: #fff; border-color: #b91c1c; }
+.node-role-badge.auto.start {
+  background: #dcfce7; color: #15803d; border-color: #16a34a; border-style: dashed;
+}
+.node-role-badge.auto.end {
+  background: #fee2e2; color: #b91c1c; border-color: #dc2626; border-style: dashed;
+}
+html[data-theme="dark"] .node-role-badge.start { background: #15803d; border-color: #166534; }
+html[data-theme="dark"] .node-role-badge.end   { background: #b91c1c; border-color: #991b1b; }
+html[data-theme="dark"] .node-role-badge.auto.start {
+  background: rgba(22,163,74,0.18); color: #4ade80; border-color: #16a34a;
+}
+html[data-theme="dark"] .node-role-badge.auto.end {
+  background: rgba(220,38,38,0.18); color: #f87171; border-color: #dc2626;
+}
+
 .node-overlay .adaptor-chip { pointer-events: all; cursor: pointer; }
 
 .adaptor-chip .adaptor-chip-halo {
@@ -1175,7 +1239,7 @@ html[data-theme="dark"] .adaptor-chip--dot .adaptor-chip-dot-body {
 
 .find-bar input::placeholder { color: var(--text-muted); }
 
-.find-bar .fc { font-size: 11px; color: var(--text-muted); }
+.find-bar .fc { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
 .find-bar button {
   background: transparent; border: none; width: 24px; height: 24px;
@@ -1184,6 +1248,8 @@ html[data-theme="dark"] .adaptor-chip--dot .adaptor-chip-dot-body {
 }
 
 .find-bar button svg { width: 12px; height: 12px; }
+
+.find-bar .find-sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 1px; }
 
 .adaptor-details-backdrop {
   position: fixed; inset: 0; z-index: 12040; display: none;

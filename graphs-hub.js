@@ -42,9 +42,32 @@
         }
         document.getElementById('leftnavCredits')?.addEventListener('click', () => {
           if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
-            window.ConnectifyLeftnav.showCreditsModal({ remaining: 100, cap: 100 });
+            window.ConnectifyLeftnav.showCreditsModal();
           }
         });
+
+        // Deep-link: landing-page "Buy credits" CTA wants to drop the user
+        // straight into the purchase flow. We can't carry that intent in the
+        // URL — `npx serve`'s clean-URL redirect (.html → extensionless)
+        // strips the entire query string before any JS runs (the same gotcha
+        // the tutorial system pre-arms around). So the landing page stashes
+        // the intent in localStorage; we read + clear it here. The open is
+        // deferred to window 'load' so it lands after the hub's synchronous
+        // init settles rather than getting torn down mid-boot.
+        try {
+          const CREDITS_INTENT_KEY = 'cfg.credits.intent';
+          if (localStorage.getItem(CREDITS_INTENT_KEY) === 'buy') {
+            localStorage.removeItem(CREDITS_INTENT_KEY);
+            const openBuy = () => {
+              if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.showCreditsModal === 'function') {
+                window.ConnectifyLeftnav.showCreditsModal({ view: 'buy' });
+              }
+            };
+            const armOpen = () => setTimeout(openBuy, 60);
+            if (document.readyState === 'complete') armOpen();
+            else window.addEventListener('load', armOpen, { once: true });
+          }
+        } catch (_) {}
       });
     })();
 
@@ -872,7 +895,26 @@
         .map(name => byTitle.get(name)).filter(Boolean).map(renderCard).join('');
     }
 
+    function resolveInitialHubTab() {
+      if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.resolveHubTab === 'function') {
+        const t = window.ConnectifyLeftnav.resolveHubTab('dashboard');
+        return TAB_META[t] ? t : 'dashboard';
+      }
+      const fromUrl = new URLSearchParams(window.location.search).get('tab');
+      return TAB_META[fromUrl] ? fromUrl : 'dashboard';
+    }
+
+    function syncHubTabInUrl(tab) {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('tab') === tab) return;
+        url.searchParams.set('tab', tab);
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } catch (_) {}
+    }
+
     function switchTab(tab) {
+      if (!TAB_META[tab]) tab = 'dashboard';
       activeTab = tab;
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       q(`#tab-${tab}`)?.classList.add('active');
@@ -883,6 +925,28 @@
       const headerActions = document.querySelector('.header-actions');
       if (headerActions) headerActions.style.display = (tab === 'settings') ? 'none' : '';
       if (tab === 'dashboard') requestAnimationFrame(() => syncDashboardSwitcherWidths());
+      if (tab === 'community') renderCommunity();
+      syncHubTabInUrl(tab);
+    }
+
+    function initHubNavTabs() {
+      const onHub = /graphs-hub/i.test(location.pathname) || !!q('#tab-dashboard');
+      if (!onHub) return;
+      document.querySelectorAll('.nav-item[data-tab]').forEach((el) => {
+        if (el.dataset.hubNavBound === '1') return;
+        el.dataset.hubNavBound = '1';
+        el.addEventListener('click', (e) => {
+          const tab = el.dataset.tab;
+          if (!tab || !TAB_META[tab]) return;
+          const href = el.getAttribute('href') || '';
+          if (!/graphs-hub/i.test(href)) return;
+          e.preventDefault();
+          if (window.ConnectifyLeftnav && typeof window.ConnectifyLeftnav.stashHubTab === 'function') {
+            window.ConnectifyLeftnav.stashHubTab(tab);
+          }
+          switchTab(tab);
+        });
+      });
     }
 
     /* ─── Settings tab ───────────────────────────────────────────
@@ -1005,6 +1069,16 @@
       // ── Per-section Save buttons (transient "Saved" confirmation) ──
       pane.querySelectorAll('[data-save-section]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          const section = btn.dataset.saveSection;
+          if (section === 'profile' && Auth && Auth.updateProfile && Auth.isLoggedIn && Auth.isLoggedIn()) {
+            Auth.updateProfile({
+              name: nameInput ? nameInput.value : undefined,
+              username: usernameInput ? usernameInput.value : undefined,
+              bio: bioInput ? bioInput.value : undefined,
+              avatar: pendingAvatar,
+            });
+            pendingAvatar = undefined;
+          }
           const foot = btn.closest('.settings-section-foot');
           const status = foot && foot.querySelector('[data-save-status]');
           if (status) {
@@ -1015,28 +1089,199 @@
         });
       });
 
-      // ── Avatar initials follow the display name ──
+      // ── Profile section (auth-backed) ──
+      const Auth = window.ConnectifyAuth;
+      const profileForm = q('#profileForm');
+      const profileLoggedOut = q('#profileLoggedOut');
       const nameInput = q('#setDisplayName');
-      const avatar = q('#settingsAvatar');
-      const refreshAvatar = () => {
-        if (!avatar) return;
-        const parts = (nameInput?.value || '').trim().split(/\s+/).filter(Boolean);
-        const initials = parts.length
+      const usernameInput = q('#setUsername');
+      const bioInput = q('#setBio');
+      const emailInput = q('#setEmail');
+      const avatarEl = q('#settingsAvatar');
+      const avatarFile = q('#setAvatarFile');
+      // pendingAvatar: undefined = no change, null = remove, string = new data-URL
+      let pendingAvatar;
+
+      const initialsFor = (name) => {
+        const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+        return parts.length
           ? (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase()
           : '?';
-        avatar.textContent = initials;
       };
-      if (nameInput) { nameInput.addEventListener('input', refreshAvatar); refreshAvatar(); }
+
+      const renderAvatar = (user) => {
+        if (!avatarEl) return;
+        const url = pendingAvatar !== undefined ? pendingAvatar : (user && user.avatar) || '';
+        if (url) {
+          avatarEl.classList.add('has-img');
+          avatarEl.innerHTML = `<img src="${url}" alt="" />`;
+        } else {
+          avatarEl.classList.remove('has-img');
+          avatarEl.textContent = initialsFor(nameInput ? nameInput.value : (user && user.name) || '');
+        }
+      };
+
+      const syncProfileUi = () => {
+        const loggedIn = !!(Auth && Auth.isLoggedIn && Auth.isLoggedIn());
+        const user = loggedIn && Auth.getCurrentUser ? Auth.getCurrentUser() : null;
+        if (profileForm) profileForm.hidden = !loggedIn;
+        if (profileLoggedOut) profileLoggedOut.hidden = loggedIn;
+        if (loggedIn && user) {
+          if (nameInput) nameInput.value = user.name || '';
+          if (usernameInput) usernameInput.value = user.username || '';
+          if (bioInput) bioInput.value = user.bio || '';
+          if (emailInput) emailInput.value = user.email || '';
+        } else if (emailInput) {
+          emailInput.value = '';
+        }
+        pendingAvatar = undefined;
+        renderAvatar(user);
+      };
+
+      syncProfileUi();
+      if (Auth && Auth.onChange) Auth.onChange(syncProfileUi);
+      if (nameInput) nameInput.addEventListener('input', () => renderAvatar(Auth && Auth.getCurrentUser ? Auth.getCurrentUser() : null));
+
+      q('#profileLoginBtn')?.addEventListener('click', () => {
+        if (Auth && Auth.navigateToAuth) Auth.navigateToAuth('signup');
+      });
+
+      q('#setAvatarUpload')?.addEventListener('click', () => avatarFile && avatarFile.click());
+      avatarFile?.addEventListener('change', () => {
+        const file = avatarFile.files && avatarFile.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+          window.alert('Image must be under 2 MB.');
+          avatarFile.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          pendingAvatar = reader.result;
+          renderAvatar(Auth && Auth.getCurrentUser ? Auth.getCurrentUser() : null);
+        };
+        reader.readAsDataURL(file);
+        avatarFile.value = '';
+      });
+      q('#setAvatarRemove')?.addEventListener('click', () => {
+        pendingAvatar = null;
+        renderAvatar(Auth && Auth.getCurrentUser ? Auth.getCurrentUser() : null);
+      });
+
+      // ── Account: change email ──
+      const emailSave = q('#setEmailSave');
+      const emailStatus = q('#setEmailStatus');
+      const flashSaved = (statusEl) => {
+        if (!statusEl) return;
+        statusEl.hidden = false;
+        clearTimeout(statusEl._t);
+        statusEl._t = setTimeout(() => { statusEl.hidden = true; }, 2200);
+      };
+      emailSave?.addEventListener('click', async () => {
+        if (!(Auth && Auth.isLoggedIn && Auth.isLoggedIn())) {
+          if (Auth && Auth.navigateToAuth) Auth.navigateToAuth('login');
+          return;
+        }
+        const next = emailInput ? emailInput.value.trim() : '';
+        const current = (Auth.getCurrentUser && Auth.getCurrentUser()?.email) || '';
+        if (next === current) { flashSaved(emailStatus); return; }
+        emailSave.disabled = true;
+        try {
+          await Auth.changeEmail(next);
+          flashSaved(emailStatus);
+        } catch (err) {
+          if (emailInput) {
+            emailInput.classList.add('set-input--err');
+            setTimeout(() => emailInput.classList.remove('set-input--err'), 1500);
+          }
+          window.alert(err && err.message ? err.message : 'Could not update email.');
+        } finally {
+          emailSave.disabled = false;
+        }
+      });
+
+      // ── Account: change password (inline reveal) ──
+      const pwToggle = q('#setPwToggle');
+      const pwFields = q('#setPwFields');
+      const pwCurrent = q('#setPwCurrent');
+      const pwNew = q('#setPwNew');
+      const pwConfirm = q('#setPwConfirm');
+      const pwSave = q('#setPwSave');
+      const pwCancel = q('#setPwCancel');
+      const pwMsg = q('#setPwMsg');
+      const setPwMsg = (text, kind) => {
+        if (!pwMsg) return;
+        pwMsg.textContent = text || '';
+        pwMsg.classList.remove('err', 'ok');
+        if (kind) pwMsg.classList.add(kind);
+        pwMsg.hidden = !text;
+      };
+      const resetPwForm = () => {
+        [pwCurrent, pwNew, pwConfirm].forEach((i) => { if (i) i.value = ''; });
+        setPwMsg('', null);
+      };
+      const closePwFields = () => {
+        if (pwFields) pwFields.hidden = true;
+        if (pwToggle) pwToggle.hidden = false;
+        resetPwForm();
+      };
+      pwToggle?.addEventListener('click', () => {
+        if (!(Auth && Auth.isLoggedIn && Auth.isLoggedIn())) {
+          if (Auth && Auth.navigateToAuth) Auth.navigateToAuth('login');
+          return;
+        }
+        if (pwFields) pwFields.hidden = false;
+        pwToggle.hidden = true;
+        if (pwCurrent) pwCurrent.focus();
+      });
+      pwCancel?.addEventListener('click', closePwFields);
+      pwSave?.addEventListener('click', async () => {
+        const cur = pwCurrent ? pwCurrent.value : '';
+        const next = pwNew ? pwNew.value : '';
+        const confirm = pwConfirm ? pwConfirm.value : '';
+        if (!cur || !next) { setPwMsg('Fill in all fields.', 'err'); return; }
+        if (next !== confirm) { setPwMsg('New passwords don’t match.', 'err'); return; }
+        pwSave.disabled = true;
+        try {
+          await Auth.changePassword({ currentPassword: cur, newPassword: next });
+          setPwMsg('Password updated.', 'ok');
+          setTimeout(closePwFields, 1200);
+        } catch (err) {
+          setPwMsg(err && err.message ? err.message : 'Could not update password.', 'err');
+        } finally {
+          pwSave.disabled = false;
+        }
+      });
 
       // ── Danger zone ──
+      const confirmDialog = (opts) => (Auth && Auth.showConfirm)
+        ? Auth.showConfirm(opts)
+        : Promise.resolve(window.confirm((opts && opts.body) || 'Are you sure?'));
       q('#setClearLocal')?.addEventListener('click', async () => {
-        const ok = window.confirm('Clear all cached graphs and preferences from this browser? This cannot be undone.');
+        const ok = await confirmDialog({
+          title: 'Clear local data?',
+          body: 'This removes all cached graphs and preferences from this browser. It cannot be undone.',
+          confirmLabel: 'Clear data',
+          danger: true,
+        });
         if (!ok) return;
         try { localStorage.clear(); } catch (_) {}
         window.location.reload();
       });
-      q('#setDeleteAccount')?.addEventListener('click', () => {
-        window.alert('Account deletion is not available in this preview build.');
+      q('#setDeleteAccount')?.addEventListener('click', async () => {
+        if (!(Auth && Auth.isLoggedIn && Auth.isLoggedIn())) {
+          if (Auth && Auth.navigateToAuth) Auth.navigateToAuth('login');
+          return;
+        }
+        const ok = await confirmDialog({
+          title: 'Delete account?',
+          body: 'This permanently deletes your account and signs you out. This cannot be undone.',
+          confirmLabel: 'Delete account',
+          danger: true,
+        });
+        if (!ok) return;
+        try { Auth.deleteAccount(); } catch (_) {}
+        window.location.href = 'index.html';
       });
     }
 
@@ -1417,6 +1662,7 @@
           } else if (action === 'preview-inline') {
             const g = byTitle.get(title); if (!g) return;
             const slug = graphSlug(g); if (!slug) return;
+            try { sessionStorage.setItem('cfg.navHint.project', slug); } catch (_) {}
             window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
           } else if (action === 'fork-inline') {
             const g = byTitle.get(title); if (!g) return;
@@ -1437,6 +1683,9 @@
         const fromNgModal = !!card.closest('#ngGrid');
         const fromCommunity = !!card.closest('#communityTrending, #communityOpenList');
         if (fromNgModal || fromCommunity) {
+          // Stash the slug so view-mode can recover it if a clean-URL redirect
+          // strips the query string (e.g. `npx serve` extensionless rewrites).
+          try { sessionStorage.setItem('cfg.navHint.project', slug); } catch (_) {}
           window.location.href = `view-mode-new.html?project=${encodeURIComponent(slug)}`;
           return;
         }
@@ -1878,7 +2127,9 @@
       e.stopPropagation();
       openNewGraphModal();
     });
-    const tabFromUrl = new URLSearchParams(window.location.search).get('tab');
+    const initialHubTab = resolveInitialHubTab();
+    switchTab(initialHubTab);
+    initHubNavTabs();
     (async () => {
       await loadBundledCatalog();
       hydrateCustomProjects();
@@ -1898,7 +2149,7 @@
       initForkConfirmModal();
       initNewGraphModal();
       initSettings();
-      switchTab(TAB_META[tabFromUrl] ? tabFromUrl : 'dashboard');
+      switchTab(initialHubTab);
 
       // ───── Tutorial wiring (first-time user tour) ─────
       // Register hub-phase steps so the system can resume on this page.

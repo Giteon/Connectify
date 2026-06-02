@@ -217,6 +217,62 @@ button { font-family: inherit; cursor: pointer; }
   z-index: -1;
 }
 
+/* ── Hero "data flow" backdrop ────────────────────────────────
+   Faint graph edges with light pulses traveling along them, plus
+   slowly drifting nodes. Echoes the product's graph metaphor
+   without competing with the animated headline. Motion-safe. */
+.lp-flow {
+  position: absolute;
+  inset: 360px 0 auto 0;
+  height: 900px;
+  width: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+  /* Hidden for now — flip back to `block`/remove to re-enable the
+     animated data-flow lines behind the mock screenshot. */
+  display: none;
+}
+/* Keep hero content above the flow layer. */
+.lp-main > .lp-hero,
+.lp-main > .lp-tabs,
+.lp-main > .lp-mock-wrap {
+  position: relative;
+  z-index: 1;
+}
+.lp-flow svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.lp-flow-edge {
+  fill: none;
+  stroke: rgba(37, 99, 235, 0.16);
+  stroke-width: 1.5;
+}
+.lp-flow-pulse {
+  fill: none;
+  stroke: rgba(37, 99, 235, 0.75);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 42 1000;
+  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.6));
+  animation: lp-flow-dash 9s linear infinite;
+}
+.lp-flow-pulse--2 { animation-duration: 12s; animation-delay: -3s; stroke: rgba(14, 165, 233, 0.5); }
+.lp-flow-pulse--3 { animation-duration: 11s; animation-delay: -6s; }
+.lp-flow-pulse--4 { animation-duration: 14s; animation-delay: -2s; stroke: rgba(99, 102, 241, 0.45); }
+
+@keyframes lp-flow-dash {
+  from { stroke-dashoffset: 1042; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-flow-pulse { animation: none; opacity: 0; }
+}
+
 .lp-hero {
   text-align: center;
   max-width: 880px;
@@ -1281,4 +1337,135 @@ html[data-theme="dark"] .lp-topnav {
 }
 html[data-theme="dark"] body {
   background-image: radial-gradient(circle, #1f2a45 1px, transparent 1px);
+}
+html[data-theme="dark"] .lp-main::before {
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 0%, rgba(59, 130, 246, 0.11), transparent 70%),
+    radial-gradient(ellipse 80% 40% at 50% 30%, rgba(15, 23, 42, 0.35), transparent 70%);
+}
+html[data-theme="dark"] .lp-flow-edge { stroke: rgba(96, 165, 250, 0.12); }
+html[data-theme="dark"] .lp-flow-pulse { stroke: rgba(96, 165, 250, 0.7); }
+html[data-theme="dark"] .lp-flow-pulse--2 { stroke: rgba(56, 189, 248, 0.65); }
+html[data-theme="dark"] .lp-flow-pulse--4 { stroke: rgba(129, 140, 248, 0.6); }
+
+/* ── "Start building" choice modal ──────────────────────────── */
+.lp-start-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.lp-start-modal[hidden] { display: none; }
+.lp-start-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.lp-start-modal.is-open .lp-start-backdrop { opacity: 1; }
+.lp-start-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  background: var(--lp-bg);
+  border: 1px solid var(--lp-border);
+  border-radius: 18px;
+  box-shadow: var(--lp-shadow-lg);
+  padding: 36px 36px 32px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.lp-start-modal.is-open .lp-start-card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.lp-start-x {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--lp-text-soft);
+  transition: background 120ms ease, color 120ms ease;
+}
+.lp-start-x:hover { background: var(--lp-bg-soft); color: var(--lp-text); }
+.lp-start-x svg { width: 18px; height: 18px; }
+.lp-start-title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--lp-text);
+}
+.lp-start-sub {
+  margin: 0 auto 28px;
+  max-width: 400px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lp-text-soft);
+}
+.lp-start-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  text-align: left;
+}
+.lp-start-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 18px;
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 60ms ease, box-shadow 120ms ease;
+}
+.lp-start-option:hover {
+  border-color: var(--lp-primary);
+  background: var(--lp-bg-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-primary) 16%, transparent);
+}
+.lp-start-option:active { transform: translateY(1px); }
+.lp-start-option:focus-visible {
+  outline: none;
+  border-color: var(--lp-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-primary) 30%, transparent);
+}
+.lp-start-option-icon {
+  width: 36px; height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--lp-primary) 12%, var(--lp-bg));
+  color: var(--lp-primary);
+}
+.lp-start-option-icon svg { width: 20px; height: 20px; }
+.lp-start-option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lp-text);
+  text-align: center;
+}
+.lp-start-option-desc {
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--lp-text-soft);
+}
+@media (max-width: 520px) {
+  .lp-start-options { grid-template-columns: 1fr; }
+  .lp-start-card { padding: 28px 20px 20px; }
 }

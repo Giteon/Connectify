@@ -266,4 +266,22 @@
     if (e.key !== KEY) return;
     applyTheme(e.newValue === 'dark' ? 'dark' : 'light');
   });
+
+  // ── Accessibility settings (global, applied on every page) ──
+  function applyA11ySettings() {
+    const html = document.documentElement;
+    const on = k => {
+      try { return localStorage.getItem('cfg.settings.' + k) === '1'; }
+      catch (_) { return false; }
+    };
+    html.toggleAttribute('data-contrast-high', on('a11y.contrast'));
+    html.toggleAttribute('data-focus-rings', on('a11y.focusRings'));
+    html.toggleAttribute('data-underline-links', on('a11y.underlineLinks'));
+    html.toggleAttribute('data-reduce-transparency', on('a11y.reduceTransparency'));
+  }
+  try { applyA11ySettings(); } catch (_) {}
+  window.applyA11ySettings = applyA11ySettings;
+  window.addEventListener('storage', e => {
+    if (e.key && e.key.indexOf('cfg.settings.a11y.') === 0) applyA11ySettings();
+  });
 })();

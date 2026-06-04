@@ -316,11 +316,26 @@ function initApp() {
   });
   Canvas.build(P);
 
-  // Fit the graph into view on load (read-only — no edit-mode auto-layout).
+  // On entry, run the same auto-layout animation the editor's button performs —
+  // but only when the user *opened* this view page fresh. Switching to view mode
+  // from edit mode sets cfg.navHint.fromEditMode so we preserve the current
+  // layout instead of re-flowing it.
+  let cameFromEditMode = false;
+  try {
+    cameFromEditMode = sessionStorage.getItem('cfg.navHint.fromEditMode') === '1';
+    if (cameFromEditMode) sessionStorage.removeItem('cfg.navHint.fromEditMode');
+  } catch (_) {}
+
   requestAnimationFrame(() => {
     const nodes = Canvas.getAllNodes();
-    if (nodes.length > 0 && typeof Canvas.fitToNodes === 'function') {
-      Canvas.fitToNodes(nodes.map(n => n.id), { padding: 80, animate: false });
+    if (!nodes.length) return;
+    if (cameFromEditMode) {
+      // Preserve layout — just fit it into view, no re-flow.
+      if (typeof Canvas.fitToNodes === 'function') {
+        Canvas.fitToNodes(nodes.map(n => n.id), { padding: 80, animate: false });
+      }
+    } else {
+      viewAutoLayout();
     }
   });
 
@@ -360,6 +375,136 @@ function initApp() {
       });
     }
   }));
+}
+
+/* ── Entry auto-layout ─────────────────────────────────────
+   Read-only port of the editor's animated auto-layout (autoLayoutNodes).
+   View mode has no subgraphs, so this is a node-only layered DAG flow:
+   left→right by dependency depth, vertically centered per layer, animated
+   into place and then fit into view. Mirrors the look of pressing the
+   editor's auto-layout button. */
+function viewAutoLayout() {
+  if (viewAutoLayout._running) return;
+  const nodes = Canvas.getAllNodes();
+  const fit = (animate) => {
+    if (typeof Canvas.fitToNodes === 'function') {
+      Canvas.fitToNodes(nodes.map(n => n.id), { padding: 80, animate });
+    }
+  };
+  if (nodes.length < 2) { fit(false); return; }
+  viewAutoLayout._running = true;
+
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const sizeOf = (id) => {
+    const el = document.querySelector(`.node[data-node-id="${CSS.escape(id)}"]`);
+    return {
+      width: Math.max(180, Math.round(el?.offsetWidth || 200)),
+      height: Math.max(120, Math.round(el?.offsetHeight || 170)),
+    };
+  };
+  const dim = new Map(nodes.map(n => [n.id, sizeOf(n.id)]));
+  const blockHeight = id => dim.get(id)?.height || 160;
+  const blockWidth = id => dim.get(id)?.width || 240;
+
+  const ids = nodes.map(n => n.id);
+  const succ = new Map(ids.map(id => [id, []]));
+  const pred = new Map(ids.map(id => [id, []]));
+  const edges = [];
+  for (const c of Canvas.getConnections()) {
+    const fromId = c?.from?.[0];
+    const toId = c?.to?.[0];
+    if (!fromId || !toId || fromId === toId) continue;
+    if (!byId.has(fromId) || !byId.has(toId)) continue;
+    succ.get(fromId).push(toId);
+    pred.get(toId).push(fromId);
+    edges.push([fromId, toId]);
+  }
+
+  const orphanIds = ids.filter(id => succ.get(id).length === 0 && pred.get(id).length === 0);
+  const connectedIds = ids.filter(id => !orphanIds.includes(id));
+  const layer = new Map(connectedIds.map(id => [id, 0]));
+  for (let pass = 0; pass < connectedIds.length; pass++) {
+    let changed = false;
+    for (const [a, b] of edges) {
+      if (!layer.has(a) || !layer.has(b)) continue;
+      const next = (layer.get(a) || 0) + 1;
+      if (next > (layer.get(b) || 0)) { layer.set(b, next); changed = true; }
+    }
+    if (!changed) break;
+  }
+  let minLayer = Infinity;
+  layer.forEach(v => { if (v < minLayer) minLayer = v; });
+  if (layer.size && isFinite(minLayer) && minLayer !== 0) layer.forEach((v, id) => layer.set(id, v - minLayer));
+
+  const layers = new Map();
+  connectedIds.forEach(id => {
+    const l = layer.get(id) || 0;
+    if (!layers.has(l)) layers.set(l, []);
+    layers.get(l).push(id);
+  });
+
+  const ROW_GAP = 92;
+  const COL_GAP = 220;
+  const minX = Math.min(...ids.map(id => Number(byId.get(id).x) || 0));
+  const avgY = ids.reduce((sum, id) => sum + (Number(byId.get(id).y) || 0), 0) / Math.max(1, ids.length);
+  const startX = Math.max(40, minX);
+  const placedCenterY = new Map();
+  const layout = {};
+
+  if (orphanIds.length) {
+    const colIds = [...orphanIds].sort((a, b) => (Number(byId.get(a).y) || 0) - (Number(byId.get(b).y) || 0));
+    const totalColH = colIds.reduce((sum, id) => sum + blockHeight(id), 0) + Math.max(0, colIds.length - 1) * ROW_GAP;
+    let cursorY = Math.round(avgY - (totalColH / 2));
+    colIds.forEach(id => {
+      const h = blockHeight(id);
+      const y = Math.round(cursorY);
+      layout[id] = { x: startX, y };
+      placedCenterY.set(id, y + (h / 2));
+      cursorY += h + ROW_GAP;
+    });
+  }
+
+  const layerKeys = Array.from(layers.keys()).sort((a, b) => a - b);
+  const layerWidths = new Map(layerKeys.map(l => [l, Math.max(...layers.get(l).map(id => blockWidth(id)), 220)]));
+  let currentX = startX + (orphanIds.length ? (Math.max(...orphanIds.map(id => blockWidth(id)), 220) + COL_GAP) : 0);
+  const layerX = new Map();
+  layerKeys.forEach(l => { layerX.set(l, currentX); currentX += (layerWidths.get(l) || 220) + COL_GAP; });
+
+  for (const l of layerKeys) {
+    const colIds = layers.get(l) || [];
+    colIds.sort((a, b) => {
+      const score = (id) => {
+        const ps = (pred.get(id) || []).filter(pid => placedCenterY.has(pid));
+        if (!ps.length) return (Number(byId.get(id).y) || 0) + (blockHeight(id) / 2);
+        return ps.reduce((sum, pid) => sum + (placedCenterY.get(pid) || 0), 0) / ps.length;
+      };
+      return score(a) - score(b);
+    });
+    const totalColH = colIds.reduce((sum, id) => sum + blockHeight(id), 0) + Math.max(0, colIds.length - 1) * ROW_GAP;
+    let cursorY = Math.round(avgY - (totalColH / 2));
+    const x = layerX.get(l) || startX;
+    colIds.forEach(id => {
+      const h = blockHeight(id);
+      const y = Math.round(cursorY);
+      layout[id] = { x, y };
+      placedCenterY.set(id, y + (h / 2));
+      cursorY += h + ROW_GAP;
+    });
+  }
+
+  const finish = () => {
+    viewAutoLayout._running = false;
+    Canvas.drawEdges();
+    requestAnimationFrame(() => fit(true));
+  };
+  const changed = Canvas.applyNodeLayout(layout, {
+    animate: true,
+    duration: 500,
+    easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
+    onFrame: () => Canvas.drawEdges(),
+    onComplete: finish,
+  });
+  if (!changed) finish();
 }
 
 /* ── Info panel ───────────────────────────────────────────

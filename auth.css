@@ -277,6 +277,11 @@
   color: var(--lp-text-soft);
   text-align: center;
 }
+.auth-fine a {
+  color: var(--lp-primary);
+  text-decoration: underline;
+}
+.auth-fine a:hover { text-decoration: none; }
 
 /* ── Right column: slideshow ──────────────────────────────────── */
 /* No background, no border-left — the slideshow column is invisible

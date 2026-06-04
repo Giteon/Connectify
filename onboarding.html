@@ -15,7 +15,7 @@
     } catch (_) {}
   </script>
   <!-- Reuse landing-page styles for the dot-matrix bg + topnav. -->
-  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="theme.css?v=1" />
   <link rel="stylesheet" href="landing-page.css" />
   <link rel="stylesheet" href="onboarding.css" />
 </head>
@@ -311,7 +311,7 @@
     </div>
   </div>
 
-  <script src="theme.js"></script>
+  <script src="theme.js?v=1"></script>
   <script src="auth.js"></script>
   <script>
     /* ─────────────────────────────────────────────────────────────
@@ -609,6 +609,10 @@
         const DURATION = skipped ? 2200 : 3200;
         setTimeout(() => {
           clearInterval(rotate);
+          // Pre-arm the new-graph modal in sessionStorage so graphs-hub
+          // can open it even if the server strips ?new=1 during the
+          // .html → clean-URL redirect.
+          try { sessionStorage.setItem('cfg.openNewGraph', '1'); } catch (_) {}
           location.href = returnTo;
         }, DURATION);
       }

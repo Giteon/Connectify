@@ -2229,7 +2229,10 @@ function initApp() {
   // ── Canvas init with the active variant's graph ──────
   // offset=0 keeps saved positions 1:1 with what's rendered, so snapshot/
   // reload round-trips cleanly when switching variants.
-  Canvas.init({ offset: 0, editable: true, initialZoom: 1.0 });
+  // Flip SIMPLE_NODES to false to restore the classic per-port node cards +
+  // port-anchor rope drag (the simplified cards + drag-to-connect are additive).
+  const SIMPLE_NODES = true;
+  Canvas.init({ offset: 0, editable: true, initialZoom: 1.0, simpleNodes: SIMPLE_NODES });
   Canvas.build({
     nodes: activeVariant.nodes,
     connections: activeVariant.connections,
@@ -4631,6 +4634,9 @@ function initContribStatus(P) {
 
   document.getElementById('roleOptViewMode').addEventListener('click', () => {
     roleDropdown.classList.remove('open');
+    // Signal view-mode NOT to run the entry auto-layout animation: switching
+    // from edit mode should preserve the layout the user just had on screen.
+    try { sessionStorage.setItem('cfg.navHint.fromEditMode', '1'); } catch (_) {}
     window.location.href = 'view-mode-new.html?project=' + slug + '&mode=contributor';
   });
 
@@ -6977,10 +6983,40 @@ function showRunComparison(aId, bId) {
   });
 }
 
+// Cloud-compute pricing: runs execute on our compute partner and cost
+// credits scaled by graph size (1 credit per node, minimum 1). Local
+// compute is free — a local/cloud run-mode toggle is a future enhancement;
+// for the MVP every run is treated as a cloud run.
+function runCreditCost() {
+  let n = 0;
+  try { n = Canvas.getAllNodes().length; } catch (_) { n = 0; }
+  return Math.max(1, n);
+}
+
 // Kick off a simulated run. Stored under the *current* variant's key
 // so switching variants mid-run doesn't pollute another variant's feed.
 function startRun(opts) {
   if (ACTIVE_RUN) return; // one at a time (wireframe constraint)
+
+  // Charge cloud credits up front. If the balance can't cover the run,
+  // block it and route the user straight into the top-up flow.
+  const LN = window.ConnectifyLeftnav;
+  if (LN && typeof LN.spendCredits === 'function') {
+    const cost = runCreditCost();
+    const balance = LN.getCreditsBalance ? LN.getCreditsBalance() : 0;
+    if (balance < cost) {
+      if (typeof LN.showCreditsModal === 'function') {
+        const unit = cost === 1 ? 'credit' : 'credits';
+        LN.showCreditsModal({
+          view: 'buy',
+          notice: `This run needs ${cost.toLocaleString()} ${unit} but you only have ${balance.toLocaleString()}. Top up to continue.`,
+        });
+      }
+      return;
+    }
+    LN.spendCredits(cost);
+  }
+
   openRunsPanelPeek();
   // Tutorial: advance to "Your run is underway" a beat AFTER the progress bar
   // has visibly started moving, rather than the instant Run is clicked.
@@ -7741,10 +7777,52 @@ function initFindBar() {
       ifNeeded: true,
     });
   };
+  // A match can live inside a collapsed subgraph, where its node is `sg-hidden`
+  // (display:none) — invisible and unmeasurable, so it can't be highlighted or
+  // centered. Expand the containing group so the match is actually shown.
+  // renderSubgraphs() rebuilds member DOM, so callers must re-apply find classes.
+  const expandedByFind = new Set();
+  const ensureVisible = (id) => {
+    if (typeof _getSubgraphByNode !== 'function') return false;
+    const g = _getSubgraphByNode(id);
+    if (!g || !g.collapsed) return false;
+    g.collapsed = false;
+    expandedByFind.add(g.id);
+    if (typeof _markSubgraphMutation === 'function') _markSubgraphMutation();
+    if (typeof renderSubgraphs === 'function') renderSubgraphs();
+    if (Canvas && Canvas.drawEdges) {
+      requestAnimationFrame(() => { Canvas.drawEdges(); requestAnimationFrame(() => Canvas.drawEdges()); });
+    }
+    return true;
+  };
+  // Re-collapse any group find auto-expanded, so closing find leaves the canvas
+  // as the user had it. Skips groups they've since re-collapsed themselves.
+  const restoreExpanded = () => {
+    if (!expandedByFind.size) return;
+    let changed = false;
+    expandedByFind.forEach(gid => {
+      const g = (typeof _getSubgraphById === 'function') ? _getSubgraphById(gid) : null;
+      if (g && !g.collapsed) { g.collapsed = true; changed = true; }
+    });
+    expandedByFind.clear();
+    if (!changed) return;
+    if (typeof _markSubgraphMutation === 'function') _markSubgraphMutation();
+    if (typeof renderSubgraphs === 'function') renderSubgraphs();
+    if (Canvas && Canvas.drawEdges) {
+      requestAnimationFrame(() => { Canvas.drawEdges(); requestAnimationFrame(() => Canvas.drawEdges()); });
+    }
+  };
   const setActive = (idx) => {
     if (!matches.length) { cursor = -1; return; }
     cursor = ((idx % matches.length) + matches.length) % matches.length;
     const activeId = matches[cursor].id;
+    // Reveal the match if it's hidden inside a collapsed subgraph; that rebuilds
+    // member DOM, so re-apply the highlight/dim classes afterward.
+    if (ensureVisible(activeId)) {
+      const ids = matches.map(n => n.id);
+      applyHighlights(ids);
+      applyDimming(ids);
+    }
     document.querySelectorAll('.node.find-match-active')
       .forEach(el => el.classList.remove('find-match-active'));
     document.querySelector(`.node[data-node-id="${activeId}"]`)
@@ -7797,6 +7875,8 @@ function initFindBar() {
     clearHighlights();
     applyDimming([]);
     input.focus();
+    // Tutorial: advance the "Find any node" step the moment the bar opens.
+    try { window.ConnectifyTutorial && window.ConnectifyTutorial.notifyAction('find-opened', {}); } catch (_) {}
   }
   function closeBar() {
     bar.hidden = true;
@@ -7805,6 +7885,7 @@ function initFindBar() {
     matches = [];
     cursor = -1;
     if (findDanceTimer) { clearTimeout(findDanceTimer); findDanceTimer = null; }
+    restoreExpanded();
     clearHighlights();
     applyDimming([]);
   }
@@ -9627,6 +9708,39 @@ window.TutorialHooks = {
   // on .sg-toggle directly. Kept for any external callers.
   markSubgroupTarget() {
     this.clearPathTargets();
+  },
+
+  // "Tidy it away" step — auto-collapse the subgroup the user just created
+  // ~1s after it forms. renderSubgraphs() animates the box shrinking via the
+  // .sg-animating transition, so this looks smooth for free. Then advance the
+  // tour on its own once the animation settles.
+  autoCollapseSubgroup() {
+    setTimeout(() => {
+      try {
+        const items = (typeof SUBGRAPHS !== 'undefined' && SUBGRAPHS.items) || [];
+        const g = items.length ? items[items.length - 1] : null;
+        if (g && !g.collapsed) {
+          g.collapsed = true;
+          if (typeof _markSubgraphMutation === 'function') _markSubgraphMutation();
+          if (typeof renderSubgraphs === 'function') renderSubgraphs();
+          if (typeof Canvas !== 'undefined' && Canvas.drawEdges) {
+            requestAnimationFrame(() => {
+              Canvas.drawEdges();
+              requestAnimationFrame(() => Canvas.drawEdges());
+            });
+          }
+        }
+      } catch (_) {}
+      // Let the collapse animation (~260ms) finish, then move on.
+      setTimeout(() => {
+        try { window.ConnectifyTutorial && window.ConnectifyTutorial.next(); } catch (_) {}
+      }, 650);
+    }, 1000);
+  },
+
+  // Close the find bar when leaving the find tour step.
+  closeFindBar() {
+    try { document.getElementById('findClose')?.click(); } catch (_) {}
   },
 
   // Open the left drawer on the History tab for the snapshot step.

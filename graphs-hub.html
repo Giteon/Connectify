@@ -26,8 +26,8 @@
       }
     } catch (_) {}
   </script>
-  <link rel="stylesheet" href="theme.css" />
-  <link rel="stylesheet" href="graphs-hub.css?v=3" />
+  <link rel="stylesheet" href="theme.css?v=1" />
+  <link rel="stylesheet" href="graphs-hub.css?v=7" />
   <!-- leftnav.css last so it owns the leftnav styling on every page. -->
   <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="tutorial.css" />
@@ -303,6 +303,10 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
               <span>Appearance</span>
             </a>
+            <a class="settings-nav-item" href="#set-accessibility" data-target="set-accessibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="1.4"/><path d="M3.5 7.5 12 9l8.5-1.5M12 9v6m0 0-2.5 5M12 15l2.5 5"/></svg>
+              <span>Accessibility</span>
+            </a>
             <a class="settings-nav-item" href="#set-editor" data-target="set-editor">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
               <span>Editor</span>
@@ -497,6 +501,64 @@
                   <div class="set-row-control">
                     <label class="set-switch">
                       <input type="checkbox" data-setting="appearance.reduceMotion" />
+                      <span class="set-switch-track"><span class="set-switch-thumb"></span></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Accessibility ───────────────────────────────── -->
+            <section class="settings-section" id="set-accessibility">
+              <div class="settings-section-head">
+                <h2>Accessibility</h2>
+                <p>Adjust the interface to be easier to read and navigate.</p>
+              </div>
+              <div class="settings-card">
+                <div class="set-row">
+                  <div class="set-row-label">
+                    <span class="set-row-title">High contrast</span>
+                    <span class="set-row-desc">Strengthen borders and text for better legibility.</span>
+                  </div>
+                  <div class="set-row-control">
+                    <label class="set-switch">
+                      <input type="checkbox" data-setting="a11y.contrast" data-a11y="1" />
+                      <span class="set-switch-track"><span class="set-switch-thumb"></span></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-label">
+                    <span class="set-row-title">Always show focus outlines</span>
+                    <span class="set-row-desc">Keep keyboard focus rings visible on all controls.</span>
+                  </div>
+                  <div class="set-row-control">
+                    <label class="set-switch">
+                      <input type="checkbox" data-setting="a11y.focusRings" data-a11y="1" />
+                      <span class="set-switch-track"><span class="set-switch-thumb"></span></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-label">
+                    <span class="set-row-title">Underline links</span>
+                    <span class="set-row-desc">Add underlines to links so they stand out from text.</span>
+                  </div>
+                  <div class="set-row-control">
+                    <label class="set-switch">
+                      <input type="checkbox" data-setting="a11y.underlineLinks" data-a11y="1" />
+                      <span class="set-switch-track"><span class="set-switch-thumb"></span></span>
+                    </label>
+                  </div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-label">
+                    <span class="set-row-title">Reduce transparency</span>
+                    <span class="set-row-desc">Disable blur and translucency effects.</span>
+                  </div>
+                  <div class="set-row-control">
+                    <label class="set-switch">
+                      <input type="checkbox" data-setting="a11y.reduceTransparency" data-a11y="1" />
                       <span class="set-switch-track"><span class="set-switch-thumb"></span></span>
                     </label>
                   </div>
@@ -756,10 +818,10 @@
   <script src="fork-project.js"></script>
   <script src="leftnav.js"></script>
   <script src="command-palette.js"></script>
-  <script src="auth.js?v=3"></script>
+  <script src="auth.js?v=4"></script>
   <script src="tutorial-system.js"></script>
   <script src="tutorial-steps.js"></script>
-  <script src="graphs-hub.js?v=3"></script>
-  <script src="theme.js"></script>
+  <script src="graphs-hub.js?v=7"></script>
+  <script src="theme.js?v=1"></script>
 </body>
 </html>

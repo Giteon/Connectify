@@ -339,6 +339,9 @@
     let communityContribFilter = '';
     let communitySort = 'relevance';
     let communityOpenPage = 0;
+    // Suppresses the trending-grid entry animation on renders triggered by a
+    // star toggle (rerenderAll), so cards don't re-rise on every click.
+    let suppressCommunityAnim = false;
     const COMMUNITY_OPEN_PAGE_SIZE = 8;
 
     const q = (s) => document.querySelector(s);
@@ -745,9 +748,20 @@
       const prevBtn = q('#communityOpenPrev');
       const nextBtn = q('#communityOpenNext');
       const pageLabel = q('#communityOpenPageLabel');
-      q('#communityTrending').innerHTML = trending
+      const trendingHost = q('#communityTrending');
+      trendingHost.innerHTML = trending
         .map(g => renderCard({ ...g, role: 'Public', shortOwner: `${g.owner}` }, { showManageActions: false, showCommunityActions: true, readOnlyTitle: true }))
         .join('') || '<div class="panel">No matching community graphs.</div>';
+      // Play the staggered rise on fresh renders only; remove the class once
+      // it finishes so the held end-transform can't block the hover lift.
+      trendingHost.classList.remove('cards--stagger');
+      if (!suppressCommunityAnim) {
+        void trendingHost.offsetWidth; // reflow so the animation restarts
+        trendingHost.classList.add('cards--stagger');
+        clearTimeout(trendingHost._staggerTimer);
+        trendingHost._staggerTimer = setTimeout(
+          () => trendingHost.classList.remove('cards--stagger'), 800);
+      }
       if (openHost) openHost.classList.toggle('open-chart--empty', !open.length);
       if (!open.length) {
         if (openHost) openHost.innerHTML = '<div class="panel">No open-contribution graphs.</div>';
@@ -969,10 +983,14 @@
       // ── Generic data-setting controls (toggles, inputs, selects) ──
       pane.querySelectorAll('[data-setting]').forEach((el) => {
         const key = el.dataset.setting;
+        const isA11y = el.dataset.a11y === '1';
         if (el.type === 'checkbox') {
           const def = el.dataset.default === 'on';
           el.checked = getPref(key, def ? '1' : '0') === '1';
-          el.addEventListener('change', () => setPref(key, el.checked ? '1' : '0'));
+          el.addEventListener('change', () => {
+            setPref(key, el.checked ? '1' : '0');
+            if (isA11y && typeof window.applyA11ySettings === 'function') window.applyA11ySettings();
+          });
         } else {
           const stored = getPref(key, null);
           if (stored !== null) el.value = stored;
@@ -1121,6 +1139,9 @@
         }
       };
 
+      // Sections that only make sense when signed in.
+      const AUTH_ONLY_SECTIONS = ['set-account', 'set-accessibility', 'set-notifications', 'set-billing', 'set-danger'];
+
       const syncProfileUi = () => {
         const loggedIn = !!(Auth && Auth.isLoggedIn && Auth.isLoggedIn());
         const user = loggedIn && Auth.getCurrentUser ? Auth.getCurrentUser() : null;
@@ -1134,6 +1155,13 @@
         } else if (emailInput) {
           emailInput.value = '';
         }
+        // Show/hide auth-only sections + their nav pills.
+        AUTH_ONLY_SECTIONS.forEach((id) => {
+          const section = document.getElementById(id);
+          if (section) section.hidden = !loggedIn;
+          const navItem = pane.querySelector(`.settings-nav-item[data-target="${id}"]`);
+          if (navItem) navItem.hidden = !loggedIn;
+        });
         pendingAvatar = undefined;
         renderAvatar(user);
       };
@@ -1658,7 +1686,9 @@
             const g = byTitle.get(title); if (!g) return;
             g.starred = !g.starred;
             const slug = graphSlug(g); if (slug) setStarred(slug, g.starred);
+            suppressCommunityAnim = true;
             rerenderAll();
+            suppressCommunityAnim = false;
           } else if (action === 'preview-inline') {
             const g = byTitle.get(title); if (!g) return;
             const slug = graphSlug(g); if (!slug) return;
@@ -2164,16 +2194,24 @@
       const fromLanding = params.get('new') === '1';
       const tutParam = params.get('tutorial');         // '1' to force-start
 
-      // Open the modal whenever the user explicitly asked for it (?new=1) OR
-      // the tour is pre-armed at step 1 (set by the landing page's
-      // "Start building" click BEFORE navigating away). The pre-arm path is
-      // what keeps step 1 reliable when static-file servers (e.g. `npx serve`
-      // with clean-URLs) strip the query string during the .html→clean-url
-      // redirect.
+      // Pre-arm flag set by onboarding's finish() so the modal opens even
+      // when the server strips ?new=1 during the .html → clean-URL redirect.
+      let onboardingArmed = false;
+      try {
+        onboardingArmed = sessionStorage.getItem('cfg.openNewGraph') === '1';
+        if (onboardingArmed) sessionStorage.removeItem('cfg.openNewGraph');
+      } catch (_) {}
+
+      // Open the modal whenever the user explicitly asked for it (?new=1),
+      // onboarding just completed (pre-arm flag), or the tour is pre-armed
+      // at step 1 (set by the landing page's "Start building" click BEFORE
+      // navigating away). The pre-arm paths keep things reliable when
+      // static-file servers (e.g. `npx serve` with clean-URLs) strip the
+      // query string during the .html→clean-url redirect.
       const tutState = window.ConnectifyTutorial && window.ConnectifyTutorial.getState();
       const tourPreArmed = !!(tutState && tutState.started && tutState.currentStep === 1
         && !tutState.skipped && !tutState.completed);
-      if (fromLanding || tourPreArmed) {
+      if (fromLanding || onboardingArmed || tourPreArmed) {
         openNewGraphModal();
       }
 

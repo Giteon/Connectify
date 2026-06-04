@@ -1690,6 +1690,7 @@ html[data-theme="dark"] .ng-card-overlay { background: rgba(11, 18, 32, 0.42); }
 .btn--danger:hover { background: var(--dot-red); border-color: var(--dot-red); color: #fff; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn[hidden] { display: none; }
+.settings-nav-item[hidden] { display: none; }
 
 /* ── Section footer (save) ── */
 .settings-section-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; }
@@ -1703,7 +1704,7 @@ html[data-theme="dark"] .ng-card-overlay { background: rgba(11, 18, 32, 0.42); }
 .set-pw-fields[hidden] { display: none; }
 .set-pw-field { display: flex; flex-direction: column; gap: 6px; }
 .set-pw-field .set-input { width: 320px; }
-.set-pw-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 2px; }
+.set-pw-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 2px; padding-bottom: 14px; }
 .set-pw-msg { margin-right: auto; font-size: 12px; font-weight: 600; }
 .set-pw-msg[hidden] { display: none; }
 .set-pw-msg.err { color: var(--dot-red); }
@@ -1759,3 +1760,123 @@ html[data-reduce-motion="1"] *::after {
   transition-duration: .001ms !important;
   animation-duration: .001ms !important;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Community page polish — sleeker styling + micro-interactions.
+   Scoped to the Community tab so the dashboard/team views stay put.
+   The reduce-motion rule above (using !important) neutralizes every
+   transition/animation here when the user opts out of motion.
+   ───────────────────────────────────────────────────────────── */
+
+/* Search field — softer expanding glow + the icon adopts the accent. */
+.community-search-input-wrap {
+  transition: border-color .2s ease, box-shadow .25s ease, background .2s ease;
+}
+.community-search-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.community-search-input-wrap svg { transition: color .2s ease; }
+.community-search-input-wrap:focus-within svg { color: var(--primary); }
+
+/* Open-list pager — springy hover scale. */
+.open-pager-btn {
+  transition: background .15s ease, color .15s ease,
+              transform .15s cubic-bezier(.34, 1.56, .64, 1),
+              box-shadow .15s ease;
+}
+.open-pager-btn:hover:not(:disabled) {
+  transform: scale(1.12);
+  box-shadow: 0 4px 10px -4px rgba(15, 23, 42, .25);
+}
+.open-pager-btn:active:not(:disabled) { transform: scale(.94); }
+
+/* Community cards — hover lift, shadow bloom, accent border. */
+#tab-community .graph-card {
+  transition: transform .22s cubic-bezier(.22, .61, .36, 1),
+              box-shadow .22s ease,
+              border-color .22s ease;
+}
+#tab-community .graph-card[data-graph-slug]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px -12px rgba(15, 23, 42, .28);
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+}
+html[data-theme="dark"] #tab-community .graph-card[data-graph-slug]:hover {
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .55);
+}
+
+/* Thumbnail viz — gentle zoom + brighten as the card lifts. */
+#tab-community .graph-card .graph-viz {
+  transition: transform .4s cubic-bezier(.22, .61, .36, 1), opacity .3s ease;
+}
+#tab-community .graph-card[data-graph-slug]:hover .graph-viz {
+  transform: scale(1.06);
+  opacity: 1;
+}
+
+/* Role badge — floats up a touch with the card. */
+#tab-community .graph-card .role-badge {
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+#tab-community .graph-card[data-graph-slug]:hover .role-badge {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .4);
+}
+
+/* Card icon buttons (star / fork / preview) — springy pop. */
+#tab-community .card-icon-btn {
+  transition: transform .15s cubic-bezier(.34, 1.56, .64, 1),
+              background .15s ease, color .15s ease;
+}
+#tab-community .card-icon-btn:hover { transform: scale(1.18); }
+#tab-community .card-icon-btn:active { transform: scale(.9); }
+
+/* Star fill — a single celebratory pop when it becomes active. */
+#tab-community .star-btn.active svg {
+  animation: star-pop .34s cubic-bezier(.34, 1.56, .64, 1);
+}
+@keyframes star-pop {
+  0%   { transform: scale(.6) rotate(-14deg); }
+  60%  { transform: scale(1.25) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Open-to-contributions rows — sliding left accent + title tint. */
+.open-chart .open-item {
+  position: relative;
+  transition: background .18s ease, padding-left .18s ease;
+}
+.open-chart .open-item::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .2s ease;
+}
+.open-chart .open-item[data-graph-slug]:hover { padding-left: 16px; }
+.open-chart .open-item[data-graph-slug]:hover::before { transform: scaleX(1); }
+.open-chart .open-item .title { transition: color .15s ease; }
+.open-chart .open-item[data-graph-slug]:hover .title { color: var(--primary); }
+
+/* Staggered entry for the Trending grid. The `cards--stagger` class is
+   added by renderCommunity() on fresh renders (tab-enter, search, filter,
+   sort, topic, pager) and removed shortly after so it never replays on a
+   star toggle and never pins a transform that would block the hover lift. */
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#communityTrending.cards--stagger .graph-card {
+  animation: card-rise .42s cubic-bezier(.22, .61, .36, 1) both;
+}
+#communityTrending.cards--stagger .graph-card:nth-child(1) { animation-delay: .02s; }
+#communityTrending.cards--stagger .graph-card:nth-child(2) { animation-delay: .06s; }
+#communityTrending.cards--stagger .graph-card:nth-child(3) { animation-delay: .10s; }
+#communityTrending.cards--stagger .graph-card:nth-child(4) { animation-delay: .14s; }
+#communityTrending.cards--stagger .graph-card:nth-child(5) { animation-delay: .18s; }
+#communityTrending.cards--stagger .graph-card:nth-child(6) { animation-delay: .22s; }
+#communityTrending.cards--stagger .graph-card:nth-child(7) { animation-delay: .26s; }
+#communityTrending.cards--stagger .graph-card:nth-child(8) { animation-delay: .30s; }

@@ -745,10 +745,38 @@
     });
   }
 
-  // Where "Log out" sends the user. Landing page is served at the site
-  // root (index.html); relativePageUrl()-style filename keeps it file://-safe.
-  const LANDING_PAGE = 'index.html';
   const SETTINGS_URL = 'graphs-hub.html?tab=settings';
+
+  // Pages where a guest has no meaningful access — editing a graph requires
+  // login, onboarding is part of the signup flow. After logging out from one
+  // of these pages we bounce to the login tab with the email pre-filled and
+  // a `return=` so the user lands back here once they log back in.
+  const PRIVATE_PAGE_NAMES = new Set(['editing-mode-new', 'onboarding']);
+
+  function logoutNavigate(email) {
+    const rawFile = location.pathname.split('/').filter(Boolean).pop() || '';
+    const pageName = rawFile.replace(/\.html$/i, '').toLowerCase();
+
+    if (PRIVATE_PAGE_NAMES.has(pageName)) {
+      // Store the email in sessionStorage so auth.html can pre-fill it even
+      // when static-file servers strip query params during the .html→clean-
+      // URL redirect (e.g. `npx serve` redirects auth.html?… → /auth sans params).
+      // auth.html reads this key on boot and removes it immediately.
+      if (email) {
+        try { sessionStorage.setItem('cfg.auth.loginPrefill', email); } catch (_) {}
+      }
+      // Still pass the params in the URL for production environments (GitHub
+      // Pages) where .html redirects don't strip query strings.
+      let url = 'auth.html?view=login';
+      if (email) url += '&prefill=' + encodeURIComponent(email);
+      url += '&return=' + encodeURIComponent(relativePageUrl());
+      location.href = url;
+    } else {
+      // All other pages (landing, hub, community, public view-mode, etc.)
+      // render fine for guests — just reload to drop the logged-in state.
+      location.reload();
+    }
+  }
 
   function openUserMenu(anchor) {
     closeUserMenu();
@@ -788,14 +816,15 @@
       closeUserMenu();
       const ok = await showConfirm({
         title: 'Log out?',
-        body: "You'll be signed out and returned to the landing page.",
+        body: "You'll be signed out of your account.",
         confirmLabel: 'Log out',
         cancelLabel: 'Cancel',
         danger: true,
       });
       if (!ok) return;
+      const email = user && user.email;
       logout();
-      location.href = LANDING_PAGE;
+      logoutNavigate(email);
     });
     setTimeout(() => {
       document.addEventListener('click', onDocClickForMenu, true);

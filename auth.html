@@ -17,7 +17,7 @@
   </script>
   <!-- Pull in the same landing-page styles so we inherit the dot-matrix
        page background, the .lp-topnav layout, and the .lp-* tokens. -->
-  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="theme.css?v=1" />
   <link rel="stylesheet" href="landing-page.css" />
   <link rel="stylesheet" href="auth.css" />
 </head>
@@ -100,7 +100,7 @@
         </form>
 
         <p class="auth-fine">
-          By continuing, you agree to Connectify's <a href="/docs/legal/terms-of-service.html">Terms of Service</a> and <a href="/docs/legal/privacy-policy.html">Privacy Policy</a>.
+          By continuing, you agree to Connectify's <a href="docs/legal/terms-of-service.html">Terms of Service</a> and <a href="docs/legal/privacy-policy.html">Privacy Policy</a>.
         </p>
       </div>
     </section>
@@ -159,7 +159,7 @@
     </aside>
   </main>
 
-  <script src="theme.js"></script>
+  <script src="theme.js?v=1"></script>
   <script src="auth.js"></script>
   <script>
     /* ── Slideshow (videos) ────────────────────────────────────
@@ -399,7 +399,27 @@
       }
 
       forms.forEach(wireForm);
-      setView(initialView);
+
+      // Pre-fill the login email when the user just logged out from a private
+      // page (editing mode, onboarding). auth.js stores the email in both
+      // sessionStorage (survives dev-server clean-URL redirects that strip
+      // query params) and as ?prefill= (works on production/GitHub Pages).
+      let prefillEmail = params.get('prefill') || '';
+      if (!prefillEmail) {
+        try {
+          prefillEmail = sessionStorage.getItem('cfg.auth.loginPrefill') || '';
+          if (prefillEmail) sessionStorage.removeItem('cfg.auth.loginPrefill');
+        } catch (_) {}
+      }
+      if (prefillEmail) {
+        setView('login');
+        const loginEmailInput = document.querySelector(
+          '.auth-form[data-view="login"] input[name="identifier"]'
+        );
+        if (loginEmailInput) loginEmailInput.value = prefillEmail;
+      } else {
+        setView(initialView);
+      }
     })();
   </script>
 </body>

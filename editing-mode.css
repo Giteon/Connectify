@@ -2255,6 +2255,175 @@
     pointer-events: none; overflow: visible; display: none; z-index: 16000;
   }
   .drag-rope-overlay path { fill: none; stroke: #38bdf8; stroke-width: 2; stroke-dasharray: 6 4; stroke-linecap: round; }
+  /* Simple-node rope: solid (vs. dashed) so the lower-friction drag reads as
+     a confident "this will connect" gesture. */
+  .drag-rope-overlay.simple path { stroke: #38bdf8; stroke-width: 2.5; stroke-dasharray: none; }
+
+  /* ── Simple-node mode (Canvas opts.simpleNodes) ──────────
+     Cards drop their per-port io rows; one hover-revealed anchor per side
+     handles connections. All selectors are additive — none affect classic
+     nodes — so flipping SIMPLE_NODES off restores the original look. */
+  /* The .node-simple-core holds head/body/anchors and is the stable region the
+     anchors pin to. The hover-revealed .node-simple-ports detail expands BELOW
+     it, so anchors never shift when the card grows (CSS hover doesn't redraw
+     edges — a moving anchor would visually detach wired connections). */
+  .node-simple-core { position: relative; }
+
+  /* Anchors: small visible dot via ::after, but a large transparent hit area
+     (the element box) so clicks land on the anchor, not the edge line beneath.
+     z-index is high so the dot always sits ABOVE connection lines. */
+  .simple-anchor {
+    position: absolute; top: 50%;
+    width: 22px; height: 22px;
+    transform: translate(-50%, -50%);
+    display: grid; place-items: center;
+    background: transparent; border: 0; padding: 0;
+    cursor: grab; z-index: 30; pointer-events: auto;
+  }
+  .simple-anchor::after {
+    content: ''; display: block;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--surface); border: 2px solid #94a3b8;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.16);
+    transition: width .12s ease, height .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .simple-anchor-in  { left: 0; }
+  .simple-anchor-out { left: 100%; }
+  /* Unconnected anchors stay visible even without hover (tweak #4). Wired
+     anchors get the accent fill. */
+  .simple-anchor.connected::after { background: #38bdf8; border-color: #38bdf8; }
+  .node--simple:hover .simple-anchor::after { border-color: #38bdf8; }
+  /* Keep the satisfying grow-on-hover (tweak #2). */
+  .simple-anchor:hover::after { width: 12px; height: 12px; background: #38bdf8; border-color: #38bdf8; }
+  html[data-theme="dark"] .simple-anchor::after { border-color: #64748b; }
+  /* Raise the hovered card (and its edge overlay) above every edge layer so the
+     anchors are never occluded by a connection line (tweak #3). Node z-index is
+     set inline (~15100) by Canvas, so this needs !important to win. */
+  .canvas-inner .node--simple:hover { z-index: 15460 !important; }
+  .canvas-inner .node--simple:hover + svg.node-overlay { z-index: 15460 !important; }
+
+  /* Per-port ghost anchors: one dot per input/output, fanned out from the side
+     anchor as the card expands. left/top + opacity are set inline by
+     _layoutSimpleAnchors each animation frame; styling lives here. Same large
+     transparent hit area as the side anchors so the dot is easy to grab. */
+  .simple-port-anchor {
+    position: absolute;
+    width: 22px; height: 22px;
+    transform: translate(-50%, -50%);
+    display: grid; place-items: center;
+    background: transparent; border: 0; padding: 0; margin: 0;
+    cursor: grab; z-index: 31; opacity: 0; pointer-events: none;
+  }
+  /* Hit-testing is swapped from the side anchors to the per-port anchors once
+     the card is mostly expanded. Toggled by a stable class (not per frame) so
+     the browser doesn't re-fire hover on every animation tick. */
+  .node--simple.simple-anchors-out .simple-anchor { pointer-events: none; }
+  .node--simple.simple-anchors-out .simple-port-anchor { pointer-events: auto; }
+  .simple-port-anchor::after {
+    content: ''; display: block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--surface); border: 2px solid #94a3b8;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.16);
+    transition: width .12s ease, height .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .node--simple:hover .simple-port-anchor::after { border-color: #38bdf8; }
+  .simple-port-anchor.connected::after { background: #38bdf8; border-color: #38bdf8; }
+  .simple-port-anchor:hover::after { width: 11px; height: 11px; background: #38bdf8; border-color: #38bdf8; }
+  html[data-theme="dark"] .simple-port-anchor::after { border-color: #64748b; }
+
+  /* Hover-revealed full input/output list (tweak #5). Uses the grid 0fr→1fr
+     technique so the card animates to its REAL content height (a max-height
+     transition "snaps" because the cap is far taller than the content). */
+  .node-simple-ports {
+    display: grid; grid-template-rows: 0fr; opacity: 0;
+    transition: grid-template-rows .2s cubic-bezier(.4,0,.2,1), opacity .16s ease;
+  }
+  .node-simple-ports > .nsp-inner { overflow: hidden; min-height: 0; }
+  /* Expand on hover, and stay expanded while a rope is hovering this node as a
+     drop target (so the user can aim at a specific port row). */
+  .node--simple:hover .node-simple-ports,
+  .node--simple.simple-drop-open .node-simple-ports {
+    grid-template-rows: 1fr; opacity: 1;
+  }
+  .node--simple:hover .node-simple-ports > .nsp-inner,
+  .node--simple.simple-drop-open .node-simple-ports > .nsp-inner {
+    border-top: 1px solid var(--border);
+  }
+  .node-simple-ports .nsp-group { padding: 8px 11px; }
+  .node-simple-ports .nsp-group + .nsp-group { border-top: 1px dashed var(--border); }
+  .node-simple-ports .nsp-label {
+    font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--text-muted); margin-bottom: 6px;
+  }
+  /* A pinch more breathing room between items. */
+  .node-simple-ports .nsp-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 5px 6px; margin: 0 -6px; border-radius: 6px;
+    font-size: 11.5px; color: var(--text-secondary);
+    transition: background .1s ease, opacity .1s ease, box-shadow .1s ease;
+  }
+  .node-simple-ports .nsp-row + .nsp-row { margin-top: 3px; }
+  .node-simple-ports .nsp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* ── Per-port drop targeting while a simple rope is in flight ──
+     Greyed = can't receive this rope; emphasized = a valid landing port;
+     the row directly under the cursor gets the strongest highlight. */
+  .canvas-inner.dragging-simple-rope .node-simple-ports .nsp-row.nsp-disabled {
+    opacity: 0.32; pointer-events: none;
+  }
+  .canvas-inner.dragging-simple-rope .node-simple-ports .nsp-row.nsp-valid {
+    background: rgba(56,189,248,0.10);
+    box-shadow: inset 2px 0 0 #38bdf8;
+    color: var(--text-primary); cursor: pointer;
+  }
+  .canvas-inner.dragging-simple-rope .node-simple-ports .nsp-row.nsp-valid.nsp-row-hover {
+    background: rgba(56,189,248,0.22);
+    box-shadow: inset 2px 0 0 #38bdf8, 0 0 0 1px rgba(56,189,248,0.55);
+  }
+  html[data-theme="dark"] .canvas-inner.dragging-simple-rope .node-simple-ports .nsp-row.nsp-valid {
+    background: rgba(56,189,248,0.14);
+  }
+  /* Target-node affordance while a simple rope is in flight. */
+  .canvas-inner.dragging-simple-rope .node { cursor: default; }
+  .canvas-inner.dragging-simple-rope .node.simple-drop-ok {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56,189,248,0.30), 0 8px 18px rgba(15,23,42,0.10);
+  }
+  .canvas-inner.dragging-simple-rope .node.simple-drop-ok.simple-drop-hover {
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.60), 0 10px 22px rgba(15,23,42,0.14);
+  }
+  .canvas-inner.dragging-simple-rope .node.simple-drop-bad { opacity: 0.42; }
+
+  /* Multi-pair disambiguation picker. */
+  .simple-port-picker {
+    position: fixed; z-index: 17000; min-width: 220px; max-width: 340px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,0.20);
+    padding: 6px; display: none; font-size: 12px;
+  }
+  .simple-port-picker.show { display: block; }
+  .simple-port-picker .spp-title {
+    font-size: 12.5px; font-weight: 700; color: var(--text-primary);
+    padding: 4px 8px 2px;
+  }
+  .simple-port-picker .spp-head {
+    font-size: 11px; font-weight: 500; color: var(--text-muted);
+    padding: 2px 8px 7px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .simple-port-picker .spp-list { display: flex; flex-direction: column; gap: 2px; }
+  .simple-port-picker .spp-row {
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    padding: 7px 8px; border: 0; background: transparent; border-radius: 7px;
+    cursor: pointer; text-align: left; color: var(--text-primary); font: inherit;
+  }
+  .simple-port-picker .spp-row:hover { background: var(--bg); }
+  .simple-port-picker .spp-port { display: inline-flex; align-items: center; gap: 5px; }
+  .simple-port-picker .spp-arrow { color: var(--text-muted); }
+  .simple-port-picker .spp-adaptor {
+    margin-left: auto; font-size: 10px; font-weight: 600; color: #b45309;
+    background: rgba(245,158,11,0.16); padding: 2px 7px; border-radius: 999px;
+  }
+  html[data-theme="dark"] .simple-port-picker .spp-adaptor { color: #fbbf24; }
 
   /* ── Floating UI on canvas ───────────────────────────── */
   .tool-palette {

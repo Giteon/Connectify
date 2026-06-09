@@ -339,6 +339,9 @@
     let communityContribFilter = '';
     let communitySort = 'relevance';
     let communityOpenPage = 0;
+    // Suppresses the trending-grid entry animation on renders triggered by a
+    // star toggle (rerenderAll), so cards don't re-rise on every click.
+    let suppressCommunityAnim = false;
     const COMMUNITY_OPEN_PAGE_SIZE = 8;
 
     const q = (s) => document.querySelector(s);
@@ -618,27 +621,91 @@
       });
     }
 
-    function graphVizFor(title) {
-      if (title === 'Public Health Monitoring') return `
-        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
-          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 30 L90 30"/><path d="M90 30 L150 60"/><path d="M150 60 L210 35"/><path d="M150 60 L210 85"/><path d="M90 30 L40 75"/></g>
-          <g><rect x="20" y="22" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="70" y="22" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="130" y="52" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="190" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="190" y="77" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="20" y="67" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/></g>
-        </svg>`;
-      if (title === 'Neurological Disease Analysis') return `
-        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
-          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 30 L100 60"/><path d="M100 60 L160 30"/><path d="M160 30 L220 60"/><path d="M100 60 L160 90"/><path d="M220 60 L160 90"/></g>
-          <g><rect x="20" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="80" y="52" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="140" y="22" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="200" y="52" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="140" y="82" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/></g>
-        </svg>`;
-      if (title === 'Autonomous Vehicle Navigation') return `
-        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
-          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M35 40 L95 25"/><path d="M95 25 L155 55"/><path d="M95 25 L95 80"/><path d="M155 55 L215 30"/><path d="M155 55 L215 80"/><path d="M95 80 L155 55"/></g>
-          <g><rect x="15" y="32" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="75" y="17" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="75" y="72" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="135" y="47" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="195" y="22" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/><rect x="195" y="72" width="40" height="16" rx="3" fill="#e0e7ff" stroke="#818cf8"/></g>
-        </svg>`;
-      return `
-        <svg class="graph-viz" viewBox="0 0 280 120" preserveAspectRatio="xMidYMid meet">
-          <g stroke="#94a3b8" stroke-width="1" fill="none"><path d="M40 35 L100 35"/><path d="M100 35 L160 65"/><path d="M160 65 L220 35"/><path d="M160 65 L220 90"/></g>
-          <g><rect x="20" y="27" width="40" height="16" rx="3" fill="#dbeafe" stroke="#60a5fa"/><rect x="80" y="27" width="40" height="16" rx="3" fill="#dcfce7" stroke="#4ade80"/><rect x="140" y="57" width="40" height="16" rx="3" fill="#fef3c7" stroke="#fbbf24"/><rect x="200" y="27" width="40" height="16" rx="3" fill="#ede9fe" stroke="#a78bfa"/><rect x="200" y="82" width="40" height="16" rx="3" fill="#fce7f3" stroke="#f472b6"/></g>
-        </svg>`;
+    /* ── Generative graph thumbnails ───────────────────────────────
+       Four abstract treatments, each deterministically seeded from the
+       graph so it's stable + unique, tinted by domain, scaled by node
+       count. graphVizFor(g, treatment) dispatches; treatment defaults
+       to 1 (Network). Pass a title string for legacy back-compat. */
+    function vizHash(str) {
+      let h = 2166136261; const s = String(str || '');
+      for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return h >>> 0;
+    }
+    function vizRng(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function vizNodeN(g, rnd, min, max) {
+      let n = nodeCountForGraph(g);
+      if (!n) n = min + Math.floor(rnd() * (max - min + 1));
+      return Math.max(min, Math.min(max, n));
+    }
+    function vizHue(g) { return vizHash(g.domain || g.title || '') % 360; }
+
+    // All four treatments are richer takes on the soft-gradient "blob"
+    // look. Each is full-bleed (class `viz-bleed`), domain-tinted, blurred
+    // for a buttery blend, and seeded per graph so it's stable + unique.
+
+    // Variant 1 — "Mesh": 5 multi-hue orbs over a light wash, heavy blur.
+    function blobMesh(g) {
+      const seed = vizHash(g.title), rnd = vizRng(seed), hue = vizHue(g);
+      const W = 280, H = 120, id = 'm' + seed.toString(36);
+      const hueOffsets = [0, 34, 320, 62, 12];
+      let defs = `<filter id="${id}b" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>`;
+      let shapes = '';
+      hueOffsets.forEach((offset, i) => {
+        const gid = `${id}_${i}`;
+        const h = (hue + offset) % 360;
+        const cx = rnd() * W, cy = rnd() * H, r = H * (0.5 + rnd() * 0.7);
+        defs += `<radialGradient id="${gid}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="hsl(${h} 82% 62%)" stop-opacity="0.95"/>
+          <stop offset="60%" stop-color="hsl(${h} 82% 62%)" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="hsl(${h} 82% 62%)" stop-opacity="0"/></radialGradient>`;
+        shapes += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${r.toFixed(0)}" fill="url(#${gid})"/>`;
+      });
+      return `<svg class="graph-viz viz-bleed" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">
+        <defs>${defs}</defs><rect width="${W}" height="${H}" fill="hsl(${hue} 58% 93%)"/>
+        <g filter="url(#${id}b)">${shapes}</g></svg>`;
+    }
+
+    // Variant 2 — "Bloom": one dominant glow + two accent orbs, fully randomised positions.
+    function blobBloom(g) {
+      const seed = vizHash(g.title), rnd = vizRng(seed), hue = vizHue(g);
+      const W = 280, H = 120, id = 'bl' + seed.toString(36);
+      // Main bloom — anywhere in the canvas (not just center)
+      const cx = W * (0.15 + rnd() * 0.7), cy = H * (0.15 + rnd() * 0.7);
+      let defs = `<radialGradient id="${id}main" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="hsl(${hue} 92% 62%)" stop-opacity="1"/>
+        <stop offset="55%" stop-color="hsl(${hue} 86% 56%)" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="hsl(${hue} 86% 56%)" stop-opacity="0"/></radialGradient>`;
+      let shapes = `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${(H * 1.05).toFixed(0)}" fill="url(#${id}main)"/>`;
+      // Two accent orbs — fully random positions
+      const accentHues = [(hue + 42) % 360, (hue + 320) % 360];
+      accentHues.forEach((h, i) => {
+        const gid = `${id}_${i}`;
+        const ax = rnd() * W, ay = rnd() * H, r = H * (0.4 + rnd() * 0.35);
+        defs += `<radialGradient id="${gid}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="hsl(${h} 94% 64%)" stop-opacity="1"/>
+          <stop offset="60%" stop-color="hsl(${h} 92% 62%)" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="hsl(${h} 92% 62%)" stop-opacity="0"/></radialGradient>`;
+        shapes += `<circle cx="${ax.toFixed(0)}" cy="${ay.toFixed(0)}" r="${r.toFixed(0)}" fill="url(#${gid})"/>`;
+      });
+      return `<svg class="graph-viz viz-bleed" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">
+        <defs>${defs}<filter id="${id}b"><feGaussianBlur stdDeviation="4"/></filter></defs>
+        <rect width="${W}" height="${H}" fill="hsl(${hue} 60% 88%)"/>
+        <g filter="url(#${id}b)">${shapes}</g></svg>`;
+    }
+
+    // Pick Mesh or Bloom per-card: deterministic from the title hash so it's
+    // stable across re-renders but distributed across the grid like a coin flip.
+    function graphVizFor(g) {
+      if (typeof g === 'string') g = { title: g, domain: '' };
+      return (vizHash((g || {}).title) % 2 === 0 ? blobMesh : blobBloom)(g || {});
     }
 
     function renderCard(g, opts = {}) {
@@ -668,7 +735,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             <button class="card-icon-btn" type="button" data-action="fork-inline" data-title="${esc(g.title)}" title="Fork graph" aria-label="Fork graph">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 8v4a2 2 0 0 0 2 2h6"/><path d="M18 10v2"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6 8v1.5a4.5 4.5 0 0 0 4.5 4.5h3A4.5 4.5 0 0 0 18 9.5V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg>
             </button>` : '';
       const variantCount = variantCountForGraph(g);
       const footerHtml = hideFooter ? '' : `
@@ -679,7 +746,7 @@
       return `<article class="graph-card"${slugAttr}${dummyAttr}>
         <div class="graph-thumb">
           <span class="role-badge ${roleBadgeToken(g.role)}">${esc(g.role)}</span>
-          ${graphVizFor(g.title)}
+          ${graphVizFor(g)}
         </div>
         <div class="graph-head">
           <div>
@@ -702,8 +769,7 @@
         </div>
         <div class="stats">
           <span>★ ${g.stars}</span>
-          <span>↯ ${g.forks}</span>
-          <span>↓ ${g.downloads > 0 ? `${Math.round(g.downloads / 1000)}k` : '—'}</span>
+          <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.08em"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M6 8v1.5a4.5 4.5 0 0 0 4.5 4.5h3A4.5 4.5 0 0 0 18 9.5V8"/><line x1="12" y1="14" x2="12" y2="16"/></svg> ${g.forks}</span>
         </div>
         ${footerHtml}
       </article>`;
@@ -745,9 +811,20 @@
       const prevBtn = q('#communityOpenPrev');
       const nextBtn = q('#communityOpenNext');
       const pageLabel = q('#communityOpenPageLabel');
-      q('#communityTrending').innerHTML = trending
+      const trendingHost = q('#communityTrending');
+      trendingHost.innerHTML = trending
         .map(g => renderCard({ ...g, role: 'Public', shortOwner: `${g.owner}` }, { showManageActions: false, showCommunityActions: true, readOnlyTitle: true }))
         .join('') || '<div class="panel">No matching community graphs.</div>';
+      // Play the staggered rise on fresh renders only; remove the class once
+      // it finishes so the held end-transform can't block the hover lift.
+      trendingHost.classList.remove('cards--stagger');
+      if (!suppressCommunityAnim) {
+        void trendingHost.offsetWidth; // reflow so the animation restarts
+        trendingHost.classList.add('cards--stagger');
+        clearTimeout(trendingHost._staggerTimer);
+        trendingHost._staggerTimer = setTimeout(
+          () => trendingHost.classList.remove('cards--stagger'), 800);
+      }
       if (openHost) openHost.classList.toggle('open-chart--empty', !open.length);
       if (!open.length) {
         if (openHost) openHost.innerHTML = '<div class="panel">No open-contribution graphs.</div>';
@@ -969,10 +1046,14 @@
       // ── Generic data-setting controls (toggles, inputs, selects) ──
       pane.querySelectorAll('[data-setting]').forEach((el) => {
         const key = el.dataset.setting;
+        const isA11y = el.dataset.a11y === '1';
         if (el.type === 'checkbox') {
           const def = el.dataset.default === 'on';
           el.checked = getPref(key, def ? '1' : '0') === '1';
-          el.addEventListener('change', () => setPref(key, el.checked ? '1' : '0'));
+          el.addEventListener('change', () => {
+            setPref(key, el.checked ? '1' : '0');
+            if (isA11y && typeof window.applyA11ySettings === 'function') window.applyA11ySettings();
+          });
         } else {
           const stored = getPref(key, null);
           if (stored !== null) el.value = stored;
@@ -1121,6 +1202,9 @@
         }
       };
 
+      // Sections that only make sense when signed in.
+      const AUTH_ONLY_SECTIONS = ['set-account', 'set-accessibility', 'set-notifications', 'set-billing', 'set-danger'];
+
       const syncProfileUi = () => {
         const loggedIn = !!(Auth && Auth.isLoggedIn && Auth.isLoggedIn());
         const user = loggedIn && Auth.getCurrentUser ? Auth.getCurrentUser() : null;
@@ -1134,6 +1218,13 @@
         } else if (emailInput) {
           emailInput.value = '';
         }
+        // Show/hide auth-only sections + their nav pills.
+        AUTH_ONLY_SECTIONS.forEach((id) => {
+          const section = document.getElementById(id);
+          if (section) section.hidden = !loggedIn;
+          const navItem = pane.querySelector(`.settings-nav-item[data-target="${id}"]`);
+          if (navItem) navItem.hidden = !loggedIn;
+        });
         pendingAvatar = undefined;
         renderAvatar(user);
       };
@@ -1283,6 +1374,15 @@
         try { Auth.deleteAccount(); } catch (_) {}
         window.location.href = 'index.html';
       });
+    }
+
+    function initCommunityStickyBar() {
+      const bar = q('.community-sticky-bar');
+      const scroller = document.querySelector('.main');
+      if (!bar || !scroller) return;
+      scroller.addEventListener('scroll', () => {
+        bar.classList.toggle('is-stuck', scroller.scrollTop > 4);
+      }, { passive: true });
     }
 
     function initFilters() {
@@ -1658,7 +1758,9 @@
             const g = byTitle.get(title); if (!g) return;
             g.starred = !g.starred;
             const slug = graphSlug(g); if (slug) setStarred(slug, g.starred);
+            suppressCommunityAnim = true;
             rerenderAll();
+            suppressCommunityAnim = false;
           } else if (action === 'preview-inline') {
             const g = byTitle.get(title); if (!g) return;
             const slug = graphSlug(g); if (!slug) return;
@@ -2140,6 +2242,7 @@
       renderCommunity();
       initFilters();
       initCommunityControls();
+      initCommunityStickyBar();
       initTopicPills();
       initTeamSelector();
       initCardsLayoutToggle();
@@ -2164,16 +2267,24 @@
       const fromLanding = params.get('new') === '1';
       const tutParam = params.get('tutorial');         // '1' to force-start
 
-      // Open the modal whenever the user explicitly asked for it (?new=1) OR
-      // the tour is pre-armed at step 1 (set by the landing page's
-      // "Start building" click BEFORE navigating away). The pre-arm path is
-      // what keeps step 1 reliable when static-file servers (e.g. `npx serve`
-      // with clean-URLs) strip the query string during the .html→clean-url
-      // redirect.
+      // Pre-arm flag set by onboarding's finish() so the modal opens even
+      // when the server strips ?new=1 during the .html → clean-URL redirect.
+      let onboardingArmed = false;
+      try {
+        onboardingArmed = sessionStorage.getItem('cfg.openNewGraph') === '1';
+        if (onboardingArmed) sessionStorage.removeItem('cfg.openNewGraph');
+      } catch (_) {}
+
+      // Open the modal whenever the user explicitly asked for it (?new=1),
+      // onboarding just completed (pre-arm flag), or the tour is pre-armed
+      // at step 1 (set by the landing page's "Start building" click BEFORE
+      // navigating away). The pre-arm paths keep things reliable when
+      // static-file servers (e.g. `npx serve` with clean-URLs) strip the
+      // query string during the .html→clean-url redirect.
       const tutState = window.ConnectifyTutorial && window.ConnectifyTutorial.getState();
       const tourPreArmed = !!(tutState && tutState.started && tutState.currentStep === 1
         && !tutState.skipped && !tutState.completed);
-      if (fromLanding || tourPreArmed) {
+      if (fromLanding || onboardingArmed || tourPreArmed) {
         openNewGraphModal();
       }
 

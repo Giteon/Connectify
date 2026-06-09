@@ -507,6 +507,11 @@ window.Canvas = (function () {
       offset: 0,
       editable: false,
       initialZoom: 1.0,
+      /** When true, nodes render in the simplified "simple-node" mode: no
+       *  per-port io rows; one hover-revealed anchor per side; drag a node's
+       *  side anchor onto another node to auto-resolve compatible port pairs.
+       *  Off restores the classic per-port rendering + rope drag exactly. */
+      simpleNodes: false,
       /** When true, single-click on `.node-head` opens the inspector (same as node title). Edit mode handles this on canvas-inner capture; view mode sets this. */
       isNodeHeadSingleInspectOpen: null
     }, options || {});
@@ -514,10 +519,12 @@ window.Canvas = (function () {
     canvasInner = document.getElementById(opts.innerId);
     zoomValueEl = document.getElementById(opts.zoomValueId);
     zoom = opts.initialZoom;
+    if (opts.simpleNodes && canvasInner) canvasInner.classList.add('simple-nodes-mode');
     _attachCanvasDrag();
     _attachCanvasPanZoom();
     if (opts.editable) {
-      _attachPortDrag();
+      if (opts.simpleNodes) _attachSimplePortDrag();
+      else _attachPortDrag();
       // Dismiss the edge delete bubble on any mousedown outside it (covers
       // pan start, node drag, rope drag, modal opens, etc.) and on Escape.
       // Capture phase so we beat other handlers that might stopPropagation.
@@ -530,7 +537,7 @@ window.Canvas = (function () {
         _hideEdgeBubble();
       }, true);
       document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') _hideEdgeBubble();
+        if (e.key === 'Escape') { _hideEdgeBubble(); _hideSimplePicker(); }
       });
     }
   }
@@ -581,6 +588,7 @@ window.Canvas = (function () {
   }
 
   function renderNode(id) {
+    if (opts.simpleNodes) return renderSimpleNode(id);
     const s = nodeState.get(id);
     if (!s) return;
     const { data, el } = s;
@@ -622,6 +630,166 @@ window.Canvas = (function () {
     _syncNodeBottomCorners(el);
     _attachNodeListeners(id);
     _attachRoleBadgeDrag(id);
+  }
+
+  // Informational io rows for the hover-revealed detail section of a simple
+  // node. No `.port-anchor` — connections are made via the unified side
+  // anchors, so these rows exist purely to show what the node accepts/emits.
+  // Find the expanded-list row for a given port (dir + name). Matches on
+  // dataset rather than an attribute selector so port names with quotes or
+  // other CSS-special characters resolve safely.
+  function _simpleRowFor(el, dir, name) {
+    const rows = el.querySelectorAll(`.nsp-row[data-io-dir="${dir}"]`);
+    for (const r of rows) if (r.dataset.ioName === String(name)) return r;
+    return null;
+  }
+  function _simpleIoDetailRows(rows, dir) {
+    return (rows || []).map(r =>
+      `<div class="nsp-row" data-io-dir="${dir}" data-io-name="${_escSvg(r.name)}" data-type="${(r.type || '').toLowerCase()}">` +
+        `<span class="nsp-name" title="${_escSvg(r.name)}">${_escSvg(r.name)}</span>` +
+        typePill(r.type) +
+      `</div>`
+    ).join('');
+  }
+
+  // Simplified card: head + label, with one unified anchor per side (in =
+  // left edge, out = right edge) pinned to the stable top region. The full
+  // input/output list lives in a hover-revealed detail section below, so the
+  // card stays minimal until inspected. Connections are made by dragging a
+  // side anchor onto another node (see the simple port-drag system below).
+  // Reuses the same head/body markup + listeners as renderNode so dragging,
+  // the kebab menu, role badges, and the inspector all still work.
+  function renderSimpleNode(id) {
+    const s = nodeState.get(id);
+    if (!s) return;
+    const { data, el } = s;
+    const inCount  = (data.inputs  && data.inputs.length)  || 0;
+    const outCount = (data.outputs && data.outputs.length) || 0;
+    const tags = Array.isArray(data.tags) ? data.tags : [];
+    const isStart = tags.includes('start');
+    const isEnd   = tags.includes('end');
+    const auto = data._autoRole;
+    const autoStart = auto === 'start' && !isStart;
+    const autoEnd   = auto === 'end'   && !isEnd;
+    const showStart = isStart || autoStart;
+    const showEnd   = isEnd   || autoEnd;
+    const startGlyph = `<span class="role-glyph"><svg viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg></span>`;
+    const endGlyph   = `<span class="role-glyph"><svg viewBox="0 0 10 10" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="0.5"/></svg></span>`;
+    const roleBadgesHtml = (showStart || showEnd) ? `
+      <div class="node-role-badges">
+        ${showStart ? `<span class="node-role-badge start${autoStart ? ' auto' : ''}" title="${autoStart ? 'Auto-inferred start node — drag to move' : 'Start node — drag to move'}">${startGlyph}Start</span>` : ''}
+        ${showEnd   ? `<span class="node-role-badge end${autoEnd ? ' auto' : ''}"   title="${autoEnd   ? 'Auto-inferred end node — drag to move'   : 'End node — drag to move'}">${endGlyph}End</span>`     : ''}
+      </div>` : '';
+    el.classList.add('node--simple');
+    const inDetail  = inCount  ? _simpleIoDetailRows(data.inputs,  'in')  : '';
+    const outDetail = outCount ? _simpleIoDetailRows(data.outputs, 'out') : '';
+    // Per-port ghost anchors: one dot per input/output, fanned out from the
+    // side anchor as the card expands. Positioned/faded each frame by
+    // _layoutSimpleAnchors; draggable to start a connection from that exact port.
+    const portAnchorsHtml =
+      (data.inputs  || []).map(r =>
+        `<span class="simple-port-anchor" data-io-dir="in"  data-io-name="${_escSvg(r.name)}" title="${_escSvg(r.name)} — drag to connect"></span>`).join('') +
+      (data.outputs || []).map(r =>
+        `<span class="simple-port-anchor" data-io-dir="out" data-io-name="${_escSvg(r.name)}" title="${_escSvg(r.name)} — drag to connect"></span>`).join('');
+    el.innerHTML = `
+      ${roleBadgesHtml}
+      <div class="node-simple-core">
+        <div class="node-head">
+          <span class="type-icon">${ICONS[data.type]}</span>
+          <span class="type-label">${data.type}</span>
+          <span class="user-dot" style="background:${data.user.color}">${data.user.letter}</span>
+          <span class="menu-dots">⋮</span>
+        </div>
+        <div class="node-body">
+          <div class="node-item" data-title="1">
+            <span class="dot" style="background:${data.color}"></span>${data.label}
+          </div>
+        </div>
+        ${inCount  ? `<span class="simple-anchor simple-anchor-in"  data-simple-anchor="in"  title="${inCount} input${inCount === 1 ? '' : 's'} — drag a connection here"></span>` : ''}
+        ${outCount ? `<span class="simple-anchor simple-anchor-out" data-simple-anchor="out" title="${outCount} output${outCount === 1 ? '' : 's'} — drag to connect"></span>` : ''}
+      </div>
+      ${(inCount || outCount) ? `<div class="node-simple-ports"><div class="nsp-inner">
+        ${inCount  ? `<div class="nsp-group"><div class="nsp-label">Input${inCount === 1 ? '' : 's'}</div>${inDetail}</div>`  : ''}
+        ${outCount ? `<div class="nsp-group"><div class="nsp-label">Output${outCount === 1 ? '' : 's'}</div>${outDetail}</div>` : ''}
+      </div></div>` : ''}
+      ${portAnchorsHtml}`;
+    el._expandP = 0;
+    _syncNodeBottomCorners(el);
+    _attachNodeListeners(id);
+    _attachRoleBadgeDrag(id);
+    _attachSimpleHoverRedraw(id);
+    // Defer initial anchor layout until the row geometry is measurable.
+    requestAnimationFrame(() => _layoutSimpleAnchors(el));
+  }
+
+  // A simple card expands on hover (and while held open as a drop target). As
+  // it expands, the single side anchor fans out into one per-port anchor per
+  // input/output, and the connected edges glide from the side-anchor point to
+  // their specific port row. `el._expandP` (0 collapsed → 1 expanded) drives
+  // all of this: getPortPos interpolates edge endpoints, _layoutSimpleAnchors
+  // positions/fades the dots. We animate it in JS (rather than reading static
+  // CSS-clipped row positions) so the motion is a true fan-out, not a teleport.
+  function _attachSimpleHoverRedraw(id) {
+    const { el } = nodeState.get(id) || {};
+    if (!el) return;
+    el.addEventListener('mouseenter', () => {
+      el.classList.add('simple-expanded');
+      _animateSimpleExpand(el, 1);
+    });
+    el.addEventListener('mouseleave', () => {
+      // Held open as an active drop target? Keep it expanded.
+      if (el.classList.contains('simple-drop-open')) return;
+      el.classList.remove('simple-expanded');
+      _animateSimpleExpand(el, 0);
+    });
+  }
+  // Node-local center-Y of the stable core region (head + label), in world
+  // units. Edges and port anchors fan out from here when collapsed.
+  function _simpleCoreCY(el) {
+    const core = el.querySelector('.node-simple-core');
+    return core ? core.offsetTop + core.offsetHeight / 2 : el.offsetHeight / 2;
+  }
+  // Position + fade the per-port ghost anchors for the current _expandP, and
+  // cross-fade the unified side anchors out as the card opens.
+  // Only writes geometry + opacity (never pointer-events) so it's safe to run
+  // every animation frame. Hit-testing is gated by the stable `.simple-anchors-out`
+  // class (toggled once per expand/collapse, not per frame) — writing
+  // pointer-events here would re-evaluate the element under the cursor each
+  // frame and spuriously re-fire enter/leave, flickering the animation.
+  function _layoutSimpleAnchors(el) {
+    const p = (typeof el._expandP === 'number') ? el._expandP : 0;
+    const coreCY = _simpleCoreCY(el);
+    el.classList.toggle('simple-anchors-out', p > 0.5);
+    el.querySelectorAll('.simple-anchor').forEach(a => { a.style.opacity = String(1 - p); });
+    el.querySelectorAll('.simple-port-anchor').forEach(a => {
+      const dir = a.dataset.ioDir;
+      const row = _simpleRowFor(el, dir, a.dataset.ioName);
+      const xLocal = dir === 'out' ? el.offsetWidth : 0;
+      const rowCY = row ? row.offsetTop + row.offsetHeight / 2 : coreCY;
+      a.style.left = xLocal + 'px';
+      a.style.top  = (coreCY + (rowCY - coreCY) * p) + 'px';
+      a.style.opacity = String(p);
+    });
+  }
+  // Animate el._expandP toward target (0 or 1), keeping edges + anchors glued
+  // to the interpolated geometry each frame.
+  function _animateSimpleExpand(el, target) {
+    if (el._expandRaf) { cancelAnimationFrame(el._expandRaf); el._expandRaf = null; }
+    const from = (typeof el._expandP === 'number') ? el._expandP : 0;
+    if (from === target) { el._expandP = target; _layoutSimpleAnchors(el); drawEdges(); return; }
+    const start = performance.now();
+    const dur = 220;
+    const ease = t => (t < 0.5) ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const tick = (now) => {
+      let t = (now - start) / dur;
+      if (t >= 1) t = 1;
+      el._expandP = from + (target - from) * ease(t);
+      _layoutSimpleAnchors(el);
+      drawEdges();
+      if (t < 1) { el._expandRaf = requestAnimationFrame(tick); }
+      else { el._expandRaf = null; el._expandP = target; _layoutSimpleAnchors(el); drawEdges(); }
+    };
+    el._expandRaf = requestAnimationFrame(tick);
   }
 
   // Wire role badges (Start / End) as drag handles. Mousedown fires the host
@@ -989,6 +1157,9 @@ window.Canvas = (function () {
       const sel = dir === 'in' ? '.sg-row-port-in' : '.sg-row-port-out';
       return document.querySelector(`.subgraph-box.collapsed .sg-node-row[data-node-id="${CSS.escape(end[0])}"] ${sel}`);
     }
+    if (opts.simpleNodes) {
+      return s.el.querySelector(end[1] === 'in' ? '.simple-anchor-in' : '.simple-anchor-out') || null;
+    }
     return s.el.querySelector(`[data-io="${end[1]}:${end[2]}"] .port-anchor`) || null;
   }
 
@@ -999,6 +1170,36 @@ window.Canvas = (function () {
     if (opts.editable && el.classList.contains('sg-hidden') && typeof window.getSubgraphCollapsedPortWorld === 'function') {
       const alt = window.getSubgraphCollapsedPortWorld(nodeId, dir, ioName, canvasRect);
       if (alt) return alt;
+    }
+    // Simple-node mode: ports collapse to one anchor per side, so every
+    // input resolves to the left-edge anchor and every output to the right.
+    // BUT when the card is expanded (hovered, or held open as a drop target),
+    // edges fan out to the specific port row they belong to, so connections
+    // visibly originate from their own input/output.
+    if (opts.simpleNodes && !el.classList.contains('sg-hidden')) {
+      // Node-local offsets are world units (the node isn't independently
+      // scaled — zoom comes from the ancestor .canvas-inner transform), so we
+      // can work directly in el.style.left/top space without screen↔world math.
+      // Endpoints interpolate from the stable core-center (collapsed) to their
+      // specific port row (expanded) by el._expandP, giving a smooth fan-out
+      // instead of a teleport. Rows keep their final offsetTop even while the
+      // CSS grid clips them, so the target geometry is always measurable.
+      const x0 = parseFloat(el.style.left) || 0;
+      const y0 = parseFloat(el.style.top)  || 0;
+      const xLocal = dir === 'out' ? el.offsetWidth : 0;
+      const coreCY = _simpleCoreCY(el);
+      let yLocal = coreCY;
+      if (ioName != null) {
+        const p = (typeof el._expandP === 'number') ? el._expandP : 0;
+        if (p > 0) {
+          const row = _simpleRowFor(el, dir, ioName);
+          if (row) {
+            const rowCY = row.offsetTop + row.offsetHeight / 2;
+            yLocal = coreCY + (rowCY - coreCY) * p;
+          }
+        }
+      }
+      return { x: x0 + xLocal, y: y0 + yLocal };
     }
     const row = el.querySelector(`[data-io="${dir}:${ioName}"]`);
     if (row && row.offsetParent !== null) {
@@ -1109,7 +1310,8 @@ window.Canvas = (function () {
       const d = `M ${a.x} ${a.y} C ${a.x+dx} ${a.y}, ${b.x-dx} ${b.y}, ${b.x} ${b.y}`;
       if (opts.editable) parts.push(`<path class="edge-hit" data-conn-idx="${i}" d="${d}"/>`);
       const edgeKey = _edgeKeyFromNodes(c.from[0], c.to[0]);
-      parts.push(`<path class="edge-line" data-edge-key="${edgeKey}" d="${d}"/>`);
+      const edgeCls = opts.simpleNodes ? 'edge-line simple-edge' : 'edge-line';
+      parts.push(`<path class="${edgeCls}" data-edge-key="${edgeKey}" d="${d}"/>`);
       if (c.adaptor) parts.push(_adaptorChipSvg(a, b, c, i));
       if (!opts.editable) {
         dotParts.push(`<circle cx="${a.x}" cy="${a.y}" r="4"/>`);
@@ -1245,11 +1447,19 @@ window.Canvas = (function () {
   function _updateConnectedPorts() {
     nodeState.forEach(s => {
       s.el.querySelectorAll('.port-anchor').forEach(a => a.classList.remove('connected'));
+      if (opts.simpleNodes) s.el.querySelectorAll('.simple-anchor, .simple-port-anchor').forEach(a => a.classList.remove('connected'));
     });
     CONNECTIONS.forEach(c => {
       const mark = (nodeId, dir, ioName) => {
         const s = nodeState.get(nodeId);
-        s?.el.querySelector(`[data-io="${dir}:${ioName}"]`)
+        if (!s) return;
+        if (opts.simpleNodes) {
+          s.el.querySelector(dir === 'in' ? '.simple-anchor-in' : '.simple-anchor-out')?.classList.add('connected');
+          const pa = s.el.querySelector(`.simple-port-anchor[data-io-dir="${dir}"][data-io-name="${CSS.escape(String(ioName))}"]`);
+          pa?.classList.add('connected');
+          return;
+        }
+        s.el.querySelector(`[data-io="${dir}:${ioName}"]`)
             ?.querySelector('.port-anchor')?.classList.add('connected');
       };
       mark(c.from[0], c.from[1], c.from[2]);
@@ -1320,7 +1530,10 @@ window.Canvas = (function () {
       const head = e.target.closest('.node-head');
       if (!head || e.target.closest('.menu-dots')) return;
       e.preventDefault(); e.stopPropagation();
-      const node = head.parentElement;
+      // Use closest('.node') rather than head.parentElement: in simple-node mode
+      // the head is nested inside .node-simple-core, so parentElement would grab
+      // the inner wrapper and leave the positioned .node card behind.
+      const node = head.closest('.node');
       dragState = {
         node,
         startX: e.clientX,
@@ -1737,6 +1950,313 @@ window.Canvas = (function () {
     if (ropeState && ropeState._hoverRow) ropeState._hoverRow.classList.remove('drop-hover');
     if (ropeState) ropeState._hoverRow = row || null;
     if (row) row.classList.add('drop-hover');
+  }
+
+  // ── Simple-node connection system (opts.simpleNodes) ──
+  // Low-friction model: drag a node's side anchor onto a *target node* (not a
+  // precise port). On release we resolve every type-compatible (output→input)
+  // pair between the two nodes and either connect directly (one match, routing
+  // through the adaptor dialog when types differ), or pop a small picker (many
+  // matches). Entirely parallel to the classic port-anchor rope above — none
+  // of that code runs in simple mode, so flipping simpleNodes off is a clean
+  // revert.
+  let simpleRopeState = null;
+
+  function _attachSimplePortDrag() {
+    canvasInner.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      // A per-port ghost anchor pins the origin to one specific input/output;
+      // the unified side anchor leaves the origin port open (resolved on drop).
+      const portAnchor = e.target.closest('.simple-port-anchor');
+      const anchor = portAnchor || e.target.closest('.simple-anchor');
+      if (!anchor) return;
+      e.preventDefault(); e.stopPropagation();
+      const nodeEl = anchor.closest('.node');
+      if (!nodeEl) return;
+      const nodeId = nodeEl.dataset.nodeId;
+      const dir = portAnchor
+        ? (portAnchor.dataset.ioDir === 'in' ? 'in' : 'out')
+        : (anchor.dataset.simpleAnchor === 'in' ? 'in' : 'out');
+      const port = portAnchor ? portAnchor.dataset.ioName : null;
+      const origin = port ? { nodeId, dir, port } : { nodeId, dir };
+      const startPos = getPortPos(nodeId, dir, port) || { x: 0, y: 0 };
+      simpleRopeState = {
+        origin,
+        startPos,
+        endX: startPos.x, endY: startPos.y,
+        mouseDownX: e.clientX, mouseDownY: e.clientY,
+        committed: false, _hoverNode: null,
+      };
+      document.addEventListener('mousemove', _onSimpleRopeMove);
+      document.addEventListener('mouseup', _onSimpleRopeEnd, { once: true });
+    });
+  }
+  function _onSimpleRopeMove(e) {
+    if (!simpleRopeState) return;
+    if (!simpleRopeState.committed) {
+      const dx = e.clientX - simpleRopeState.mouseDownX;
+      const dy = e.clientY - simpleRopeState.mouseDownY;
+      if (Math.hypot(dx, dy) < 3) return;
+      simpleRopeState.committed = true;
+      canvasInner.classList.add('dragging-rope', 'dragging-simple-rope');
+      _ensureRopeOverlay();
+      ropeOverlay.classList.add('simple');
+      ropeOverlay.style.display = 'block';
+      _markSimpleCompatibility(simpleRopeState.origin);
+    }
+    const w = _mouseToWorld(e);
+    simpleRopeState.endX = w.x; simpleRopeState.endY = w.y;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const nodeEl = under?.closest?.('.node');
+    _setSimpleDropHover(nodeEl?.dataset?.nodeId || null);
+    // Track the specific input/output row the cursor is over so release can
+    // connect to exactly that port (only meaningful inside the hovered target).
+    const rowEl = (nodeEl && nodeEl.dataset.nodeId === simpleRopeState._hoverNode)
+      ? under?.closest?.('.nsp-row') : null;
+    _setSimpleRowHover(rowEl && rowEl.classList.contains('nsp-valid') ? rowEl : null);
+    _drawSimpleRope();
+  }
+  function _drawSimpleRope() {
+    if (!simpleRopeState) return;
+    const a = simpleRopeState.startPos;
+    const b = { x: simpleRopeState.endX, y: simpleRopeState.endY };
+    const outDir = simpleRopeState.origin.dir === 'out';
+    const leftX  = outDir ? a.x : b.x;
+    const rightX = outDir ? b.x : a.x;
+    const dx = Math.max(40, Math.abs(rightX - leftX) / 2);
+    const c1x = outDir ? a.x + dx : a.x - dx;
+    const c2x = outDir ? b.x - dx : b.x + dx;
+    const d = `M ${a.x} ${a.y} C ${c1x} ${a.y}, ${c2x} ${b.y}, ${b.x} ${b.y}`;
+    _ensureRopeOverlay().innerHTML = `<path d="${d}"/>`;
+  }
+  function _onSimpleRopeEnd(e) {
+    document.removeEventListener('mousemove', _onSimpleRopeMove);
+    if (!simpleRopeState) return;
+    const { origin, committed } = simpleRopeState;
+    const under = committed ? document.elementFromPoint(e.clientX, e.clientY) : null;
+    const targetId = under?.closest?.('.node')?.dataset?.nodeId || null;
+    // If the cursor landed on a specific (valid) port row inside the target,
+    // remember which port so we connect to exactly that one.
+    const rowEl = under?.closest?.('.nsp-row');
+    const droppedPort = (rowEl && rowEl.classList.contains('nsp-valid')
+      && rowEl.closest('.node')?.dataset?.nodeId === targetId)
+      ? { dir: rowEl.dataset.ioDir, name: rowEl.dataset.ioName } : null;
+    const clientX = e.clientX, clientY = e.clientY;
+    _clearSimpleCompatibility();
+    canvasInner.classList.remove('dragging-rope', 'dragging-simple-rope');
+    if (ropeOverlay) { ropeOverlay.classList.remove('simple'); ropeOverlay.style.display = 'none'; ropeOverlay.innerHTML = ''; }
+    simpleRopeState = null;
+    if (!committed || !targetId || targetId === origin.nodeId) { drawEdges(); return; }
+    const { srcNodeId, dstNodeId, pairs } = _simpleValidPairs(origin, targetId);
+    if (!pairs.length) { drawEdges(); return; }
+    // Narrow to the dropped-on port, if any. Doing so flips which side still
+    // needs disambiguating: the target port is now fixed, so any remaining
+    // choice is on the origin side.
+    let candidates = pairs;
+    let pickSide = origin.dir === 'out' ? 'in' : 'out'; // side being chosen
+    if (droppedPort) {
+      candidates = pairs.filter(p =>
+        (droppedPort.dir === 'in' ? p.in.name : p.out.name) === droppedPort.name);
+      pickSide = origin.dir; // target port chosen → remaining choice is origin side
+    }
+    if (!candidates.length) { drawEdges(); return; }
+    if (candidates.length === 1) {
+      _commitSimpleConnection(srcNodeId, candidates[0].out, dstNodeId, candidates[0].in, candidates[0].adaptor);
+      return;
+    }
+    const noun = pickSide === 'out' ? 'output' : 'input';
+    _showSimplePortPicker({ srcNodeId, dstNodeId, pairs: candidates, clientX, clientY, title: `Select an ${noun}` });
+  }
+  // All connectable (output→input) pairs between the rope origin and a target
+  // node, given the drag direction. Exact type matches sort ahead of adaptor
+  // bridges; pairs already wired are skipped.
+  function _simpleValidPairs(origin, targetNodeId) {
+    const srcNodeId = origin.dir === 'out' ? origin.nodeId : targetNodeId;
+    const dstNodeId = origin.dir === 'out' ? targetNodeId : origin.nodeId;
+    let outs = (nodeState.get(srcNodeId)?.data.outputs) || [];
+    let ins  = (nodeState.get(dstNodeId)?.data.inputs)  || [];
+    // If the drag started from a specific port (ghost anchor), restrict the
+    // origin side to just that port so only its compatible pairs are offered.
+    if (origin.port) {
+      if (origin.dir === 'out') outs = outs.filter(o => o.name === origin.port);
+      else                      ins  = ins.filter(i => i.name === origin.port);
+    }
+    const pairs = [];
+    outs.forEach(o => {
+      ins.forEach(i => {
+        const already = CONNECTIONS.some(c =>
+          c.from[0] === srcNodeId && c.from[2] === o.name &&
+          c.to[0]   === dstNodeId && c.to[2]   === i.name);
+        if (already) return;
+        const ot = (o.type || '').toLowerCase();
+        const it = (i.type || '').toLowerCase();
+        if (ot === it) { pairs.push({ out: o, in: i, adaptor: null, exact: true }); return; }
+        const ad = _getAdaptor(ot, it);
+        if (ad) pairs.push({ out: o, in: i, adaptor: ad, exact: false });
+      });
+    });
+    pairs.sort((a, b) => (b.exact - a.exact));
+    return { srcNodeId, dstNodeId, pairs };
+  }
+  function _commitSimpleConnection(srcNodeId, out, dstNodeId, inp, adaptor) {
+    const from = [srcNodeId, 'out', out.name];
+    const to   = [dstNodeId, 'in',  inp.name];
+    const existingOnInput = CONNECTIONS.find(c => c.to[0] === to[0] && c.to[2] === to[2]);
+    const commit = (extra) => {
+      if (existingOnInput) CONNECTIONS = CONNECTIONS.filter(c => c !== existingOnInput);
+      const next = { from, to };
+      if (adaptor) {
+        next.adaptor = _persistableAdaptor(adaptor);
+        const xs = extra && extra.adaptorSettings;
+        if (xs && typeof xs === 'object' && Object.keys(xs).length) next.adaptorSettings = { ...xs };
+      }
+      CONNECTIONS.push(next);
+      drawEdges();
+      _fireChange('add-connection');
+    };
+    if (adaptor && onAdaptorRequiredCb) {
+      drawEdges();
+      onAdaptorRequiredCb({ pending: { from, to }, adaptor: { ...adaptor }, existing: existingOnInput || null }, commit);
+      return;
+    }
+    if (existingOnInput && onConnectionConflictCb) {
+      drawEdges();
+      onConnectionConflictCb(existingOnInput, { from, to, adaptor: adaptor ? { ...adaptor } : undefined }, commit);
+      return;
+    }
+    commit();
+  }
+  function _markSimpleCompatibility(origin) {
+    nodeState.forEach(s => {
+      const el = s.el;
+      el.classList.remove('simple-drop-ok', 'simple-drop-bad', 'simple-drop-hover', 'simple-rope-origin');
+      if (s.data.id === origin.nodeId) { el.classList.add('simple-rope-origin'); return; }
+      const { pairs } = _simpleValidPairs(origin, s.data.id);
+      el.classList.add(pairs.length ? 'simple-drop-ok' : 'simple-drop-bad');
+    });
+  }
+  function _clearSimpleCompatibility() {
+    nodeState.forEach(s => {
+      s.el.classList.remove('simple-drop-ok', 'simple-drop-bad', 'simple-drop-hover', 'simple-rope-origin', 'simple-drop-open');
+      s.el.querySelectorAll('.nsp-row').forEach(row =>
+        row.classList.remove('nsp-valid', 'nsp-disabled', 'nsp-row-hover'));
+    });
+  }
+  function _setSimpleDropHover(nodeId) {
+    if (!simpleRopeState) return;
+    if (simpleRopeState._hoverNode === nodeId) return;
+    // Collapse the previously hovered target.
+    if (simpleRopeState._hoverNode) _closeSimpleDropTarget(simpleRopeState._hoverNode);
+    _setSimpleRowHover(null);
+    simpleRopeState._hoverNode = nodeId || null;
+    if (nodeId) {
+      const el = nodeState.get(nodeId)?.el;
+      if (el && el.classList.contains('simple-drop-ok')) {
+        el.classList.add('simple-drop-hover');
+        _openSimpleDropTarget(nodeId);
+      }
+    }
+  }
+  // Force-expand the hovered target and mark each port row: rows on the side
+  // that can receive this rope get `.nsp-valid` when type-compatible, every
+  // other row gets `.nsp-disabled` (greyed). Lets the user aim at one port.
+  function _openSimpleDropTarget(nodeId) {
+    if (!simpleRopeState) return;
+    const s = nodeState.get(nodeId);
+    if (!s) return;
+    const { pairs } = _simpleValidPairs(simpleRopeState.origin, nodeId);
+    const targetSide = simpleRopeState.origin.dir === 'out' ? 'in' : 'out';
+    const validNames = new Set(pairs.map(p => targetSide === 'in' ? p.in.name : p.out.name));
+    s.el.classList.add('simple-drop-open');
+    s.el.querySelectorAll('.nsp-row').forEach(row => {
+      row.classList.remove('nsp-valid', 'nsp-disabled', 'nsp-row-hover');
+      if (row.dataset.ioDir === targetSide && validNames.has(row.dataset.ioName)) {
+        row.classList.add('nsp-valid');
+      } else {
+        row.classList.add('nsp-disabled');
+      }
+    });
+    _animateSimpleExpand(s.el, 1);
+  }
+  function _closeSimpleDropTarget(nodeId) {
+    const s = nodeState.get(nodeId);
+    if (!s) return;
+    s.el.classList.remove('simple-drop-hover', 'simple-drop-open');
+    s.el.querySelectorAll('.nsp-row').forEach(row =>
+      row.classList.remove('nsp-valid', 'nsp-disabled', 'nsp-row-hover'));
+    // Only collapse if the pointer isn't physically hovering the card.
+    if (!s.el.matches(':hover')) {
+      s.el.classList.remove('simple-expanded');
+      _animateSimpleExpand(s.el, 0);
+    }
+  }
+  function _setSimpleRowHover(rowEl) {
+    if (!simpleRopeState) return;
+    if (simpleRopeState._hoverRow === rowEl) return;
+    simpleRopeState._hoverRow?.classList.remove('nsp-row-hover');
+    simpleRopeState._hoverRow = rowEl || null;
+    rowEl?.classList.add('nsp-row-hover');
+  }
+
+  // ── Simple-node port picker (multi-pair disambiguation) ──
+  let simplePickerEl = null;
+  let _simplePickerDocHandler = null;
+  function _ensureSimplePicker() {
+    if (simplePickerEl) return simplePickerEl;
+    simplePickerEl = document.createElement('div');
+    simplePickerEl.className = 'simple-port-picker';
+    simplePickerEl.addEventListener('mousedown', e => e.stopPropagation());
+    document.body.appendChild(simplePickerEl);
+    return simplePickerEl;
+  }
+  function _hideSimplePicker() {
+    if (!simplePickerEl) return;
+    simplePickerEl.classList.remove('show');
+    simplePickerEl.innerHTML = '';
+    if (_simplePickerDocHandler) {
+      document.removeEventListener('mousedown', _simplePickerDocHandler, true);
+      _simplePickerDocHandler = null;
+    }
+  }
+  function _showSimplePortPicker({ srcNodeId, dstNodeId, pairs, clientX, clientY, title }) {
+    const el = _ensureSimplePicker();
+    const srcLabel = nodeState.get(srcNodeId)?.data.label || srcNodeId;
+    const dstLabel = nodeState.get(dstNodeId)?.data.label || dstNodeId;
+    const rows = pairs.map((p, idx) => {
+      const chip = p.adaptor
+        ? `<span class="spp-adaptor">${_escSvg(p.adaptor.label || (p.adaptor.fromType + '→' + p.adaptor.toType))}</span>`
+        : '';
+      return `<button type="button" class="spp-row" data-idx="${idx}">` +
+               `<span class="spp-port spp-out">${_escSvg(p.out.name)}${typePill(p.out.type)}</span>` +
+               `<span class="spp-arrow">→</span>` +
+               `<span class="spp-port spp-in">${_escSvg(p.in.name)}${typePill(p.in.type)}</span>` +
+               chip +
+             `</button>`;
+    }).join('');
+    el.innerHTML =
+      `<div class="spp-title">${_escSvg(title || 'Select a connection')}</div>` +
+      `<div class="spp-head">${_escSvg(srcLabel)} <span class="spp-arrow">→</span> ${_escSvg(dstLabel)}</div>` +
+      `<div class="spp-list">${rows}</div>`;
+    el.classList.add('show');
+    const w = el.offsetWidth || 240, h = el.offsetHeight || 200;
+    let left = clientX + 8, top = clientY + 8;
+    left = Math.max(8, Math.min(left, window.innerWidth  - w - 8));
+    top  = Math.max(8, Math.min(top,  window.innerHeight - h - 8));
+    el.style.left = left + 'px';
+    el.style.top  = top  + 'px';
+    el.querySelectorAll('.spp-row').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = pairs[parseInt(btn.dataset.idx, 10)];
+        _hideSimplePicker();
+        if (p) _commitSimpleConnection(srcNodeId, p.out, dstNodeId, p.in, p.adaptor);
+      });
+    });
+    _simplePickerDocHandler = (ev) => {
+      if (simplePickerEl && simplePickerEl.contains(ev.target)) return;
+      _hideSimplePicker();
+    };
+    document.addEventListener('mousedown', _simplePickerDocHandler, true);
+    drawEdges();
   }
 
   // ── Pan + Zoom (canvas) ──────────────────────────────

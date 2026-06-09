@@ -102,7 +102,7 @@
   function totalStepCount() {
     // Derive from the full deck so adding/removing steps stays in sync.
     const all = global.ConnectifyTutorialSteps && global.ConnectifyTutorialSteps.all;
-    return Array.isArray(all) && all.length ? all.length : 21;
+    return Array.isArray(all) && all.length ? all.length : 23;
   }
 
   // ---- Public API ----

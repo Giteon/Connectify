@@ -324,18 +324,16 @@
     {
       id: 17,
       phase: 'edit',
-      title: 'Collapse the subgroup',
+      title: 'Tidy it away',
       text:
-        "Click the collapse toggle.",
-      selector: () => {
-        const boxes = document.querySelectorAll('.subgraph-box');
-        const box = boxes.length ? boxes[boxes.length - 1] : null;
-        return box ? box.querySelector('.sg-toggle') : null;
-      },
-      position: 'right',
-      highlightPadding: 6,
+        "Subgroups collapse into a single block to keep your graph clean.",
+      // Auto-collapses the group ~1s after it forms (smooth animation), then
+      // advances the tour on its own — no click required.
+      onBeforeShow: () => { try { H() && H().autoCollapseSubgroup(); } catch (_) {} },
+      selector: () => document.getElementById('canvasArea'),
+      position: 'top-left',
+      highlight: 'none',
       noDim: true,
-      actionTrigger: 'subgroup-collapsed',
     },
 
     // ── Organize: variant, snapshot ──
@@ -377,9 +375,34 @@
       actionTrigger: 'snapshot-saved',
     },
 
-    // ───── Phase 4: completion ─────
+    // ── Power tip: find any node fast (⌘F / Ctrl+F) ──
     {
       id: 21,
+      phase: 'edit',
+      title: 'Find any node',
+      text:
+        "Press ⌘F (Ctrl+F) to search your graph by name.",
+      selector: () => document.getElementById('canvasArea'),
+      position: 'center',
+      highlight: 'none',
+      actionTrigger: 'find-opened',
+    },
+    {
+      id: 22,
+      phase: 'edit',
+      title: 'Jump between matches',
+      text:
+        "Type a name, then press Enter to cycle through matches.",
+      selector: () => document.getElementById('findBar'),
+      position: 'bottom',
+      highlightPadding: 6,
+      // Close the find bar when leaving this step.
+      onAfterHide: () => { try { H() && H().closeFindBar(); } catch (_) {} },
+    },
+
+    // ───── Phase 4: completion ─────
+    {
+      id: 23,
       phase: 'edit',
       title: "You're all set!",
       text:

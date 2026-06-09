@@ -271,6 +271,16 @@
   function addCredits(n) {
     return setCreditsBalance(getCreditsBalance() + Math.max(0, Math.round(n)));
   }
+  // Attempt to deduct `n` credits. Returns true if the balance covered the
+  // cost (and was debited); false if there weren't enough — leaving the
+  // balance untouched so the caller can prompt a top-up.
+  function spendCredits(n) {
+    const cost = Math.max(0, Math.round(n));
+    const bal = getCreditsBalance();
+    if (cost > bal) return false;
+    setCreditsBalance(bal - cost);
+    return true;
+  }
   // Push the current balance into the leftnav badge wherever it exists.
   function syncCreditsBadge() {
     const bal = getCreditsBalance();
@@ -396,6 +406,18 @@
       .cm-nudge a { color: var(--primary); font-weight: 600; text-decoration: none; }
       .cm-nudge a:hover { text-decoration: underline; }
       .cm-nudge svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-muted); }
+      /* Insufficient-credits notice (shown when a run is blocked). */
+      .cm-notice {
+        display: flex; align-items: flex-start; gap: 8px;
+        padding: 10px 12px; margin-bottom: 16px;
+        font-size: 12.5px; line-height: 1.45; color: #92400e;
+        background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+      }
+      .cm-notice svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: #d97706; }
+      [data-theme="dark"] .cm-notice {
+        color: #fcd34d; background: rgba(217,119,6,0.12); border-color: rgba(217,119,6,0.4);
+      }
+      [data-theme="dark"] .cm-notice svg { color: #fbbf24; }
       /* Package list. */
       .cm-pkgs { display: flex; flex-direction: column; gap: 10px; }
       .cm-pkg {
@@ -564,6 +586,12 @@
 
     function renderBuy() {
       titleEl.textContent = 'Buy credits';
+      const notice = opts.notice ? `
+        <div class="cm-notice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>${escHTML(opts.notice)}</span>
+        </div>` : '';
+      opts.notice = null; // show the top-up notice only on the first render
       const loggedIn = !!(global.ConnectifyAuth && global.ConnectifyAuth.isLoggedIn && global.ConnectifyAuth.isLoggedIn());
       const nudge = loggedIn ? '' : `
         <div class="cm-nudge">
@@ -585,6 +613,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Back
         </button>
+        ${notice}
         ${nudge}
         <div class="cm-pkgs">${pkgs}</div>
         <div class="cm-fineprint">Pay-as-you-go credits, billed through our compute partner. No subscription — credits never expire.</div>
@@ -747,6 +776,7 @@
     getCreditsCap,
     addCredits,
     setCreditsBalance,
+    spendCredits,
     syncCreditsBadge,
   };
 })(window);

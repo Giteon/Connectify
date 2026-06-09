@@ -286,7 +286,7 @@ html[data-theme="dark"] .nav-toggle img { filter: brightness(0) invert(1); }
 }
 .leftnav-avatar-pop button:hover { background: var(--bg); }
 
-.main { padding: 26px 30px 36px; overflow: auto; flex: 1; min-height: 0; }
+.main { --main-px: 30px; --main-pt: 26px; padding: var(--main-pt) var(--main-px) 36px; overflow: auto; flex: 1; min-height: 0; }
 .header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px;
 }
@@ -334,6 +334,33 @@ html[data-theme="dark"] .nav-toggle img { filter: brightness(0) invert(1); }
   background: var(--primary-soft);
 }
 
+/* Remove bottom margin from section-head when it lives inside the sticky bar */
+.community-sticky-bar .section-head { margin-bottom: 0; }
+/* Give the trending cards section a little top breathing room instead */
+#tab-community .section:first-child { padding-top: 16px; }
+
+.community-sticky-bar {
+  position: sticky;
+  /* Pin flush to the topbar: the .main top padding (var(--main-pt)) otherwise
+     leaves a gap, so we offset top by exactly that amount. */
+  top: calc(-1 * var(--main-pt));
+  z-index: 15;
+  background: var(--bg);
+  /* Full-bleed across the .main horizontal padding so content can't peek
+     past the bar's edges while scrolling. */
+  margin-inline: calc(-1 * var(--main-px));
+  padding-inline: var(--main-px);
+  padding-top: 14px;
+  padding-bottom: 12px;
+  /* Soft shadow so the bar lifts above content when scrolled */
+  transition: box-shadow .18s ease;
+}
+.community-sticky-bar.is-stuck {
+  box-shadow: 0 4px 16px -6px rgba(15, 23, 42, .12);
+}
+html[data-theme="dark"] .community-sticky-bar.is-stuck {
+  box-shadow: 0 4px 16px -6px rgba(0, 0, 0, .45);
+}
 .community-search-row {
   display: block;
   margin-bottom: 16px;
@@ -886,10 +913,10 @@ body.graph-cards--list .card-footer { grid-column: 2; grid-row: 4; }
   position: absolute; top: 8px; right: 8px; border-radius: 7px; padding: 3px 8px; font-size: 11px; font-weight: 700;
   color: #fff;
 }
-.role-admin { background: #0f172a; }
-.role-view { background: #64748b; }
-.role-contrib { background: #d97706; }
-.role-public { background: #16a34a; }
+.role-admin,
+.role-view,
+.role-contrib,
+.role-public { background: rgba(15, 23, 42, 0.52); backdrop-filter: blur(4px); }
 .card-actions { display: inline-flex; align-items: center; gap: 0; flex-shrink: 0; }
 .card-icon-btn {
   width: 22px; height: 22px; border: none; border-radius: 6px;
@@ -1033,7 +1060,7 @@ body.graph-cards--list .card-footer { grid-column: 2; grid-row: 4; }
 @media (max-width: 760px) {
   .layout { grid-template-columns: 1fr; }
   .leftnav { display: none; }
-  .main { padding: 16px; }
+  .main { --main-px: 16px; --main-pt: 16px; padding: 16px; }
   .header { flex-direction: column; }
   .community-search-filters { justify-content: flex-end; }
 }
@@ -1768,6 +1795,16 @@ html[data-reduce-motion="1"] *::after {
    transition/animation here when the user opts out of motion.
    ───────────────────────────────────────────────────────────── */
 
+
+/* Generative blob fills the full thumb area; border-radius + overflow:hidden on .graph-thumb clips it. */
+.graph-thumb .graph-viz.viz-bleed {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+}
+.graph-thumb .role-badge { z-index: 2; }
+
 /* Search field — softer expanding glow + the icon adopts the accent. */
 .community-search-input-wrap {
   transition: border-color .2s ease, box-shadow .25s ease, background .2s ease;
@@ -1791,48 +1828,48 @@ html[data-reduce-motion="1"] *::after {
 .open-pager-btn:active:not(:disabled) { transform: scale(.94); }
 
 /* Community cards — hover lift, shadow bloom, accent border. */
-#tab-community .graph-card {
+#tab-community .graph-card,
+#tab-dashboard .graph-card {
   transition: transform .22s cubic-bezier(.22, .61, .36, 1),
               box-shadow .22s ease,
               border-color .22s ease;
 }
-#tab-community .graph-card[data-graph-slug]:hover {
+#tab-community .graph-card[data-graph-slug]:hover,
+#tab-dashboard .graph-card[data-graph-slug]:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 28px -12px rgba(15, 23, 42, .28);
-  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  border-color: var(--border); /* keep neutral border on hover (no blue) */
 }
-html[data-theme="dark"] #tab-community .graph-card[data-graph-slug]:hover {
+html[data-theme="dark"] #tab-community .graph-card[data-graph-slug]:hover,
+html[data-theme="dark"] #tab-dashboard .graph-card[data-graph-slug]:hover {
   box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .55);
 }
 
 /* Thumbnail viz — gentle zoom + brighten as the card lifts. */
-#tab-community .graph-card .graph-viz {
+#tab-community .graph-card .graph-viz,
+#tab-dashboard .graph-card .graph-viz {
   transition: transform .4s cubic-bezier(.22, .61, .36, 1), opacity .3s ease;
 }
-#tab-community .graph-card[data-graph-slug]:hover .graph-viz {
+#tab-community .graph-card[data-graph-slug]:hover .graph-viz,
+#tab-dashboard .graph-card[data-graph-slug]:hover .graph-viz {
   transform: scale(1.06);
   opacity: 1;
 }
 
-/* Role badge — floats up a touch with the card. */
-#tab-community .graph-card .role-badge {
-  transition: transform .22s ease, box-shadow .22s ease;
-}
-#tab-community .graph-card[data-graph-slug]:hover .role-badge {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .4);
-}
-
 /* Card icon buttons (star / fork / preview) — springy pop. */
-#tab-community .card-icon-btn {
+#tab-community .card-icon-btn,
+#tab-dashboard .card-icon-btn {
   transition: transform .15s cubic-bezier(.34, 1.56, .64, 1),
               background .15s ease, color .15s ease;
 }
-#tab-community .card-icon-btn:hover { transform: scale(1.18); }
-#tab-community .card-icon-btn:active { transform: scale(.9); }
+#tab-community .card-icon-btn:hover,
+#tab-dashboard .card-icon-btn:hover { transform: scale(1.18); }
+#tab-community .card-icon-btn:active,
+#tab-dashboard .card-icon-btn:active { transform: scale(.9); }
 
 /* Star fill — a single celebratory pop when it becomes active. */
-#tab-community .star-btn.active svg {
+#tab-community .star-btn.active svg,
+#tab-dashboard .star-btn.active svg {
   animation: star-pop .34s cubic-bezier(.34, 1.56, .64, 1);
 }
 @keyframes star-pop {

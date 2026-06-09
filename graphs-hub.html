@@ -27,7 +27,7 @@
     } catch (_) {}
   </script>
   <link rel="stylesheet" href="theme.css?v=1" />
-  <link rel="stylesheet" href="graphs-hub.css?v=7" />
+  <link rel="stylesheet" href="graphs-hub.css?v=20" />
   <!-- leftnav.css last so it owns the leftnav styling on every page. -->
   <link rel="stylesheet" href="leftnav.css" />
   <link rel="stylesheet" href="tutorial.css" />
@@ -124,7 +124,7 @@
       <div class="header">
         <div>
           <h1 id="pageTitle">Home</h1>
-          <p id="pageDesc">Graphs where you are an owner, admin, or contributor.</p>
+          <p id="pageDesc">Graphs where You are an owner, admin, or contributor.</p>
         </div>
         <div class="header-actions">
           <button class="btn primary" id="newGraphBtn" type="button">
@@ -173,26 +173,26 @@
       </section>
 
       <section id="tab-community" class="tab-pane">
-        <div class="community-search-row">
-          <div class="community-search-input-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" id="searchInput" placeholder="Search community graphs, models, datasets..." />
+        <div class="community-sticky-bar">
+          <div class="community-search-row">
+            <div class="community-search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" id="searchInput" placeholder="Search community graphs, models, datasets..." />
+            </div>
           </div>
-        </div>
-        <div class="topic-rail" id="topicRail">
-          <button type="button" class="topic-rail-nav topic-rail-nav--left" id="topicRailPrev" aria-label="Scroll categories left" hidden>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l-5 5 5 5"/></svg>
-          </button>
-          <div class="topic-rail-fade topic-rail-fade--left" id="topicRailFadeLeft" hidden></div>
-          <div class="topic-pills" id="topicPills">
-            <button class="topic-pill active" type="button" data-topic=""><span>All</span></button>
+          <div class="topic-rail" id="topicRail">
+            <button type="button" class="topic-rail-nav topic-rail-nav--left" id="topicRailPrev" aria-label="Scroll categories left" hidden>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l-5 5 5 5"/></svg>
+            </button>
+            <div class="topic-rail-fade topic-rail-fade--left" id="topicRailFadeLeft" hidden></div>
+            <div class="topic-pills" id="topicPills">
+              <button class="topic-pill active" type="button" data-topic=""><span>All</span></button>
+            </div>
+            <div class="topic-rail-fade topic-rail-fade--right" id="topicRailFadeRight"></div>
+            <button type="button" class="topic-rail-nav topic-rail-nav--right" id="topicRailNext" aria-label="Scroll categories right">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5l5 5-5 5"/></svg>
+            </button>
           </div>
-          <div class="topic-rail-fade topic-rail-fade--right" id="topicRailFadeRight"></div>
-          <button type="button" class="topic-rail-nav topic-rail-nav--right" id="topicRailNext" aria-label="Scroll categories right">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5l5 5-5 5"/></svg>
-          </button>
-        </div>
-        <div class="section">
           <div class="section-head">
             <span class="section-title" id="communityCount"></span>
             <div class="section-head-right">
@@ -235,6 +235,8 @@
               </div>
             </div>
           </div>
+        </div>
+        <div class="section">
           <div id="communityTrending" class="cards"></div>
         </div>
         <div class="section">
@@ -821,7 +823,7 @@
   <script src="auth.js?v=4"></script>
   <script src="tutorial-system.js"></script>
   <script src="tutorial-steps.js"></script>
-  <script src="graphs-hub.js?v=7"></script>
+  <script src="graphs-hub.js?v=17"></script>
   <script src="theme.js?v=1"></script>
 </body>
 </html>

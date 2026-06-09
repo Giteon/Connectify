@@ -1914,6 +1914,46 @@
   html[data-theme="dark"] .sg-row-port.edge-hovered {
     background: radial-gradient(circle, var(--primary) 4px, rgba(56,189,248,0.2) 5.5px, transparent 7px);
   }
+
+  /* ── Connect-into-collapsed-subgroup affordance (simple-node drag) ──
+     While a simple rope is in flight, each collapsed subgraph lights up its
+     member rows: type-compatible members become drop targets with a connect
+     dot on the receiving edge; the rest grey out. Mirrors the
+     .nsp-valid/.nsp-disabled treatment on expanded nodes so dropping into a
+     group reads the same as dropping onto a loose node. Classes are applied by
+     canvas-new.js's simple-rope system and cleared when the drag ends. */
+  .subgraph-box.collapsed.sg-drop-ok {
+    box-shadow: 0 0 0 2px rgba(56,189,248,0.4), 0 12px 26px rgba(15,23,42,0.12);
+  }
+  .subgraph-box.collapsed .sg-node-row.sg-drop-disabled {
+    opacity: 0.34;
+    transition: opacity .12s ease;
+  }
+  .subgraph-box.collapsed .sg-node-row.sg-drop-valid {
+    background: rgba(56,189,248,0.12);
+    border-color: rgba(56,189,248,0.55);
+    box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+    cursor: pointer;
+    transition: background .1s ease, box-shadow .1s ease, border-color .1s ease;
+  }
+  .subgraph-box.collapsed .sg-node-row.sg-drop-hover {
+    background: rgba(56,189,248,0.24);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 1.5px rgba(56,189,248,0.85);
+  }
+  /* Directional connect dot on the member's receiving edge. */
+  .subgraph-box.collapsed.sg-drop-side-in  .sg-node-row.sg-drop-valid::after,
+  .subgraph-box.collapsed.sg-drop-side-out .sg-node-row.sg-drop-valid::after {
+    content: ''; position: absolute; top: 50%;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #38bdf8; border: 2px solid var(--surface);
+    transform: translateY(-50%); z-index: 6; pointer-events: none;
+  }
+  .subgraph-box.collapsed.sg-drop-side-in  .sg-node-row.sg-drop-valid::after { left: -7px; }
+  .subgraph-box.collapsed.sg-drop-side-out .sg-node-row.sg-drop-valid::after { right: -7px; }
+  .subgraph-box.collapsed .sg-node-row.sg-drop-hover::after {
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.3);
+  }
   .sg-node-row .icon {
     width: 12px;
     height: 12px;
@@ -2269,12 +2309,24 @@
      edges — a moving anchor would visually detach wired connections). */
   .node-simple-core { position: relative; }
 
+  /* Invisible hover halo: extends the node's hit area ~16px beyond the card so
+     the cursor expands the node when it's near it, not only when directly over
+     it. It's part of the .node element, so :hover (CSS row reveal) and the
+     mouseenter handler (_expandP fan-out) both fire from the halo. Sits behind
+     the card content (z-index:-1) so it never occludes the head/anchors. */
+  .node--simple::before {
+    content: '';
+    position: absolute;
+    inset: -16px;
+    z-index: -1;
+  }
+
   /* Anchors: small visible dot via ::after, but a large transparent hit area
      (the element box) so clicks land on the anchor, not the edge line beneath.
      z-index is high so the dot always sits ABOVE connection lines. */
   .simple-anchor {
     position: absolute; top: 50%;
-    width: 22px; height: 22px;
+    width: 30px; height: 30px;
     transform: translate(-50%, -50%);
     display: grid; place-items: center;
     background: transparent; border: 0; padding: 0;
@@ -2296,6 +2348,16 @@
   /* Keep the satisfying grow-on-hover (tweak #2). */
   .simple-anchor:hover::after { width: 12px; height: 12px; background: #38bdf8; border-color: #38bdf8; }
   html[data-theme="dark"] .simple-anchor::after { border-color: #64748b; }
+  /* When expanded, the per-port anchors carry the real connections, so the side
+     anchor drops its "connected" fill and reads as a neutral general-drag
+     handle (a hollow dot) — no phantom blue dot without an edge. */
+  .node--simple.simple-anchors-out .simple-anchor.connected::after {
+    background: var(--surface); border-color: #94a3b8;
+  }
+  .node--simple.simple-anchors-out .simple-anchor:hover::after {
+    background: #38bdf8; border-color: #38bdf8;
+  }
+  html[data-theme="dark"] .node--simple.simple-anchors-out .simple-anchor.connected::after { border-color: #64748b; }
   /* Raise the hovered card (and its edge overlay) above every edge layer so the
      anchors are never occluded by a connection line (tweak #3). Node z-index is
      set inline (~15100) by Canvas, so this needs !important to win. */
@@ -2308,16 +2370,17 @@
      transparent hit area as the side anchors so the dot is easy to grab. */
   .simple-port-anchor {
     position: absolute;
-    width: 22px; height: 22px;
+    width: 30px; height: 30px;
     transform: translate(-50%, -50%);
     display: grid; place-items: center;
     background: transparent; border: 0; padding: 0; margin: 0;
     cursor: grab; z-index: 31; opacity: 0; pointer-events: none;
   }
-  /* Hit-testing is swapped from the side anchors to the per-port anchors once
-     the card is mostly expanded. Toggled by a stable class (not per frame) so
-     the browser doesn't re-fire hover on every animation tick. */
-  .node--simple.simple-anchors-out .simple-anchor { pointer-events: none; }
+  /* When expanded, the per-port anchors become clickable (gated by a stable
+     class, not per frame, so the browser doesn't re-fire hover every animation
+     tick). The side anchor stays interactive too — both handles coexist: the
+     side anchor for a general auto-assigned connection, the per-port anchors
+     for a specific input/output. */
   .node--simple.simple-anchors-out .simple-port-anchor { pointer-events: auto; }
   .simple-port-anchor::after {
     content: ''; display: block;
@@ -2342,11 +2405,13 @@
   /* Expand on hover, and stay expanded while a rope is hovering this node as a
      drop target (so the user can aim at a specific port row). */
   .node--simple:hover .node-simple-ports,
-  .node--simple.simple-drop-open .node-simple-ports {
+  .node--simple.simple-drop-open .node-simple-ports,
+  .node--simple.simple-rope-origin .node-simple-ports {
     grid-template-rows: 1fr; opacity: 1;
   }
   .node--simple:hover .node-simple-ports > .nsp-inner,
-  .node--simple.simple-drop-open .node-simple-ports > .nsp-inner {
+  .node--simple.simple-drop-open .node-simple-ports > .nsp-inner,
+  .node--simple.simple-rope-origin .node-simple-ports > .nsp-inner {
     border-top: 1px solid var(--border);
   }
   .node-simple-ports .nsp-group { padding: 8px 11px; }

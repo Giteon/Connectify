@@ -737,8 +737,14 @@ window.Canvas = (function () {
       _animateSimpleExpand(el, 1);
     });
     el.addEventListener('mouseleave', () => {
-      // Held open as an active drop target? Keep it expanded.
-      if (el.classList.contains('simple-drop-open')) return;
+      // Held open as an active drop target, or the source of an in-flight rope?
+      // Stay expanded — the user is mid-connection and shouldn't lose the ports.
+      // The simpleRopeState check covers the pre-commit window before the
+      // `simple-rope-origin` class is applied (the cursor can leave the card
+      // before the 3px drag threshold trips, since per-port anchors sit on the
+      // very edge).
+      if (el.classList.contains('simple-drop-open') || el.classList.contains('simple-rope-origin')) return;
+      if (simpleRopeState && simpleRopeState.origin && simpleRopeState.origin.nodeId === id) return;
       el.classList.remove('simple-expanded');
       _animateSimpleExpand(el, 0);
     });
@@ -760,7 +766,10 @@ window.Canvas = (function () {
     const p = (typeof el._expandP === 'number') ? el._expandP : 0;
     const coreCY = _simpleCoreCY(el);
     el.classList.toggle('simple-anchors-out', p > 0.5);
-    el.querySelectorAll('.simple-anchor').forEach(a => { a.style.opacity = String(1 - p); });
+    // The side anchor stays put at the core center and stays usable even when
+    // expanded: it's the "general" handle (drag from the node, ports auto-
+    // assigned), complementing the per-port anchors that fan out to each row.
+    el.querySelectorAll('.simple-anchor').forEach(a => { a.style.opacity = '1'; });
     el.querySelectorAll('.simple-port-anchor').forEach(a => {
       const dir = a.dataset.ioDir;
       const row = _simpleRowFor(el, dir, a.dataset.ioName);
@@ -2007,8 +2016,19 @@ window.Canvas = (function () {
     const w = _mouseToWorld(e);
     simpleRopeState.endX = w.x; simpleRopeState.endY = w.y;
     const under = document.elementFromPoint(e.clientX, e.clientY);
-    const nodeEl = under?.closest?.('.node');
+    // A member row inside a collapsed subgraph is also a valid landing spot.
+    // Its hidden member node is display:none, so the only thing under the
+    // cursor is the box's summary row — resolve it before the .node lookup.
+    const sgHit = _simpleCollapsedRowAt(under);
+    const nodeEl = sgHit ? null : under?.closest?.('.node');
     _setSimpleDropHover(nodeEl?.dataset?.nodeId || null);
+    const sgRow = (sgHit && sgHit.row.classList.contains('sg-drop-valid')) ? sgHit.row : null;
+    _setSimpleSgRowHover(sgRow);
+    // Snap the rope end onto the hovered member's receiving edge.
+    if (sgRow) {
+      const snap = _simpleSgRowPortWorld(sgRow, simpleRopeState.origin.dir === 'out' ? 'in' : 'out');
+      if (snap) { simpleRopeState.endX = snap.x; simpleRopeState.endY = snap.y; }
+    }
     // Track the specific input/output row the cursor is over so release can
     // connect to exactly that port (only meaningful inside the hovered target).
     const rowEl = (nodeEl && nodeEl.dataset.nodeId === simpleRopeState._hoverNode)
@@ -2034,10 +2054,15 @@ window.Canvas = (function () {
     if (!simpleRopeState) return;
     const { origin, committed } = simpleRopeState;
     const under = committed ? document.elementFromPoint(e.clientX, e.clientY) : null;
-    const targetId = under?.closest?.('.node')?.dataset?.nodeId || null;
+    // Dropping on a valid member row of a collapsed subgraph wires to that
+    // hidden node. The box exposes no per-port row, so there's no droppedPort —
+    // pairs resolve generally (single match connects, many → picker).
+    const sgHit = under ? _simpleCollapsedRowAt(under) : null;
+    const sgTargetId = (sgHit && sgHit.row.classList.contains('sg-drop-valid')) ? sgHit.nodeId : null;
+    const targetId = sgTargetId || under?.closest?.('.node')?.dataset?.nodeId || null;
     // If the cursor landed on a specific (valid) port row inside the target,
     // remember which port so we connect to exactly that one.
-    const rowEl = under?.closest?.('.nsp-row');
+    const rowEl = sgTargetId ? null : under?.closest?.('.nsp-row');
     const droppedPort = (rowEl && rowEl.classList.contains('nsp-valid')
       && rowEl.closest('.node')?.dataset?.nodeId === targetId)
       ? { dir: rowEl.dataset.ioDir, name: rowEl.dataset.ioName } : null;
@@ -2130,17 +2155,30 @@ window.Canvas = (function () {
     nodeState.forEach(s => {
       const el = s.el;
       el.classList.remove('simple-drop-ok', 'simple-drop-bad', 'simple-drop-hover', 'simple-rope-origin');
-      if (s.data.id === origin.nodeId) { el.classList.add('simple-rope-origin'); return; }
+      if (s.data.id === origin.nodeId) {
+        // Keep the source expanded for the whole drag so its ports stay put
+        // even once the cursor leaves the card.
+        el.classList.add('simple-rope-origin');
+        _animateSimpleExpand(el, 1);
+        return;
+      }
       const { pairs } = _simpleValidPairs(origin, s.data.id);
       el.classList.add(pairs.length ? 'simple-drop-ok' : 'simple-drop-bad');
     });
+    _markSimpleCollapsedTargets(origin);
   }
   function _clearSimpleCompatibility() {
     nodeState.forEach(s => {
-      s.el.classList.remove('simple-drop-ok', 'simple-drop-bad', 'simple-drop-hover', 'simple-rope-origin', 'simple-drop-open');
+      const wasExpanded = s.el.classList.contains('simple-rope-origin') || s.el.classList.contains('simple-drop-open');
+      s.el.classList.remove('simple-drop-ok', 'simple-drop-bad', 'simple-drop-hover', 'simple-rope-origin', 'simple-drop-open', 'simple-expanded');
       s.el.querySelectorAll('.nsp-row').forEach(row =>
         row.classList.remove('nsp-valid', 'nsp-disabled', 'nsp-row-hover'));
+      // Collapse anything left open by the drag (source or final drop target),
+      // unless the cursor is physically resting on it.
+      if (wasExpanded && !s.el.matches(':hover')) _animateSimpleExpand(s.el, 0);
     });
+    _clearSimpleCollapsedTargets();
+    if (simpleRopeState) simpleRopeState._hoverSgRow = null;
   }
   function _setSimpleDropHover(nodeId) {
     if (!simpleRopeState) return;
@@ -2184,8 +2222,10 @@ window.Canvas = (function () {
     s.el.classList.remove('simple-drop-hover', 'simple-drop-open');
     s.el.querySelectorAll('.nsp-row').forEach(row =>
       row.classList.remove('nsp-valid', 'nsp-disabled', 'nsp-row-hover'));
-    // Only collapse if the pointer isn't physically hovering the card.
-    if (!s.el.matches(':hover')) {
+    // Only collapse if the pointer isn't physically hovering the card, and
+    // never collapse the rope's source node — it must stay open for the whole
+    // drag even when the cursor moves off it onto empty canvas.
+    if (!s.el.matches(':hover') && !s.el.classList.contains('simple-rope-origin')) {
       s.el.classList.remove('simple-expanded');
       _animateSimpleExpand(s.el, 0);
     }
@@ -2196,6 +2236,64 @@ window.Canvas = (function () {
     simpleRopeState._hoverRow?.classList.remove('nsp-row-hover');
     simpleRopeState._hoverRow = rowEl || null;
     rowEl?.classList.add('nsp-row-hover');
+  }
+
+  // ── Connecting into collapsed subgraphs ──
+  // A collapsed subgraph hides its member nodes (display:none) and shows a
+  // summary box with one `.sg-node-row` per member. To let a rope land on a
+  // hidden member, we treat those rows as drop targets: the row's data-node-id
+  // is the real (hidden) node, which still lives in nodeState, so every
+  // existing helper (_simpleValidPairs, _commitSimpleConnection) just works.
+  // The edge then routes to the collapsed box via the host's
+  // getSubgraphCollapsedPortWorld hook once renderSubgraphs re-runs on change.
+  function _simpleCollapsedRowAt(under) {
+    const row = under?.closest?.('.sg-node-row');
+    if (!row || !row.closest('.subgraph-box.collapsed')) return null;
+    const nodeId = row.dataset.nodeId;
+    if (!nodeId || !nodeState.has(nodeId)) return null;
+    return { row, nodeId };
+  }
+  function _setSimpleSgRowHover(rowEl) {
+    if (!simpleRopeState) return;
+    if (simpleRopeState._hoverSgRow === rowEl) return;
+    simpleRopeState._hoverSgRow?.classList.remove('sg-drop-hover');
+    simpleRopeState._hoverSgRow = rowEl || null;
+    rowEl?.classList.add('sg-drop-hover');
+  }
+  // World position of a collapsed member row's receiving edge, so the rope can
+  // snap to it (visual "it will land here"). `side` is the member's port side.
+  function _simpleSgRowPortWorld(row, side) {
+    const r = row.getBoundingClientRect();
+    if (!r.width && !r.height) return null;
+    const x = side === 'in' ? r.left : r.right;
+    return clientToWorld(x, r.top + r.height / 2);
+  }
+  // Mark every collapsed subgraph's member rows as valid / invalid drop targets
+  // for the in-flight rope, and tag the box with the receiving side so the CSS
+  // can place the connect dot on the correct edge.
+  function _markSimpleCollapsedTargets(origin) {
+    const memberSide = origin.dir === 'out' ? 'in' : 'out';
+    document.querySelectorAll('.subgraph-box.collapsed').forEach(box => {
+      box.classList.remove('sg-drop-ok', 'sg-drop-bad', 'sg-drop-side-in', 'sg-drop-side-out');
+      let anyValid = false;
+      box.querySelectorAll('.sg-node-row[data-node-id]').forEach(row => {
+        row.classList.remove('sg-drop-valid', 'sg-drop-disabled', 'sg-drop-hover');
+        const memberId = row.dataset.nodeId;
+        if (!memberId || memberId === origin.nodeId) { row.classList.add('sg-drop-disabled'); return; }
+        const { pairs } = _simpleValidPairs(origin, memberId);
+        if (pairs.length) { row.classList.add('sg-drop-valid'); anyValid = true; }
+        else row.classList.add('sg-drop-disabled');
+      });
+      box.classList.add(anyValid ? 'sg-drop-ok' : 'sg-drop-bad');
+      box.classList.add(memberSide === 'in' ? 'sg-drop-side-in' : 'sg-drop-side-out');
+    });
+  }
+  function _clearSimpleCollapsedTargets() {
+    document.querySelectorAll('.subgraph-box.collapsed').forEach(box => {
+      box.classList.remove('sg-drop-ok', 'sg-drop-bad', 'sg-drop-side-in', 'sg-drop-side-out');
+      box.querySelectorAll('.sg-node-row').forEach(row =>
+        row.classList.remove('sg-drop-valid', 'sg-drop-disabled', 'sg-drop-hover'));
+    });
   }
 
   // ── Simple-node port picker (multi-pair disambiguation) ──

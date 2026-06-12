@@ -291,12 +291,28 @@ function _initTutorialForView() {
     page: 'view',
     steps: window.ConnectifyTutorialSteps.forPage('view'),
   });
-  // If preview navigation landed here while state is still on step 1, bump
-  // to step 2 (the fork step) so resume doesn't no-op on this page.
   setTimeout(() => {
-    const s = window.ConnectifyTutorial.getState();
-    if (s.started && !s.skipped && !s.completed && s.currentStep < 2) {
-      window.ConnectifyTutorial.advanceTo(2);
+    const T = window.ConnectifyTutorial;
+    const s = T.getState();
+    const onStarter = (slug === 'onboarding-starter');
+    // A tour that's genuinely mid-flow (already at/after the fork step and not
+    // skipped/completed) — resume() handles showing it; don't disturb it.
+    const activeInProgress = s.started && !s.skipped && !s.completed && s.currentStep >= 2;
+
+    if (onStarter) {
+      // Opening the tutorial graph from ANYWHERE (the hub preview, a shared
+      // link, the community grid) should drop the user into the guided tour at
+      // the "Fork this graph" step — even if they previously skipped or
+      // finished it. reset() clears any stale skipped/completed flags first so
+      // the fork-clicked action isn't swallowed by notifyAction's guard.
+      if (!activeInProgress) {
+        T.reset();
+        T.advanceTo(2);
+      }
+    } else if (s.started && !s.skipped && !s.completed && s.currentStep < 2) {
+      // Non-starter graph but an active tour is still on step 1 — bump to the
+      // fork step so resume doesn't no-op on this page.
+      T.advanceTo(2);
     }
   }, 300);
 }
@@ -311,6 +327,9 @@ function initApp() {
   Canvas.init({
     offset: 0,
     editable: false,
+    // Match the editor's node look: simple cards with hover-revealed ports.
+    // Drag/connect systems stay gated on `editable`, so this is purely visual.
+    simpleNodes: true,
     initialZoom: (P.viewZoom || 1.0),
     isNodeHeadSingleInspectOpen: isInspectorDrawerActive,
   });

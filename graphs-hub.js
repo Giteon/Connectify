@@ -626,6 +626,12 @@
        graph so it's stable + unique, tinted by domain, scaled by node
        count. graphVizFor(g, treatment) dispatches; treatment defaults
        to 1 (Network). Pass a title string for legacy back-compat. */
+    // Per-render counter: appended to every SVG filter/gradient ID so that
+    // cards rendered in the modal and the community grid never share an ID.
+    // Shared IDs cause the browser to resolve the wrong filter (first-wins),
+    // producing a flat single-colour blob instead of the aurora effect.
+    let _vizUid = 0;
+
     function vizHash(str) {
       let h = 2166136261; const s = String(str || '');
       for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -654,7 +660,7 @@
     // Variant 1 — "Mesh": 5 multi-hue orbs over a light wash, heavy blur.
     function blobMesh(g) {
       const seed = vizHash(g.title), rnd = vizRng(seed), hue = vizHue(g);
-      const W = 280, H = 120, id = 'm' + seed.toString(36);
+      const W = 280, H = 120, id = 'm' + seed.toString(36) + '_' + (++_vizUid);
       const hueOffsets = [0, 34, 320, 62, 12];
       let defs = `<filter id="${id}b" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>`;
       let shapes = '';
@@ -676,7 +682,7 @@
     // Variant 2 — "Bloom": one dominant glow + two accent orbs, fully randomised positions.
     function blobBloom(g) {
       const seed = vizHash(g.title), rnd = vizRng(seed), hue = vizHue(g);
-      const W = 280, H = 120, id = 'bl' + seed.toString(36);
+      const W = 280, H = 120, id = 'bl' + seed.toString(36) + '_' + (++_vizUid);
       // Main bloom — anywhere in the canvas (not just center)
       const cx = W * (0.15 + rnd() * 0.7), cy = H * (0.15 + rnd() * 0.7);
       let defs = `<radialGradient id="${id}main" cx="50%" cy="50%" r="50%">
@@ -2048,19 +2054,16 @@
           <span class="ng-blank-title">Start from scratch</span>
           <span class="ng-blank-sub">Start from a blank canvas with no existing nodes.</span>
         </button>`;
-      const cards = ngFilteredGraphs().map(g => {
+
+      const allCards = ngFilteredGraphs().map(g => {
         const slug = graphSlug(g);
-        // The onboarding-starter card is the entry point for the tutorial.
-        // Forking it directly from the hub would bypass the view-mode + fork
-        // confirmation steps (#2 / #3), so we only expose the Preview action
-        // and rely on the tutorial to walk users through the fork.
         const isStarter = slug === 'onboarding-starter';
         const forkBtn = isStarter ? '' : `
             <button type="button" class="ng-overlay-btn ng-overlay-btn--fork" data-ng-action="fork" data-graph-slug="${esc(slug)}">
               <img src="icons/fork.png" alt="" aria-hidden="true" />
               Fork
             </button>`;
-        return `<div class="ng-card" data-ng-card data-graph-slug="${esc(slug)}">
+        return { slug, isStarter, html: `<div class="ng-card" data-ng-card data-graph-slug="${esc(slug)}">
           ${renderCard({ ...g, role: 'Public', shortOwner: g.owner }, { showManageActions: false, hideFooter: true, readOnlyTitle: true })}
           <div class="ng-card-overlay">
             <button type="button" class="ng-overlay-btn" data-ng-action="preview" data-graph-slug="${esc(slug)}">
@@ -2068,9 +2071,26 @@
               Preview
             </button>${forkBtn}
           </div>
-        </div>`;
-      }).join('');
-      host.innerHTML = (ngTourActive() ? '' : blank) + cards;
+        </div>` };
+      });
+
+      const starterEntry = allCards.find(c => c.isStarter);
+      const otherCards = allCards.filter(c => !c.isStarter).map(c => c.html).join('');
+
+      if (!ngTourActive() && starterEntry) {
+        // Hero row: blank (1/2 or 1/3) + starter (1/2 or 2/3), pinned to top.
+        // Remaining community cards fill the grid below in the normal flow.
+        host.innerHTML =
+          `<div class="ng-hero-row">${blank}${starterEntry.html}</div>` +
+          otherCards;
+      } else if (ngTourActive() && starterEntry) {
+        // Tour active: no blank, starter is first in normal grid
+        host.innerHTML = starterEntry.html + otherCards;
+      } else {
+        // Fallback (no starter card found)
+        host.innerHTML = (ngTourActive() ? '' : blank) +
+          allCards.map(c => c.html).join('');
+      }
     }
 
     function openNewGraphModal() {

@@ -749,10 +749,20 @@ window.Canvas = (function () {
       _animateSimpleExpand(el, 0);
     });
   }
-  // Node-local center-Y of the stable core region (head + label), in world
-  // units. Edges and port anchors fan out from here when collapsed.
+  // Node-local center-Y of the simple node's label row (.node-item), in world
+  // units. The side anchors, collapsed edge endpoints, and the per-port fan
+  // origin all sit here so they line up with the node body instead of floating
+  // up toward the head (the core's geometric center sits at the head/body seam).
   function _simpleCoreCY(el) {
+    const item = el.querySelector('.node-item') || el.querySelector('.node-body');
     const core = el.querySelector('.node-simple-core');
+    if (item) {
+      // offsetTop is measured from the nearest positioned ancestor: for both
+      // .node-item and .node-simple-core that's the .node card, so summing the
+      // two yields the item's center in node-local space.
+      const coreTop = core ? core.offsetTop : 0;
+      return coreTop + item.offsetTop + item.offsetHeight / 2;
+    }
     return core ? core.offsetTop + core.offsetHeight / 2 : el.offsetHeight / 2;
   }
   // Position + fade the per-port ghost anchors for the current _expandP, and
@@ -766,10 +776,14 @@ window.Canvas = (function () {
     const p = (typeof el._expandP === 'number') ? el._expandP : 0;
     const coreCY = _simpleCoreCY(el);
     el.classList.toggle('simple-anchors-out', p > 0.5);
-    // The side anchor stays put at the core center and stays usable even when
-    // expanded: it's the "general" handle (drag from the node, ports auto-
-    // assigned), complementing the per-port anchors that fan out to each row.
-    el.querySelectorAll('.simple-anchor').forEach(a => { a.style.opacity = '1'; });
+    // The side anchor stays put at the label-row center. Its visibility is left
+    // to CSS: shown when collapsed, faded out when expanded (the .simple-anchors-out
+    // class) unless hovered — so we only write its position here, never opacity.
+    // Its offsetParent is .node-simple-core, so convert the node-local center
+    // into core-local space.
+    const core = el.querySelector('.node-simple-core');
+    const sideTop = coreCY - (core ? core.offsetTop : 0);
+    el.querySelectorAll('.simple-anchor').forEach(a => { a.style.top = sideTop + 'px'; });
     el.querySelectorAll('.simple-port-anchor').forEach(a => {
       const dir = a.dataset.ioDir;
       const row = _simpleRowFor(el, dir, a.dataset.ioName);
@@ -1322,7 +1336,10 @@ window.Canvas = (function () {
       const edgeCls = opts.simpleNodes ? 'edge-line simple-edge' : 'edge-line';
       parts.push(`<path class="${edgeCls}" data-edge-key="${edgeKey}" d="${d}"/>`);
       if (c.adaptor) parts.push(_adaptorChipSvg(a, b, c, i));
-      if (!opts.editable) {
+      // Read-only mode marks edge endpoints with dots. In simple-node mode the
+      // node's own anchors already sit at each endpoint, so these would render
+      // as a redundant (unstyled, black) circle behind every anchor — skip them.
+      if (!opts.editable && !opts.simpleNodes) {
         dotParts.push(`<circle cx="${a.x}" cy="${a.y}" r="4"/>`);
         dotParts.push(`<circle cx="${b.x}" cy="${b.y}" r="4"/>`);
       }

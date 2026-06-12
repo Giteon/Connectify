@@ -1357,6 +1357,8 @@ html[data-theme="dark"] .ng-pill:not(.active) {
   grid-auto-rows: max-content;
   gap: 16px;
   align-content: start;
+  container-type: inline-size;
+  container-name: ng-grid;
 }
 .ng-grid:empty::after {
   content: 'No graphs match your filters.';
@@ -1365,6 +1367,30 @@ html[data-theme="dark"] .ng-pill:not(.active) {
   padding: 40px 0;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Hero row: blank + tutorial card pinned to the top, always exactly two items.
+   At wide viewports (≥3 natural columns) they're equal halves; at narrower
+   widths (2-col threshold) the tutorial card takes 2/3 and blank takes 1/3. */
+.ng-hero-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+@container ng-grid (max-width: 779px) {
+  .ng-hero-row {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+/* Hero thumbnails are taller on the wider cards */
+.ng-hero-row .graph-thumb,
+body.graph-cards--list .ng-modal-card .ng-hero-row .graph-thumb {
+  height: 160px;
+}
+.ng-hero-row .ng-blank {
+  min-height: 0; /* let the card height drive it */
 }
 
 /* Card hover overlay (preview / fork) */

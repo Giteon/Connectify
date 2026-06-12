@@ -1,0 +1,137 @@
+/* simple-nodes.css — shared visual styles for simple-node mode (Canvas opts.simpleNodes).
+   Loaded by BOTH editing-mode-new.html and view-mode-new.html so the read-only
+   viewer renders nodes with the same layout/look as the editor. Drag-time
+   affordances (rope overlay, .dragging-simple-rope drop targeting, the port
+   picker, collapsed-subgraph drop dots) stay editor-only in editing-mode.css. */
+
+/* The .node-simple-core holds head/body/anchors and is the stable region the
+   anchors pin to. The hover-revealed .node-simple-ports detail expands BELOW
+   it, so anchors never shift when the card grows (CSS hover doesn't redraw
+   edges — a moving anchor would visually detach wired connections). */
+.node-simple-core { position: relative; }
+
+/* Invisible hover halo: extends the node's hit area ~16px beyond the card so
+   the cursor expands the node when it's near it, not only when directly over
+   it. It's part of the .node element, so :hover (CSS row reveal) and the
+   mouseenter handler (_expandP fan-out) both fire from the halo. Sits behind
+   the card content (z-index:-1) so it never occludes the head/anchors. */
+.node--simple::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  z-index: -1;
+}
+
+/* Anchors: small visible dot via ::after, but a large transparent hit area
+   (the element box) so clicks land on the anchor, not the edge line beneath.
+   z-index is high so the dot always sits ABOVE connection lines. */
+.simple-anchor {
+  position: absolute; top: 50%;
+  width: 30px; height: 30px;
+  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  background: transparent; border: 0; padding: 0;
+  cursor: grab; z-index: 30; pointer-events: auto;
+  transition: opacity .15s ease;
+}
+.simple-anchor::after {
+  content: ''; display: block;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--edge);
+  box-shadow: 0 1px 2px rgba(15,23,42,0.16);
+  transition: width .12s ease, height .12s ease, background .12s ease, border-color .12s ease;
+}
+.simple-anchor-in  { left: 0; }
+.simple-anchor-out { left: 100%; }
+/* Unconnected anchors stay visible even without hover (tweak #4). Wired
+   anchors fill with the rope colour (var(--edge), dark grey) so a connected
+   port reads as the terminus of its rope — they match at rest, and only pick
+   up the blue accent on hover. */
+.simple-anchor.connected::after { background: var(--edge); border-color: var(--edge); }
+.node--simple:hover .simple-anchor::after { border-color: #38bdf8; }
+/* Keep the satisfying grow-on-hover (tweak #2). */
+.simple-anchor:hover::after { width: 12px; height: 12px; background: #38bdf8; border-color: #38bdf8; }
+/* When expanded, the per-port anchors carry the real connections, so the side
+   anchor fades out of the way — it would otherwise sit redundantly next to the
+   fanned-out per-port dots. It stays available as the general "drag-from-node"
+   handle, so hovering its spot brings it back (its hit area never goes away;
+   only the dot is hidden). */
+.node--simple.simple-anchors-out .simple-anchor { opacity: 0; }
+.node--simple.simple-anchors-out .simple-anchor:hover { opacity: 1; }
+.node--simple.simple-anchors-out .simple-anchor.connected::after {
+  background: var(--surface); border-color: var(--edge);
+}
+.node--simple.simple-anchors-out .simple-anchor:hover::after {
+  background: #38bdf8; border-color: #38bdf8;
+}
+/* Raise the hovered card (and its edge overlay) above every edge layer so the
+   anchors are never occluded by a connection line (tweak #3). Node z-index is
+   set inline (~15100) by Canvas, so this needs !important to win. */
+.canvas-inner .node--simple:hover { z-index: 15460 !important; }
+.canvas-inner .node--simple:hover + svg.node-overlay { z-index: 15460 !important; }
+
+/* Per-port ghost anchors: one dot per input/output, fanned out from the side
+   anchor as the card expands. left/top + opacity are set inline by
+   _layoutSimpleAnchors each animation frame; styling lives here. Same large
+   transparent hit area as the side anchors so the dot is easy to grab. */
+.simple-port-anchor {
+  position: absolute;
+  width: 30px; height: 30px;
+  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  background: transparent; border: 0; padding: 0; margin: 0;
+  cursor: grab; z-index: 31; opacity: 0; pointer-events: none;
+}
+/* When expanded, the per-port anchors become clickable (gated by a stable
+   class, not per frame, so the browser doesn't re-fire hover every animation
+   tick). The side anchor stays interactive too — both handles coexist: the
+   side anchor for a general auto-assigned connection, the per-port anchors
+   for a specific input/output. */
+.node--simple.simple-anchors-out .simple-port-anchor { pointer-events: auto; }
+.simple-port-anchor::after {
+  content: ''; display: block;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--edge);
+  box-shadow: 0 1px 2px rgba(15,23,42,0.16);
+  transition: width .12s ease, height .12s ease, background .12s ease, border-color .12s ease;
+}
+.node--simple:hover .simple-port-anchor::after { border-color: #38bdf8; }
+/* Connected per-port anchors fill with the rope colour to match the wire. */
+.simple-port-anchor.connected::after { background: var(--edge); border-color: var(--edge); }
+.simple-port-anchor:hover::after { width: 11px; height: 11px; background: #38bdf8; border-color: #38bdf8; }
+
+/* Hover-revealed full input/output list (tweak #5). Uses the grid 0fr→1fr
+   technique so the card animates to its REAL content height (a max-height
+   transition "snaps" because the cap is far taller than the content). */
+.node-simple-ports {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows .2s cubic-bezier(.4,0,.2,1), opacity .16s ease;
+}
+.node-simple-ports > .nsp-inner { overflow: hidden; min-height: 0; }
+/* Expand on hover, and stay expanded while a rope is hovering this node as a
+   drop target (so the user can aim at a specific port row). */
+.node--simple:hover .node-simple-ports,
+.node--simple.simple-drop-open .node-simple-ports,
+.node--simple.simple-rope-origin .node-simple-ports {
+  grid-template-rows: 1fr; opacity: 1;
+}
+.node--simple:hover .node-simple-ports > .nsp-inner,
+.node--simple.simple-drop-open .node-simple-ports > .nsp-inner,
+.node--simple.simple-rope-origin .node-simple-ports > .nsp-inner {
+  border-top: 1px solid var(--border);
+}
+.node-simple-ports .nsp-group { padding: 8px 11px; }
+.node-simple-ports .nsp-group + .nsp-group { border-top: 1px dashed var(--border); }
+.node-simple-ports .nsp-label {
+  font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--text-muted); margin-bottom: 6px;
+}
+/* A pinch more breathing room between items. */
+.node-simple-ports .nsp-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 5px 6px; margin: 0 -6px; border-radius: 6px;
+  font-size: 11.5px; color: var(--text-secondary);
+  transition: background .1s ease, opacity .1s ease, box-shadow .1s ease;
+}
+.node-simple-ports .nsp-row + .nsp-row { margin-top: 3px; }
+.node-simple-ports .nsp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
